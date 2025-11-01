@@ -20,6 +20,7 @@
 | _max_num | int4 | 最大借书数量 |
 | lend_num | int4 | 当前借书数量 |
 | _access | int4 | 用户能否登录系统 |
+| _frozen | varchar(7) | 是否被冻结 |
 
 ### 书籍表(t_book)
 
@@ -61,3 +62,21 @@
 | _bid | int4 | 书籍ID |
 | _otime | date | 预约时间 |
 
+### 意见反馈表（t_feedbacks）
+| 字段名 | 类型 | 描述 |
+| :----: | :----: | :----: |
+| _fid | int4 | 反馈ID |
+| _name | varchar(50) | 反馈人姓名 |
+| _email | varchar(20) | 反馈人邮箱 |
+| _f_type | varchar(20) | 反馈类型（建议、问题、其他） |
+| _f_message | text | 反馈内容 |
+| _f_date | date | 反馈提交时间 |
+
+### 公告表（t_announcements）
+| 字段名 | 类型 | 描述 |
+| :----: | :----: | :----: |
+| _aid | int4 | 公告ID |
+| _a_title | varchar(50) | 公告标题 |
+| _a_content | text | 公告内容 |
+| _a_publisher | varchar(50) | 发布人 |
+| _a_date | date | 发布日期 |
