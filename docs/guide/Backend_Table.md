@@ -78,5 +78,5 @@
 | _aid | int4 | 公告ID |
 | _a_title | varchar(50) | 公告标题 |
 | _a_content | text | 公告内容 |
-| _a_publisher | varchar(50) | 发布人 |
+| _a_publisher | varchar(50) | 发布人（管理员） |
 | _a_date | date | 发布日期 |
