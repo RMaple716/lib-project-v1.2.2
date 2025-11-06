@@ -5,12 +5,15 @@
       <router-link to="/about">About</router-link>
       <router-link to="/manager">图书管理员</router-link>
       <router-link to="/test">读者</router-link>
+      <router-link to="/manager2">图书管理员2</router-link>
     </nav>
     <router-view/>
   </div>
 </template>
 
 <style>
+@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css");
+
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -21,6 +24,7 @@
 
 nav {
   padding: 30px;
+  display: none; /* 添加这一行来隐藏导航栏 */
 }
 
 nav a {

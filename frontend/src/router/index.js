@@ -1,6 +1,22 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import GlobalMessage from '../views/GlobalMessage.vue'
+
+// 创建消息组件实例
+const MessageComponent = Vue.extend(GlobalMessage)
+const messageInstance = new MessageComponent().$mount()
+
+// 添加到 body
+document.body.appendChild(messageInstance.$el)
+
+// 全局方法
+Vue.prototype.$message = {
+  success: (content, duration) => messageInstance.addMessage(content, 'success', duration),
+  error: (content, duration) => messageInstance.addMessage(content, 'error', duration),
+  warning: (content, duration) => messageInstance.addMessage(content, 'warning', duration),
+  info: (content, duration) => messageInstance.addMessage(content, 'info', duration)
+}
 
 Vue.use(VueRouter)
 
@@ -28,6 +44,11 @@ const routes = [
     path: '/test',
     name: 'Test',
     component: () => import('../views/test.vue')
+  },
+  {
+    path: '/manager2',
+    name: 'Manager2',
+    component: () => import('../views/manager2.vue')
   }
 ]
 
