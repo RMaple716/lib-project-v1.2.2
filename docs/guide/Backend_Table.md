@@ -20,6 +20,7 @@
 | _max_num | int4 | 最大借书数量 |
 | lend_num | int4 | 当前借书数量 |
 | _access | int4 | 用户能否登录系统 |
+| _totle | int4 | 用户累计阅读时间 |
 
 ### 书籍表(t_book)
 
@@ -31,8 +32,11 @@
 | _num | int4 | 馆藏书籍数量 |
 | _author | varchar(50) | 作者 |
 | _press | varchar(30) | 出版社 |
+| _profile | text | 图书简介 |
+| _cover_url | varchar(255) | 图书封面图片的存储路径 |
 | _tid | int4 | 图书类型ID |
 | _times | int4 | 借阅次数 |
+| create_time | datetime | 管理员添加图书的时间，用于新书推荐 |
 
 ### 图书类型表(t_type)
 
@@ -61,3 +65,33 @@
 | _bid | int4 | 书籍ID |
 | _otime | date | 预约时间 |
 
+### 公告表(t_announcements)
+
+| 字段名 | 类型 | 描述 |
+| :----: | :----: | :----: |
+| _aid | int4 | 公告ID |
+| _title | varchar(255) | 公告标题 |
+| _content | text | 公告内容 |
+| _adate | date | 发布日期 |
+| _publisher | varchar(50) | 发布人 |
+
+### 意见反馈表(t_feedbacks)
+
+| 字段名 | 类型 | 描述 |
+| :----: | :----: | :----: |
+| _fid | int4 | 反馈ID |
+| _name | varchar(50) | 用户名 |
+| _email | varchar(20) | 用户邮箱 |
+| _ftype | varchar(20) | 反馈类型（建议、问题，其他） |
+| _fcontent| text | 反馈内容 |
+| _fdate | date | 提交时间 |
+
+### 阅读时长记录表(t_read_records)
+
+| 字段名 | 类型 | 描述 |
+| :----: | :----: | :----: |
+| _did | int4 | 时长记录ID |
+| _uid | int4 | 用户ID |
+| _bid | int4 | 书籍ID |
+| _duration | int4 | 单次阅读时长 |
+| _read_date | datetime | 阅读日期时间 |
