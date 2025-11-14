@@ -1,15 +1,6 @@
 <template>
   <div class="home-view">
-    <div class="dynamic-background">
-      <div class="background-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
-        <div class="shape shape-4"></div>
-        <div class="shape shape-5"></div>
-      </div>
-    </div>
-    
+    <GlobalMessage ref="globalMessage" />
     <div class="login-register-container">
       <div class="container">
         <!-- 登录表单 -->
@@ -42,8 +33,11 @@
           </div>
           <div class="form-group">
             <select id="loginUserType" v-model="loginForm.userType">
-              <option value="reader">普通用户</option>
-              <option value="admin">管理员</option>
+              <option value="student">学生</option>
+              <option value="teacher">教师</option>
+              <option value="terminal_admin">终端管理员</option>
+              <option value="book_admin">图书管理员</option>
+              <option value="borrow_admin">借阅管理员</option>
             </select>
           </div>
           <div class="remember-me">
@@ -97,8 +91,11 @@
           </div>
           <div class="form-group">
             <select id="registerUserType" v-model="registerForm.userType">
-              <option value="reader">普通用户</option>
-              <option value="admin">管理员</option>
+              <option value="student">学生</option>
+              <option value="teacher">教师</option>
+              <option value="terminal_admin">终端管理员</option>
+              <option value="book_admin">图书管理员</option>
+              <option value="borrow_admin">借阅管理员</option>
             </select>
           </div>
           <div class="form-group">
@@ -150,8 +147,12 @@
 </template>
 
 <script>
+import GlobalMessage from '../views/GlobalMessage.vue';
 export default {
   name: 'HomeView',
+  components: {
+    GlobalMessage
+  },
   data() {
     return {
       activeForm: 'login',
@@ -159,13 +160,13 @@ export default {
       loginForm: {
         account: '',
         password: '',
-        userType: 'reader'
+        userType: 'student'
       },
       registerForm: {
         account: '',
         name: '',
         email: '',
-        userType: 'reader',
+        userType: 'student',
         password: '',
         confirmPassword: ''
       },
@@ -187,6 +188,21 @@ export default {
     }
   },
   methods: {
+    // 显示消息的辅助方法
+    showMessage(content, type = 'info', duration = 3000) {
+      this.$refs.globalMessage.addMessage(content, type, duration);
+    },
+    getRoleDescription(role) {
+      const descriptions = {
+        student: '可以借阅图书',
+        teacher: '可以借阅图书，借阅期限更长',
+        terminal_admin: '系统终端管理',
+        book_admin: '管理图书信息',
+        borrow_admin: '管理借阅记录和用户'
+      };
+      return descriptions[role] || '';
+    },
+
     switchForm(formType) {
       this.activeForm = formType;
     },
@@ -225,6 +241,7 @@ export default {
       
       if (email && !emailRegex.test(email)) {
         emailInput.setCustomValidity('请输入有效的邮箱地址');
+        this.showMessage('请输入有效的邮箱地址', 'warning', 3000);
       } else {
         emailInput.setCustomValidity('');
       }
@@ -256,19 +273,23 @@ export default {
         const data = await res.json();
         
         if (res.status === 200) {
-          alert('登录成功！');
-          if (data.role === 'admin') {
-            window.location.href = './adminpage.html';
-          } else if (data.role === 'reader') {
-            window.location.href = './search.html';
-          }
+          this.showMessage('登录成功！', 'success', 2000);
+          // 延迟跳转，让用户看到成功消息
+          setTimeout(() => {
+            // 根据用户角色跳转到不同页面
+            if (['terminal_admin', 'book_admin', 'borrow_admin'].includes(data.role)) {
+              window.location.href = './adminpage.html';
+            } else if (['student', 'teacher'].includes(data.role)) {
+              window.location.href = './search.html';
+            }
+          }, 1500);
         } else if (res.status === 400) {
           if (data.code === 2) {
-            alert(data.message || '用户不存在');
+            this.showMessage(data.message || '用户不存在', 'error', 4000);
           } else if (data.code === 3) {
-            alert(data.message || '密码错误');
+            this.showMessage(data.message || '密码错误', 'error', 4000);
           } else {
-            alert(data.message || '登录失败');
+            this.showMessage(data.message || '登录失败', 'error', 4000);
           }
         }
       } catch (err) {
@@ -278,7 +299,7 @@ export default {
         if (err.stack) {
           console.log("错误堆栈：", err.stack);
         }
-        alert('网络错误，请稍后再试。');
+        this.showMessage('网络错误，请稍后再试。', 'error', 5000);
       }
     },
     
@@ -286,9 +307,16 @@ export default {
       // 确认密码一致性
       if (this.registerForm.password !== this.registerForm.confirmPassword) {
         this.passwordError = '请确认密码一致';
+        this.showMessage('两次输入的密码不一致，请确认密码一致', 'warning', 4000);
         return;
       }
       
+      // 检查密码强度
+      if (this.registerForm.password.length < 6) {
+        this.showMessage('密码强度不足，请设置更复杂的密码', 'warning', 4000);
+        return;
+      }
+
       try {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
@@ -306,29 +334,29 @@ export default {
         console.log(res.status);
         
         if (res.status === 200 && data.code === 2) {
-          alert(data.message || '注册成功。');
-          // 切换到登录表单并填充账号
-          this.activeForm = 'login';
-          this.loginForm.account = this.registerForm.account;
-          this.loginForm.userType = this.registerForm.userType;
-          this.loginForm.password = '';
-          
-          // 重置注册表单
-          this.registerForm = {
-            account: '',
-            name: '',
-            email: '',
-            userType: 'reader',
-            password: '',
-            confirmPassword: ''
-          };
-          
-          console.log('转换成功');
+          this.showMessage(data.message || '注册成功！', 'success', 3000);
+          // 延迟切换到登录表单，让用户看到成功消息
+          setTimeout(() => {
+            this.activeForm = 'login';
+            this.loginForm.account = this.registerForm.account;
+            this.loginForm.userType = this.registerForm.userType;
+            this.loginForm.password = '';
+            
+            // 重置注册表单
+            this.registerForm = {
+              account: '',
+              name: '',
+              email: '',
+              userType: 'student',
+              password: '',
+              confirmPassword: ''
+            };
+          }, 1500);
         } else {
           if (res.status === 400 && data.code === 1) {
-            alert('用户已存在，请重新注册。');
+            this.showMessage('用户已存在，请重新注册。', 'error', 5000);
           } else {
-            alert(data.message || '注册失败');
+            this.showMessage(data.message || '注册失败', 'error', 5000);
           }
         }
       } catch (err) {
@@ -337,7 +365,7 @@ export default {
         if (err.stack) {
           console.log("错误堆栈：", err.stack);
         }
-        alert('网络错误，请稍后再试');
+        this.showMessage('网络错误，请稍后再试', 'error', 5000);
       }
     }
   }
@@ -351,110 +379,9 @@ export default {
   height: 100vh;
   overflow: hidden;
   font-family: 'Arial', sans-serif;
-}
-
-/* 动态背景样式 */
-.dynamic-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  background: linear-gradient(-45deg, #8B4513, #D2691E, #CD853F, #F4A460, #DEB887);
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
-  overflow: hidden;
-}
-
-.background-shapes {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.shape {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  animation: float 20s infinite linear;
-}
-
-.shape-1 {
-  width: 80px;
-  height: 80px;
-  top: 10%;
-  left: 10%;
-  animation-delay: 0s;
-  animation-duration: 25s;
-}
-
-.shape-2 {
-  width: 120px;
-  height: 120px;
-  top: 60%;
-  left: 80%;
-  animation-delay: -5s;
-  animation-duration: 30s;
-}
-
-.shape-3 {
-  width: 60px;
-  height: 60px;
-  top: 80%;
-  left: 20%;
-  animation-delay: -10s;
-  animation-duration: 20s;
-}
-
-.shape-4 {
-  width: 100px;
-  height: 100px;
-  top: 30%;
-  left: 70%;
-  animation-delay: -15s;
-  animation-duration: 35s;
-}
-
-.shape-5 {
-  width: 70px;
-  height: 70px;
-  top: 70%;
-  left: 60%;
-  animation-delay: -20s;
-  animation-duration: 28s;
-}
-
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes float {
-  0% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  25% {
-    transform: translate(100px, 50px) rotate(90deg);
-  }
-  50% {
-    transform: translate(200px, -50px) rotate(180deg);
-  }
-  75% {
-    transform: translate(100px, -100px) rotate(270deg);
-  }
-  100% {
-    transform: translate(0, 0) rotate(360deg);
-  }
+  background-image: url('../../public/OIP-C.jpg');
+  background-size: cover;
+  background-position: center;
 }
 
 /* 登录注册容器样式 */
@@ -471,13 +398,13 @@ export default {
 }
 
 .container {
-  background: rgba(253, 245, 230, 0.95);
+  background: rgba(240, 255, 255, 0.95);
   padding: 2.5rem;
   border-radius: 20px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
   width: 450px;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .form {
@@ -505,7 +432,7 @@ export default {
 }
 
 h2 {
-  color: #8B4513;
+  color: #2E8B57;
   margin-bottom: 2rem;
   text-align: center;
   font-size: 1.8rem;
@@ -514,7 +441,7 @@ h2 {
 
 h2 i {
   margin-right: 10px;
-  color: #D2691E;
+  color: #20B2AA;
 }
 
 .form-group {
@@ -525,19 +452,20 @@ h2 i {
 input, select {
   width: 100%;
   padding: 1.2rem;
-  border: 2px solid #DEB887;
+  border: 2px solid #AFEEEE;
   background: rgba(255, 255, 255, 0.9);
   color: #333;
   border-radius: 10px;
   font-size: 1rem;
   transition: all 0.3s ease;
   outline: none;
+  box-sizing: border-box; 
 }
 
 input:focus, select:focus,
 input:not(:placeholder-shown) {
-  border-color: #8B4513;
-  box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.1);
+  border-color: #20B2AA;
+  box-shadow: 0 0 0 3px rgba(32, 178, 170, 0.1);
   background: white;
 }
 
@@ -546,10 +474,10 @@ input:not(:placeholder-shown) {
   left: 1.2rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #A0522D;
+  color: #008B8B;
   pointer-events: none;
   transition: all 0.3s ease;
-  background: linear-gradient(transparent 50%, rgba(253, 245, 230, 0.95) 50%);
+  background: linear-gradient(transparent 50%, rgba(240, 255, 255, 0.95) 50%);
   padding: 0 0.5rem;
   font-weight: 500;
 }
@@ -558,13 +486,13 @@ input:focus ~ label,
 input:not(:placeholder-shown) ~ label {
   top: -0.8rem;
   font-size: 0.85rem;
-  color: #8B4513;
+  color: #2E8B57;
   font-weight: 600;
 }
 
 select {
   appearance: none;
-  background: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238B4513'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e") 
+  background: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2320B2AA'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e") 
   no-repeat right 1.2rem center/16px;
   background-color: rgba(255, 255, 255, 0.9);
 }
@@ -572,7 +500,7 @@ select {
 button {
   width: 100%;
   padding: 1.2rem;
-  background: linear-gradient(135deg, #8B4513, #A0522D);
+  background: linear-gradient(135deg, #20B2AA, #2E8B57);
   color: white;
   border: none;
   border-radius: 10px;
@@ -580,13 +508,13 @@ button {
   font-size: 1.1rem;
   font-weight: 600;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
+  box-shadow: 0 4px 15px rgba(32, 178, 170, 0.3);
 }
 
 button:hover {
-  background: linear-gradient(135deg, #A0522D, #8B4513);
+  background: linear-gradient(135deg, #2E8B57, #20B2AA);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(139, 69, 19, 0.4);
+  box-shadow: 0 6px 20px rgba(32, 178, 170, 0.4);
 }
 
 button:active {
@@ -604,7 +532,7 @@ button:active {
 .remember-me input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #8B4513;
+  accent-color: #20B2AA;
 }
 
 .remember-me label {
@@ -625,14 +553,14 @@ button:active {
 }
 
 .toggle-form a {
-  color: #8B4513;
+  color: #20B2AA;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.3s ease;
 }
 
 .toggle-form a:hover {
-  color: #A0522D;
+  color: #2E8B57;
   text-decoration: underline;
 }
 

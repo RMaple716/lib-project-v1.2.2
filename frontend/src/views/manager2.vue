@@ -8,10 +8,52 @@
             <h1>图书管理系统</h1>
           </div>
           <div class="user-info">
-            <div class="user-avatar">
+            <div class="user-avatar" @click="toggleUserInfo">
               <i class="fas fa-user-circle"></i>
             </div>
             <span class="user-name">管理员</span>
+          </div>
+
+          <!-- 管理员信息弹窗 -->
+          <div id="userInfoModal" class="modal" v-if="showUserInfoModal">
+            <div class="modal-content">
+              <span class="close-button" @click="closeUserInfoModal">&times;</span>
+              <h2>管理员信息</h2>
+              <div class="user-info-content">
+                <div class="info-item">
+                  <label>管理员ID：</label>
+                  <span>{{ currentAdmin._uid }}</span>
+                </div>
+                <div class="info-item">
+                  <label>用户名：</label>
+                  <span>{{ currentAdmin._username }}</span>
+                </div>
+                <div class="info-item">
+                  <label>姓名：</label>
+                  <span>{{ currentAdmin._name }}</span>
+                </div>
+                <div class="info-item">
+                  <label>管理员类型：</label>
+                  <span class="admin-type">{{ getAdminTypeText(currentAdmin._type) }}</span>
+                </div>
+                <div class="info-item">
+                  <label>手机号：</label>
+                  <span>{{ currentAdmin._phone }}</span>
+                </div>
+                <div class="info-item">
+                  <label>邮箱：</label>
+                  <span>{{ currentAdmin._email }}</span>
+                </div>
+                <div class="info-item">
+                  <label>注册时间：</label>
+                  <span>{{ formatDate(currentAdmin._create_time) }}</span>
+                </div>
+              </div>
+              <div class="modal-buttons">
+                <button class="cancel-button" @click="closeUserInfoModal">关闭</button>
+                <button class="logout-button" @click="logout">退出登录</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -177,9 +219,9 @@
 
             <!-- 图书管理 -->
             <div v-show="currentPage === 'book_admin'" class="page">
-              <h1 class="book-search-title">图书管理</h1>
               <form class="search-form">
                 <select id="searchType" class="search-select" v-model="searchType">
+                  <option value="_bid">序号</option> 
                   <option value="_book_name">书名</option>
                   <option value="_author">作者</option>
                   <option value="_isbn">ISBN号</option>
@@ -187,6 +229,7 @@
                 </select>
                 <input type="text" id="searchInput" class="search-input" placeholder="请输入查询内容" v-model="searchKeyword">
                 <button type="button" class="search-button" @click="handleBookSearch">查询</button>
+                <button type="button" class="reset-button" @click="handleReset">重置</button>
                 <button type="button" class="addBookModal" @click="showAddBookModal">添加图书</button>
               </form>
 
@@ -267,7 +310,6 @@
 
             <!-- 用户管理 -->
             <div v-show="currentPage === 'user_admin'" class="page">
-              <h1 class="user-title">用户管理</h1>
               <form class="search-form">
                 <select id="userSearchType" class="search-select" v-model="userSearchType">
                   <option value="_uid">用户ID</option>
@@ -277,6 +319,7 @@
                 </select>
                 <input type="text" id="userSearchInput" class="search-input" placeholder="请输入查询内容" v-model="userSearchKeyword">
                 <button type="button" class="search-button" @click="handleUserSearch">查询</button>
+                <button type="button" class="reset-button" @click="handleReset">重置</button>
                 <button type="button" class="addUserModal" @click="showAddUserModal">添加用户</button>
               </form>
 
@@ -360,9 +403,17 @@
 
             <!-- 图书分类管理 -->
             <div v-show="currentPage === 'booktype_admin'" class="page">
-              <h1 class="category-title">图书分类管理</h1>
-              <button type="button" class="addCategoryButton" @click="showAddCategoryModal">添加分类</button>
-              
+              <!-- 添加搜索表单 -->
+              <form class="search-form">
+                <select id="categorySearchType" class="search-select" v-model="categorySearchType">
+                  <option value="_tid">分类ID</option>
+                  <option value="_type_name">分类名称</option>
+               </select>
+               <input type="text" id="categorySearchInput" class="search-input" placeholder="请输入查询内容" v-model="categorySearchKeyword">
+               <button type="button" class="search-button" @click="handleCategorySearch">查询</button>
+               <button type="button" class="reset-button" @click="handleReset">重置</button>
+               <button type="button" class="addCategoryButton" @click="showAddCategoryModal">添加分类</button>
+              </form>
               <!-- 添加分类弹窗 -->
               <div id="addCategoryModal" class="modal" v-if="showAddCategoryModalFlag">
                 <div class="modal-content">
@@ -423,8 +474,18 @@
 
             <!-- 图书借阅归还 -->
             <div v-show="currentPage === 'booklend_message'" class="page">
-              <h1 class="lend-title">图书借阅与归还</h1>
-              
+              <!-- 添加搜索表单 -->
+              <form class="search-form">
+                <select id="lendSearchType" class="search-select" v-model="lendSearchType">
+                  <option value="_bid">图书ID</option>
+                  <option value="_book_name">图书名称</option>
+                  <option value="_uid">读者姓名</option>
+                  <option value="status">借阅状态</option>
+                </select>
+                <input type="text" id="lendSearchInput" class="search-input" placeholder="请输入查询内容" v-model="lendSearchKeyword">
+                <button type="button" class="search-button" @click="handleLendSearch">查询</button>
+                <button type="button" class="reset-button" @click="handleReset">重置</button>
+              </form>
               <!-- 图书借阅与归还表格 -->
               <table class="lend_table">
                 <thead>
@@ -444,8 +505,8 @@
                   </tr>
                   <tr v-for="lend in currentPageLends" :key="lend._hid">
                     <td>{{ lend._hid }}</td>
-                    <td>{{ lend._bid }}</td>
-                    <td>{{ lend._uid }}</td>
+                    <td>{{ lend._book_name || lend._bid }}</td>
+                    <td>{{ lend._user_name || lend._uid }}</td>
                     <td>{{ formatDate(lend._begin_time) }}</td>
                     <td>{{ formatDate(lend._end_date) }}</td>
                     <td>{{ lend.status }}</td>
@@ -488,8 +549,18 @@
 
             <!-- 公告管理 -->
             <div v-show="currentPage === 'announcement_admin'" class="page">
-              <h1 class="announcement-title">公告管理</h1>
-              <button type="button" class="addAnnouncementButton" @click="showAddAnnouncementModal">发布公告</button>
+              <!-- 添加搜索表单 -->
+              <form class="search-form">
+               <select id="announcementSearchType" class="search-select" v-model="announcementSearchType">
+                  <option value="_aid">公告ID</option>
+                  <option value="_title">公告标题</option>
+                  <option value="_status">公告状态</option>
+                </select>
+                <input type="text" id="announcementSearchInput" class="search-input" placeholder="请输入查询内容" v-model="announcementSearchKeyword">
+                <button type="button" class="search-button" @click="handleAnnouncementSearch">查询</button>
+                <button type="button" class="reset-button" @click="handleReset">重置</button>
+                <button type="button" class="addAnnouncementButton" @click="showAddAnnouncementModal">发布公告</button>
+              </form>
 
               <!-- 添加/编辑公告弹窗 -->
               <div id="addAnnouncementModal" class="modal" v-if="showAddAnnouncementModalFlag">
@@ -575,6 +646,19 @@ export default {
   name: 'BooksView',
   data() {
     return {
+
+      // 添加管理员信息和弹窗状态
+      showUserInfoModal: false,
+      currentAdmin: {
+        _uid: '001',
+        _username: 'admin',
+        _name: '系统管理员',
+        _type: 'super', // super: 终端管理员, book: 图书管理员, lend: 借阅管理员
+        _phone: '13800138000',
+        _email: 'admin@library.com',
+        _create_time: '2024-01-01'
+      },
+
       // 页面状态
       currentPage: 'home',
 
@@ -589,7 +673,7 @@ export default {
       filteredBooks: [],
       bookCurrentPage: 1,
       bookRowsPerPage: 10,
-      searchType: '_book_name',
+      searchType: '_bid',
       searchKeyword: '',
       showAddBookModalFlag: false,
       isEditBook: false,
@@ -607,6 +691,9 @@ export default {
       categories: [],
       categoryCurrentPage: 1,
       categoryRowsPerPage: 5,
+      categorySearchType: '_type_name',
+      categorySearchKeyword: '',
+      filteredCategories: [],
       showAddCategoryModalFlag: false,
       isEditCategory: false,
       currentEditCategoryId: null,
@@ -619,6 +706,9 @@ export default {
       lends: [],
       lendCurrentPage: 1,
       lendRowsPerPage: 8,
+      lendSearchType: '_bid',
+      lendSearchKeyword: '',
+      filteredLends: [],
       showDelayModal: false,
       currentDelayHid: null,
       newReturnDate: '',
@@ -646,6 +736,9 @@ export default {
       announcements: [],
       announcementCurrentPage: 1,
       announcementRowsPerPage: 8,
+      announcementSearchType: '_title',
+      announcementSearchKeyword: '',
+      filteredAnnouncements: [],
       showAddAnnouncementModalFlag: false,
       isEditAnnouncement: false,
       currentEditAnnouncementId: null,
@@ -675,28 +768,26 @@ export default {
     
     // 分类分页计算
     totalCategoryPages() {
-      return Math.ceil(this.categories.length / this.categoryRowsPerPage) || 1;
+      const dataSource = this.filteredCategories.length > 0 ? this.filteredCategories : this.categories;
+      return Math.ceil(dataSource.length / this.categoryRowsPerPage) || 1;
     },
     currentPageCategories() {
+      const dataSource = this.filteredCategories.length > 0 ? this.filteredCategories : this.categories;
       const start = (this.categoryCurrentPage - 1) * this.categoryRowsPerPage;
       const end = start + this.categoryRowsPerPage;
-      return this.categories.slice(start, end);
-    },
-    visibleCategoryPages() {
-      return this.generateVisiblePages(this.categoryCurrentPage, this.totalCategoryPages);
+      return dataSource.slice(start, end);
     },
     
     // 借阅分页计算
     totalLendPages() {
-      return Math.ceil(this.lends.length / this.lendRowsPerPage) || 1;
+      const dataSource = this.filteredLends.length > 0 ? this.filteredLends : this.lends;
+      return Math.ceil(dataSource.length / this.lendRowsPerPage) || 1;
     },
     currentPageLends() {
+      const dataSource = this.filteredLends.length > 0 ? this.filteredLends : this.lends;
       const start = (this.lendCurrentPage - 1) * this.lendRowsPerPage;
       const end = start + this.lendRowsPerPage;
-      return this.lends.slice(start, end);
-    },
-    visibleLendPages() {
-      return this.generateVisiblePages(this.lendCurrentPage, this.totalLendPages);
+      return dataSource.slice(start, end);
     },
 
     // 用户分页计算
@@ -716,15 +807,14 @@ export default {
 
     // 公告分页计算
     totalAnnouncementPages() {
-      return Math.ceil(this.announcements.length / this.announcementRowsPerPage) || 1;
+      const dataSource = this.filteredAnnouncements.length > 0 ? this.filteredAnnouncements : this.announcements;
+      return Math.ceil(dataSource.length / this.announcementRowsPerPage) || 1;
     },
     currentPageAnnouncements() {
+      const dataSource = this.filteredAnnouncements.length > 0 ? this.filteredAnnouncements : this.announcements;
       const start = (this.announcementCurrentPage - 1) * this.announcementRowsPerPage;
       const end = start + this.announcementRowsPerPage;
-      return this.announcements.slice(start, end);
-    },
-    visibleAnnouncementPages() {
-      return this.generateVisiblePages(this.announcementCurrentPage, this.totalAnnouncementPages);
+      return dataSource.slice(start, end);
     },
     
     // 统计数据 - 新增activeLends计算属性
@@ -770,11 +860,43 @@ export default {
         });
       }
     },
+    // 重置搜索条件
+    handleReset() {
+      this.searchKeyword = '';        // 清空搜索词
+      this.searchType = '_bid';       // 恢复默认搜索类型
+      this.bookCurrentPage = 1;       // 回到第一页
+      this.filteredBooks = [];        // 清空筛选结果（显示全部数据）
+      this.$message.success('搜索条件已重置');
+    },
+    // 切换管理员信息显示
+    toggleUserInfo() {
+      this.showUserInfoModal = !this.showUserInfoModal;
+    },
     
+    // 关闭管理员信息弹窗
+    closeUserInfoModal() {
+      this.showUserInfoModal = false;
+    },
+    
+    // 获取管理员类型文本
+    getAdminTypeText(type) {
+      const typeMap = {
+        'super': '终端管理员',
+        'book': '图书管理员', 
+        'lend': '借阅管理员'
+      };
+      return typeMap[type] || '未知类型';
+    },
+
     // 退出登录
     logout() {
-      // 实现退出登录逻辑
-      alert('退出登录');
+      if (confirm('确定要退出登录吗？')) {
+        this.closeUserInfoModal();
+        // 延迟跳转
+        setTimeout(() => {
+          window.location.href = '../';
+        }, 500);
+      }
     },
     
     // 生成可见页码
@@ -796,7 +918,7 @@ export default {
       return pages;
     },
     
-    // 图表相关方法 - 新增
+    // 图表相关方法 
     initCharts() {
       // 销毁现有图表实例
       if (this.bookCategoryChart) this.bookCategoryChart.destroy();
@@ -989,6 +1111,7 @@ export default {
     
     getBookFilterData() {
       const typeMap = {
+        '_bid': '_bid', 
         '_book_name': '_book_name',
         '_author': '_author',
         '_isbn': '_isbn',
@@ -1132,8 +1255,10 @@ export default {
         const result = await res.json();
         if (res.status === 200) {
           this.categories = result.data || [];
+          this.filteredCategories = [];
         } else {
           this.categories = [];
+          this.filteredCategories = [];
           this.$message.error(result.message || '没有找到分类');
         }
       } catch (err) {
@@ -1141,7 +1266,32 @@ export default {
         console.error(err);
       }
     },
-    
+    // 分类搜索方法
+    handleCategorySearch() {
+      this.categoryCurrentPage = 1;
+      this.filteredCategories = this.getCategoryFilterData();
+      if (this.filteredCategories.length === 0) {
+        this.$message.error("没有找到相关分类");
+      }
+    },
+
+    getCategoryFilterData() {
+      const typeMap = {
+        '_tid': '_tid',
+        '_type_name': '_type_name'
+      };
+      
+      const actualField = typeMap[this.categorySearchType] || '_type_name';
+      const keyword = this.categorySearchKeyword.trim();
+      
+      if (!keyword) return this.categories;
+      
+      return this.categories.filter(category => {
+        const fieldValue = category[actualField] ? category[actualField].toString() : '';
+        return fieldValue.includes(keyword);
+      });
+    },
+
     changeCategoryPage(page) {
       if (page < 1 || page > this.totalCategoryPages) return;
       this.categoryCurrentPage = page;
@@ -1260,8 +1410,10 @@ export default {
         const result = await res.json()
         if (res.status === 200) {
           this.lends = result.data || []
+          this.filteredLends = []; // 重置搜索状态
         } else {
           this.lends = []
+          this.filteredLends = [];
           this.$message.error(result.message || '没有找到历史记录')
         }
       } catch (err) {
@@ -1270,6 +1422,36 @@ export default {
       }
     },
     
+    // 借阅搜索方法
+    handleLendSearch() {
+      this.lendCurrentPage = 1;
+      this.filteredLends = this.getLendFilterData();
+      if (this.filteredLends.length === 0) {
+        this.$message.error("没有找到相关借阅记录");
+      }
+    },
+
+    getLendFilterData() {
+      const keyword = this.lendSearchKeyword.trim();
+      
+      if (!keyword) return this.lends;
+      
+      return this.lends.filter(lend => {
+        switch (this.lendSearchType) {
+          case '_bid':
+            return lend._bid.toString().includes(keyword);
+          case '_book_name':
+            return lend._book_name.includes(keyword);
+          case '_user_name':
+            return lend._user_name.includes(keyword);
+          case 'status':
+            return lend.status.includes(keyword);
+          default:
+            return true;
+        }
+      });
+    },
+
     changeLendPage(page) {
       if (page < 1 || page > this.totalLendPages) return
       this.lendCurrentPage = page
@@ -1514,14 +1696,43 @@ export default {
         const result = await res.json();
         if (res.status === 200) {
           this.announcements = result.data || [];
+          this.filteredAnnouncements = []; 
         } else {
           this.announcements = [];
+          this.filteredAnnouncements = [];
           this.$message.error(result.message || '没有找到公告');
         }
       } catch (err) {
         console.error(err);
         this.$message.error('无法获取公告数据，请稍后再试');
       }
+    },
+    // 公告搜索方法
+    handleAnnouncementSearch() {
+      this.announcementCurrentPage = 1;
+      this.filteredAnnouncements = this.getAnnouncementFilterData();
+      if (this.filteredAnnouncements.length === 0) {
+        this.$message.error("没有找到相关公告");
+      }
+    },
+
+    getAnnouncementFilterData() {
+      const keyword = this.announcementSearchKeyword.trim();
+      
+      if (!keyword) return this.announcements;
+      
+      return this.announcements.filter(announcement => {
+        switch (this.announcementSearchType) {
+          case '_aid':
+            return announcement._aid.toString().includes(keyword);
+          case '_title':
+            return announcement._title.includes(keyword);
+          case '_status':
+            return announcement._status.includes(keyword);
+          default:
+            return true;
+        }
+      });
     },
 
     changeAnnouncementPage(page) {
@@ -1669,6 +1880,24 @@ export default {
         console.error(err)
         this.$message.error('取消发布公告失败')
       }
+    },
+    // 调用退出API再跳转
+    async performLogout() {
+      try {
+        // 调用退出登录的API
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      
+        // 跳转到登录页面
+        window.location.href = '../';
+      
+      } catch (err) {
+        console.error('退出登录失败:', err);
+        // 即使API调用失败也跳转到登录页
+        window.location.href = '../';
+      }
     }
   }
 }
@@ -1702,7 +1931,7 @@ html, body {
 /* 顶部导航栏样式 */
 #top-navbar {
   width: 100%;
-  background-color: #2c3e50;
+  background-color: #1194AE; /* 高级墨绿色 */
   color: white;
   height: 60px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -1728,11 +1957,45 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin: 20px 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item label {
+  font-weight: 600;
+  color: #333;
+  min-width: 100px;
+  margin-right: 10px;
+}
+
+.info-item span {
+  color: #666;
+}
+
+.admin-type {
+  color: #1194AE !important;
+  font-weight: 600;
+  padding: 4px 12px;
+  background-color: #e8f4f8;
+  border-radius: 4px;
 }
 
 .user-avatar {
   font-size: 28px;
-  color: #3498db;
+  color: white;
+  cursor: pointer; /* 添加手型光标 */
+  transition: all 0.3s ease;
+}
+
+.user-avatar:hover {
+  transform: scale(1.1); /* 悬停时稍微放大 */
+  color: #f0f0f0; /* 悬停时颜色微调 */
 }
 
 .user-name {
@@ -1745,12 +2008,13 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  height: calc(100vh - 60px); /* 减去顶部导航栏高度 */
 }
 
-/* 侧边导航栏样式 - 修复高度问题 */
+/* 侧边导航栏样式 */
 #sidebar {
   width: 220px;
-  background-color: #34495e;
+  background-color: #2691a6;
   color: white;
   overflow-y: auto;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
@@ -1785,7 +2049,7 @@ html, body {
 }
 
 #sidebar .nav li a:hover {
-  background-color: #2c3e50;
+  background-color: #3a9eb1;
   color: white;
 }
 
@@ -1816,31 +2080,130 @@ html, body {
 /* 内容区域样式 */
 #content {
   flex: 1;
-  padding: 20px;
-  background-image: url('../../public/bg.jpg');
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
+  padding: 10px;
   overflow-y: auto;
   min-height: 0;
+  margin: 0;
 }
 
 .container-fluid {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: none; /* 移除最大宽度限制 */
+  margin: 0; /* 移除外边距 */
+  padding: 0; /* 移除内边距 */
+  width: 100%; /* 宽度100% */
 }
 
-/* 页面显示样式 */
-.page {
-  display: block;
-  background-color: rgba(255, 255, 255, 0.95);
-  padding: 25px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  min-height: calc(100vh - 140px);
+/* 弹窗表单样式 */
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
-/* 其他样式保持不变... */
+.modal-content label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+  width: 100%;
+}
+
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus {
+  outline: none;
+  border-color: #1194AE;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.modal-content textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+.submit-button {
+  background-color: #1194AE;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s;
+  margin-top: 10px;
+}
+
+.submit-button:hover {
+  background-color: #067a97;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
+/* 弹窗内按钮组样式 */
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.cancel-button:hover {
+  background-color: #5a6268;
+}
+
+.logout-button {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.logout-button:hover {
+  background-color: #c0392b;
+}
+
+.reset-button {
+  background-color: #1194AE;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.reset-button:hover {
+  background-color: #067a97;
+}
+
 /* 弹窗样式 */
 .modal {
   position: fixed;
@@ -1871,7 +2234,7 @@ html, body {
   margin: 0 0 20px 0;
   font-size: 22px;
   color: #333;
-  border-bottom: 2px solid #1976d2;
+  border-bottom: 2px solid #1194AE;
   padding-bottom: 10px;
 }
 
@@ -1889,15 +2252,32 @@ html, body {
   color: #333;
 }
 
+.modal-content select {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
 /* 表格样式 */
 .book_table, .category_table, .lend_table, .user_table, .announcement_table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 25px;
+  margin-top: 20px;
   background-color: white;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 14px; /* 调整字体大小 */
 }
 
 .book_table th, .book_table td,
@@ -1905,10 +2285,10 @@ html, body {
 .lend_table th, .lend_table td,
 .user_table th, .user_table td,
 .announcement_table th, .announcement_table td {
-  padding: 15px 12px;
+  padding: 12px 10px;
   border: 1px solid #e0e0e0;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .book_table th,
@@ -1916,8 +2296,8 @@ html, body {
 .lend_table th,
 .user_table th,
 .announcement_table th {
-  background-color: #1976d2;
-  color: white;
+  background-color: #eef2f4;
+  color: black;
   font-weight: 600;
   font-size: 15px;
   padding: 16px 12px;
@@ -1927,7 +2307,7 @@ html, body {
 .edit-button, .delete-button,
 .edit-category, .delete-category,
 .lend-action, .reset-password, .publish-button, .unpublish-button {
-  background-color: #1976d2;
+  background-color: #1194AE;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -1947,7 +2327,7 @@ html, body {
 }
 
 .edit-button:hover, .edit-category:hover {
-  background-color: #2196f3;
+  background-color: #067a97;
 }
 
 .delete-button:hover, .delete-category:hover {
@@ -1955,7 +2335,7 @@ html, body {
 }
 
 .addBookModal, .addCategoryButton, .search-button, .addUserModal, .addAnnouncementButton {
-  background-color: #1976d2;
+  background-color: #1194AE;
   color: white;
   border: none;
   padding: 12px 24px;
@@ -1968,7 +2348,7 @@ html, body {
 }
 
 .addBookModal:hover, .addCategoryButton:hover, .search-button:hover, .addUserModal:hover, .addAnnouncementButton:hover {
-  background-color: #1565c0;
+  background-color: #067a97;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
 }
@@ -1997,13 +2377,13 @@ html, body {
 
 .pagination button:hover:not(:disabled) {
   background-color: #f5f5f5;
-  border-color: #1976d2;
+  border-color: #1194AE;
 }
 
 .pagination button.active {
-  background-color: #1976d2;
+  background-color: #1194AE;
   color: white;
-  border-color: #1976d2;
+  border-color: #1194AE;
 }
 
 .pagination button:disabled {
@@ -2021,17 +2401,16 @@ html, body {
 /* 搜索栏样式 */
 .search-form {
   display: flex;
-  gap: 12px;
-  margin-bottom: 25px;
+  gap: 10px;
+  margin-bottom: 20px;
   align-items: center;
   flex-wrap: wrap;
   background-color: white;
-  padding: 20px;
+  padding: 15px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-
-.search-select, .search-input {
+.search-select {
   padding: 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -2039,28 +2418,41 @@ html, body {
   min-width: 150px;
   flex: 1;
   max-width: 300px;
+  background-color: white;
+  cursor: pointer;
+  appearance: none; /* 移除默认箭头 */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
 }
 
 .search-input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 150px;
+  flex: 1;
+  max-width: 300px;
   flex: 2;
   max-width: 400px;
 }
 
 .search-select:focus, .search-input:focus {
   outline: none;
-  border-color: #1976d2;
+  border-color: #1194AE;
   box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
 }
-
-/* 标题样式 */
-.book-search-title, .category-title, .lend-title, .user-title, .announcement-title, .home-title {
-  margin: 0 0 25px 0;
-  font-size: 28px;
-  font-weight: 700;
+.search-select:hover {
+  border-color: #999;
+}
+.search-select option {
+  padding: 8px;
+  background: white;
   color: #333;
-  text-align: center;
-  padding-bottom: 15px;
-  border-bottom: 3px solid #1976d2;
 }
 
 /* 状态样式 */
@@ -2201,7 +2593,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #1976d2;
+  background: #1194AE;
   color: white;
   border: none;
   border-radius: 8px;
@@ -2213,7 +2605,7 @@ html, body {
 }
 
 .action-btn:hover {
-  background: #1565c0;
+  background: #067a97;
   transform: translateY(-3px);
   box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
 }
