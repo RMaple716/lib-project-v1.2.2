@@ -1,0 +1,2756 @@
+openapi: 3.0.1
+info:
+  title: 图书管理系统API
+  version: 1.0.0
+  description: |
+    # 图书管理系统REST API
+    
+      提供完整的图书管理功能，如下所示（可通过ctrl+f在文档内快速查找）：
+      - 一.认证部分
+        - 1.用户登录
+        - 2.用户注册
+        - 3.重置密码
+        - 4.获取验证码
+        - 5.获取当前用户信息
+      - 二.图书部分
+        - 1.获取图书列表
+        - 2.新增图书
+        - 3.获取图书详情
+        - 4.更新图书信息
+        - 5.删除图书
+        - 6.借阅图书
+        - 7.归还图书
+        - 8.续借图书
+        - 9.图书借阅排名
+      - 三.读者部分
+        - 1.获取读者列表
+        - 2.新增读者
+        - 3.获取读者详情
+        - 4.更新读者信息
+        - 5.删除读者
+        - 6.查询读者借阅数量
+        - 7.读者借阅排名
+      - 四.公告部分
+        - 1.获取公告列表
+        - 2.新增公告
+        - 3.获取公告详情
+        - 4.更新公告
+        - 5.删除公告
+        - 6.获取最新公告
+      - 五.分类部分
+        - 1.获取分类列表
+        - 2.新增分类
+        - 3.获取分类详情
+        - 4.更新分类
+        - 5.删除分类
+      - 六.借阅记录部分
+        - 1.获取借阅记录列表（管理员）
+        - 2.获取我的借阅记录
+    
+    ## 认证
+    所有API请求需要在Header中包含有效的JWT Token：
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+  contact:
+    name: 张坤元
+    url: https://github.com/RMaple716
+    email: 2524115562@qq.com
+  license:
+    name: MIT
+    url: https://example.com/terms
+
+
+servers:
+  - url: http://localhost:3000
+    description: 开发服务器
+paths:
+  # ==============================
+  # 认证管理
+  # ==============================
+  /api/auth/login: 
+    post:
+      tags: [认证管理]
+      summary: 用户登录
+      description: 用户登录接口，支持多种用户角色登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              student:
+                $ref: '#/components/examples/StudentLoginExample'
+              teacher:
+                $ref: '#/components/examples/TeacherLoginExample'
+              admin_t:
+                $ref: '#/components/examples/Admin_T_LoginExample'
+              admin_b:
+                $ref: '#/components/examples/Admin_B_LoginExample'
+              admin_l:
+                $ref: '#/components/examples/Admin_L_LoginExample'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccess'
+              examples:
+                login_succeeded:
+                  $ref: '#/components/examples/LoginSuccessExample'
+        '400':
+          description: 用户不存在或密码错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginError'
+              examples:
+                password_incorrect:
+                  $ref: '#/components/examples/LoginErrorExample_PasswordIncorrect'
+                user_unexists:
+                  $ref: '#/components/examples/LoginErrorExample_AccountNotExist'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/auth/register:
+    post:
+      tags: [认证管理]
+      summary: 用户注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              student:
+                $ref: '#/components/examples/StudentRegisterExample'
+              teacher:
+                $ref: '#/components/examples/TeacherRegisterExample'
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterSuccess'
+              examples:
+                register_success:
+                  $ref: '#/components/examples/RegisterSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterError'
+              examples:
+                account_already_exists:
+                  $ref: '#/components/examples/RegisterErrorExample_AccountAlreadyExists'
+                password_too_simple:
+                  $ref: '#/components/examples/RegisterErrorExample_PasswordTooSimple'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/auth/password:
+    put:
+      tags: [认证管理]
+      summary: 重置密码
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+            examples:
+              reset_password:
+                $ref: '#/components/examples/ResetPasswordExample'
+      responses:
+        '200':
+          description: 重置密码成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetPasswordSuccess'
+              examples:
+                reset_success:
+                  $ref: '#/components/examples/ResetPasswordSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetPasswordError'
+              examples:
+                user_not_exist:
+                  $ref: '#/components/examples/ResetPasswordErrorExample_UserNotExist'
+                password_too_simple:
+                  $ref: '#/components/examples/ResetPasswordErrorExample_PasswordTooSimple'
+                captcha_incorrect:
+                  $ref: '#/components/examples/ResetPasswordErrorExample_CapchaIncorrect'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/auth/captcha:
+    get:
+      tags: [认证管理]
+      summary: 获取验证码
+      responses:
+        '200':
+          description: 成功生成验证码
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptchaSuccess'
+              examples:
+                captcha_success:
+                  $ref: '#/components/examples/CaptchaSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/auth/current-user:
+    get:
+      tags: [认证管理]
+      summary: 获取当前用户信息
+      responses:
+        '200':
+          description: 成功获取用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserSuccess'
+              examples:
+                current_user_success:
+                  $ref: '#/components/examples/CurrentUserSuccessExample'
+        '400':
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserError'
+              examples:
+                not_logged_in:
+                  $ref: '#/components/examples/CurrentUserErrorExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  # ==============================
+  # 图书管理
+  # ==============================
+  /api/books:
+    get:
+      tags: [图书管理]
+      summary: 获取图书列表
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 搜索关键词
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: 分类ID
+      responses:
+        '200':
+          description: 成功获取图书列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksListSuccess'
+              examples:
+                books_list_success:
+                  $ref: '#/components/examples/BooksListSuccessExample'
+        '400':
+          description: 获取失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksListError'
+              examples:
+                books_list_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    post:
+      tags: [图书管理]
+      summary: 新增图书
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddBookRequest'
+            examples:
+              add_book_example:
+                $ref: '#/components/examples/AddBookExample'
+      responses:
+        '200':
+          description: 图书添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddBookSuccess'
+              examples:
+                add_book_success:
+                  $ref: '#/components/examples/AddBookSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddBookError'
+              examples:
+                add_book_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/books/{id}:
+    get:
+      tags: [图书管理]
+      summary: 获取图书详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功获取图书详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDetailSuccess'
+              examples:
+                book_detail_success:
+                  $ref: '#/components/examples/BooksListSuccessExample'
+        '404':
+          description: 图书不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDetailError'
+              examples:
+                book_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    put:
+      tags: [图书管理]
+      summary: 更新图书信息
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - _book_name
+                - _isbn
+                - _num
+                - _author
+                - _press
+                - _tid
+              properties:
+                _book_name:
+                  type: string
+                  description: 书名
+                _isbn:
+                  type: string
+                  description: ISBN码
+                _num:
+                  type: integer
+                  description: 馆藏数量
+                _author:
+                  type: string
+                  description: 作者
+                _press:
+                  type: string
+                  description: 出版社
+                _tid:
+                  type: integer
+                  description: 图书类型ID
+            examples:
+              edit_book_example:
+                $ref: '#/components/examples/AddBookExample'
+      responses:
+        '200':
+          description: 图书更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditBookSuccess'
+              examples:
+                edit_book_success:
+                  $ref: '#/components/examples/EditBookSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditBookError'
+              examples:
+                edit_book_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 图书不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditBookError'
+              examples:
+                book_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    delete:
+      tags: [图书管理]
+      summary: 删除图书
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 图书删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteBookSuccess'
+              examples:
+                delete_book_success:
+                  $ref: '#/components/examples/DeleteBookSuccessExample'
+        '400':
+          description: 无法删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteBookError'
+              examples:
+                delete_book_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 图书不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteBookError'
+              examples:
+                book_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/books/{id}/borrow:
+    post:
+      tags: [图书管理]
+      summary: 借阅图书
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 借书成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BorrowBookSuccess'
+              examples:
+                borrow_book_success:
+                  $ref: '#/components/examples/BorrowBookSuccessExample'
+        '400':
+          description: 借书失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BorrowBookError'
+              examples:
+                borrow_book_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 图书不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BorrowBookError'
+              examples:
+                book_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/books/{id}/return:
+    put:
+      tags: [图书管理]
+      summary: 归还图书
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 还书成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnBookSuccess'
+              examples:
+                return_book_success:
+                  $ref: '#/components/examples/ReturnBookSuccessExample'
+        '400':
+          description: 还书失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnBookError'
+              examples:
+                return_book_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 借阅记录不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnBookError'
+              examples:
+                record_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/books/{id}/renew:
+    put:
+      tags: [图书管理]
+      summary: 续借图书
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 续借成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewBookSuccess'
+              examples:
+                renew_book_success:
+                  $ref: '#/components/examples/RenewBookSuccessExample'
+        '400':
+          description: 续借失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewBookError'
+              examples:
+                renew_book_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 借阅记录不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewBookError'
+              examples:
+                record_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/books/rank:
+    get:
+      tags: [图书管理]
+      summary: 图书借阅排名
+      responses:
+        '200':
+          description: 成功获取排名
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookRankSuccess'
+              examples:
+                book_rank_success:
+                  $ref: '#/components/examples/BookRankSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  # ==============================
+  # 读者管理
+  # ==============================
+  /api/readers:
+    get:
+      tags: [读者管理]
+      summary: 获取读者列表
+      responses:
+        '200':
+          description: 成功获取读者列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadersListSuccess'
+              examples:
+                readers_list_success:
+                  $ref: '#/components/examples/ReadersListSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    post:
+      tags: [读者管理]
+      summary: 新增读者
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - _account
+                - _name
+                - _password
+                - _utype
+                - _email
+              properties:
+                _account:
+                  type: string
+                  description: 读者账号
+                _name:
+                  type: string
+                  description: 读者姓名
+                _password:
+                  type: string
+                  description: 读者密码
+                _utype:
+                  type: string
+                  description: 读者类型
+                  enum: [student, teacher]
+                _email:
+                  type: string
+                  description: 读者邮箱
+            examples:
+              add_reader_example:
+                $ref: '#/components/examples/AddReaderExample'
+      responses:
+        '200':
+          description: 读者添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddReaderSuccess'
+              examples:
+                add_reader_success:
+                  $ref: '#/components/examples/AddReaderSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddReaderError'
+              examples:
+                add_reader_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/readers/{id}:
+    get:
+      tags: [读者管理]
+      summary: 获取读者详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功获取读者详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderDetailSuccess'
+              examples:
+                reader_detail_success:
+                  $ref: '#/components/examples/ReadersListSuccessExample'
+        '404':
+          description: 读者不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderDetailError'
+              examples:
+                reader_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    put:
+      tags: [读者管理]
+      summary: 更新读者信息
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - _account
+                - _name
+                - _email
+              properties:
+                _account:
+                  type: string
+                  description: 读者账号
+                _name:
+                  type: string
+                  description: 读者姓名
+                _email:
+                  type: string
+                  description: 读者邮箱
+            examples:
+              edit_reader_example:
+                $ref: '#/components/examples/AddReaderExample'
+      responses:
+        '200':
+          description: 读者更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditReaderSuccess'
+              examples:
+                edit_reader_success:
+                  $ref: '#/components/examples/EditReaderSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditReaderError'
+              examples:
+                edit_reader_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 读者不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditReaderError'
+              examples:
+                reader_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    delete:
+      tags: [读者管理]
+      summary: 删除读者
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 读者删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteReaderSuccess'
+              examples:
+                delete_reader_success:
+                  $ref: '#/components/examples/DeleteReaderSuccessExample'
+        '400':
+          description: 无法删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteReaderError'
+              examples:
+                delete_reader_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 读者不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteReaderError'
+              examples:
+                reader_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/readers/{id}/borrow-count:
+    get:
+      tags: [读者管理]
+      summary: 查询读者借阅数量
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功获取借阅数量
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BorrowCountSuccess'
+              examples:
+                borrow_count_success:
+                  $ref: '#/components/examples/BorrowCountSuccessExample'
+        '404':
+          description: 读者不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BorrowCountError'
+              examples:
+                reader_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/readers/rank:
+    get:
+      tags: [读者管理]
+      summary: 读者借阅排名
+      responses:
+        '200':
+          description: 成功获取排名
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderRankSuccess'
+              examples:
+                reader_rank_success:
+                  $ref: '#/components/examples/ReaderRankSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  # ==============================
+  # 公告管理
+  # ==============================
+  /api/announcements:
+    get:
+      tags: [公告管理]
+      summary: 获取公告列表
+      responses:
+        '200':
+          description: 成功获取公告列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementsListSuccess'
+              examples:
+                announcements_list_success:
+                  $ref: '#/components/examples/AnnouncementsListSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    post:
+      tags: [公告管理]
+      summary: 新增公告
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAnnouncementRequest'
+            examples:
+              add_announcement_example:
+                $ref: '#/components/examples/AddAnnouncementExample'
+      responses:
+        '200':
+          description: 公告添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddAnnouncementSuccess'
+              examples:
+                add_announcement_success:
+                  $ref: '#/components/examples/AddAnnouncementSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddAnnouncementError'
+              examples:
+                add_announcement_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/announcements/{id}:
+    get:
+      tags: [公告管理]
+      summary: 获取公告详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功获取公告详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementDetailSuccess'
+              examples:
+                announcement_detail_success:
+                  $ref: '#/components/examples/AnnouncementsListSuccessExample'
+        '404':
+          description: 公告不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementDetailError'
+              examples:
+                announcement_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    put:
+      tags: [公告管理]
+      summary: 更新公告
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - _title
+                - _content
+              properties:
+                _title:
+                  type: string
+                  description: 公告标题
+                _content:
+                  type: string
+                  description: 公告内容
+            examples:
+              edit_announcement_example:
+                $ref: '#/components/examples/AddAnnouncementExample'
+      responses:
+        '200':
+          description: 公告更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditAnnouncementSuccess'
+              examples:
+                edit_announcement_success:
+                  $ref: '#/components/examples/EditAnnouncementSuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditAnnouncementError'
+              examples:
+                edit_announcement_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 公告不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditAnnouncementError'
+              examples:
+                announcement_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    delete:
+      tags: [公告管理]
+      summary: 删除公告
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 公告删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteAnnouncementSuccess'
+              examples:
+                delete_announcement_success:
+                  $ref: '#/components/examples/DeleteAnnouncementSuccessExample'
+        '400':
+          description: 无法删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteAnnouncementError'
+              examples:
+                delete_announcement_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 公告不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteAnnouncementError'
+              examples:
+                announcement_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/announcements/latest:
+    get:
+      tags: [公告管理]
+      summary: 获取最新公告
+      responses:
+        '200':
+          description: 成功获取最新公告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatestAnnouncementSuccess'
+              examples:
+                latest_announcement_success:
+                  $ref: '#/components/examples/LatestAnnouncementSuccessExample'
+        '404':
+          description: 暂无公告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatestAnnouncementError'
+              examples:
+                no_announcements:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  # ==============================
+  # 分类管理
+  # ==============================
+  /api/categories:
+    get:
+      tags: [分类管理]
+      summary: 获取分类列表
+      responses:
+        '200':
+          description: 成功获取分类列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesListSuccess'
+              examples:
+                categories_list_success:
+                  $ref: '#/components/examples/CategoriesListSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    post:
+      tags: [分类管理]
+      summary: 新增分类
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - _type_name
+              properties:
+                _type_name:
+                  type: string
+                  description: 分类名称
+            examples:
+              add_category_example:
+                $ref: '#/components/examples/AddCategoryExample'
+      responses:
+        '200':
+          description: 分类添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddCategorySuccess'
+              examples:
+                add_category_success:
+                  $ref: '#/components/examples/AddCategorySuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddCategoryError'
+              examples:
+                add_category_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/categories/{id}:
+    get:
+      tags: [分类管理]
+      summary: 获取分类详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功获取分类详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDetailSuccess'
+              examples:
+                category_detail_success:
+                  $ref: '#/components/examples/CategoriesListSuccessExample'
+        '404':
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDetailError'
+              examples:
+                category_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    put:
+      tags: [分类管理]
+      summary: 更新分类
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - _type_name
+              properties:
+                _type_name:
+                  type: string
+                  description: 分类名称
+            examples:
+              edit_category_example:
+                $ref: '#/components/examples/AddCategoryExample'
+      responses:
+        '200':
+          description: 分类更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditCategorySuccess'
+              examples:
+                edit_category_success:
+                  $ref: '#/components/examples/EditCategorySuccessExample'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditCategoryError'
+              examples:
+                edit_category_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditCategoryError'
+              examples:
+                category_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+    delete:
+      tags: [分类管理]
+      summary: 删除分类
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 分类删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCategorySuccess'
+              examples:
+                delete_category_success:
+                  $ref: '#/components/examples/DeleteCategorySuccessExample'
+        '400':
+          description: 无法删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCategoryError'
+              examples:
+                delete_category_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+        '404':
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCategoryError'
+              examples:
+                category_not_found:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  # ==============================
+  # 借阅记录
+  # ==============================
+  /api/borrow-records:
+    get:
+      tags: [借阅记录]
+      summary: 获取借阅记录列表（管理员）
+      responses:
+        '200':
+          description: 成功获取借阅记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BorrowRecordsListSuccess'
+              examples:
+                borrow_records_success:
+                  $ref: '#/components/examples/BorrowRecordsListSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+
+  /api/borrow-records/my:
+    get:
+      tags: [借阅记录]
+      summary: 获取我的借阅记录
+      responses:
+        '200':
+          description: 成功获取借阅记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyBorrowRecordsSuccess'
+              examples:
+                my_borrow_records_success:
+                  $ref: '#/components/examples/MyBorrowRecordsSuccessExample'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+              examples:
+                server_error:
+                  $ref: '#/components/examples/ServerErrorExample'
+# 组件定义
+components:
+  schemas:
+    # 基础响应结构
+    BaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+        message:
+          type: string
+          description: 消息
+        data:
+          type: object
+          description: 数据
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+        errorCode:
+          type: string
+          description: 错误代码
+        message:
+          type: string
+          description: 错误消息
+
+    # 数据库表实体
+    t_book:
+      type: object
+      properties:
+        _bid:
+          type: integer
+          format: int32
+          description: 图书ID
+        _book_name:
+          type: string
+          description: 书名
+        _isbn:
+          type: string
+          description: ISBN码
+        _num:
+          type: integer
+          format: int32
+          description: 馆藏书籍数量
+        _author:
+          type: string
+          description: 作者
+        _press:
+          type: string
+          description: 出版社
+        _tid:
+          type: integer
+          format: int32
+          description: 图书类型ID
+        _times:
+          type: integer
+          format: int32
+          description: 借阅次数
+        _cover_url:
+          type: string
+          description: 封面图片URL
+        _create_time:
+          type: string
+          format: datetime
+          description: 创建时间
+
+    t_type:
+      type: object
+      properties:
+        _tid:
+          type: integer
+          format: int32
+          description: 图书类型ID
+        _type_name:
+          type: string
+          description: 图书类型名称
+
+    t_history:
+      type: object
+      properties:
+        _hid:
+          type: integer
+          format: int32
+          description: 借阅记录ID
+        _bid:
+          type: integer
+          format: int32
+          description: 图书ID
+        _uid:
+          type: integer
+          format: int32
+          description: 读者ID
+        _begin_date:
+          type: string
+          format: date
+          description: 借阅日期
+        _end_date:
+          type: string
+          format: date
+          description: 应还日期
+        _status:
+          type: number
+          format: int32
+          description: 借阅状态
+
+    t_user:
+      type: object
+      properties:
+        _uid:
+          type: integer
+          format: int32
+          description: 用户ID
+        _utype:
+          type: string
+          description: 用户类型
+        _account:
+          type: string
+          description: 账号
+        _name:
+          type: string
+          description: 姓名
+        _password:
+          type: string
+          description: 密码
+        _email:
+          type: string
+          description: 邮箱
+        _max_num:
+          type: integer
+          format: int32
+          description: 最大借书数量
+        lend_num:
+          type: integer
+          format: int32
+          description: 当前借书数量
+        _access:
+          type: integer
+          format: int32
+          description: 用户是否有访问权限
+        _total:
+          type: integer
+          format: int32
+          description: 用户累计阅读时间
+
+    t_announcements:
+      type: object
+      properties:
+        _aid:
+          type: integer
+          format: int32
+          description: 公告ID
+        _a_title:
+          type: string
+          description: 公告标题
+        _a_content:
+          type: string
+          description: 公告内容
+        _a_publisher:
+          type: string
+          description: 发布者
+        _a_date:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    # 用户认证模块请求体
+    LoginRequest:
+      type: object
+      required:
+        - account
+        - password
+        - usertype
+      properties:
+        account:
+          type: string
+          description: 用户账号
+        password:
+          type: string
+          description: 用户密码
+        usertype:
+          type: string
+          description: 用户角色
+          enum: [student, teacher, admin_t, admin_b, admin_l]
+
+    RegisterRequest:
+      type: object
+      required:
+        - account
+        - name
+        - email
+        - usertype
+        - password
+      properties:
+        account:
+          type: string
+          description: 用户账号
+        name:
+          type: string
+          description: 用户姓名
+        email:
+          type: string
+          description: 用户邮箱
+        usertype:
+          type: string
+          description: 用户角色
+          enum: [student, teacher, admin_t, admin_b, admin_l]
+        password:
+          type: string
+          description: 用户密码
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - _uid
+        - _password
+        - _captcha
+      properties:
+        _uid:
+          type: string
+          description: 用户ID
+        _password:
+          type: string
+          description: 用户密码
+        _captcha:
+          type: string
+          description: 验证码
+        _usertype:
+          type: string
+          description: 用户角色
+          enum: [student, teacher, admin_t, admin_b, admin_l]
+
+    # 用户认证模块响应体
+    LoginSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: JWT Token
+                usertype:
+                  type: string
+                  description: 用户类型
+                req.session_uid:
+                  type: number
+                  description: 会话用户ID
+
+    RegisterSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                usertype:
+                  type: string
+                  description: 用户类型
+
+    ResetPasswordSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_user'
+
+    CaptchaSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: string
+              description: 验证码图片的base64编码
+
+    CurrentUserSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                _uid:
+                  type: number
+                  description: 登录用户的ID
+
+    # 错误响应体
+    ServerError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              example: "SERVER_ERROR"
+
+    LoginError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                usertype:
+                  type: string
+                  description: 用户角色
+
+    RegisterError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    ResetPasswordError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    CurrentUserError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    # 图书管理模块请求体
+    AddBookRequest:
+      type: object
+      required:
+        - _book_name
+        - _isbn
+        - _num
+        - _author
+        - _press
+        - _tid
+      properties:
+        _book_name:
+          type: string
+          description: 书名
+        _isbn:
+          type: string
+          description: ISBN码
+        _num:
+          type: integer
+          description: 馆藏数量
+        _author:
+          type: string
+          description: 作者
+        _press:
+          type: string
+          description: 出版社
+        _tid:
+          type: integer
+          description: 图书类型ID
+
+    # 图书管理模块响应体
+    BooksListSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                booklist:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/t_book'
+
+    BookDetailSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_book'
+
+    AddBookSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+
+    EditBookSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_book'
+
+    DeleteBookSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+
+    BorrowBookSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                borrow_history:
+                  $ref: '#/components/schemas/t_history'
+
+    ReturnBookSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                suc_return:
+                  $ref: '#/components/schemas/t_history'
+
+    RenewBookSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                res_delay:
+                  $ref: '#/components/schemas/t_history'
+
+    BookRankSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                res_rank:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/t_book'
+
+    # 图书管理模块错误响应体
+    BooksListError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    BookDetailError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              example: "BOOK_NOT_FOUND"
+
+    AddBookError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    EditBookError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    DeleteBookError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    BorrowBookError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    ReturnBookError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    RenewBookError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    BookRankError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    # 读者管理模块响应体
+    ReadersListSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                readerlist:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/t_user'
+
+    ReaderDetailSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_user'
+
+    AddReaderSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                r_add:
+                  $ref: '#/components/schemas/t_user'
+
+    EditReaderSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_user'
+
+    DeleteReaderSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_user'
+
+    BorrowCountSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                _name:
+                  type: string
+                  description: 读者的姓名
+                _lend_num:
+                  type: number
+                  description: 读者的借阅数量
+
+    ReaderRankSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                res_rank:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/t_user'
+
+    # 读者管理模块错误响应体
+    ReadersListError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    ReaderDetailError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              example: "READER_NOT_FOUND"
+
+    AddReaderError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    EditReaderError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    DeleteReaderError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    BorrowCountError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              example: "READER_NOT_FOUND"
+
+    ReaderRankError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    # 公告管理模块请求体
+    AddAnnouncementRequest:
+      type: object
+      required:
+        - _title
+        - _content
+      properties:
+        _title:
+          type: string
+          description: 公告标题
+        _content:
+          type: string
+          description: 公告内容
+
+    # 公告管理模块响应体
+    AnnouncementsListSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/t_announcements'
+
+    AnnouncementDetailSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_announcements'
+
+    AddAnnouncementSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                res_insert:
+                  $ref: '#/components/schemas/t_announcements'
+
+    EditAnnouncementSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_announcements'
+
+    DeleteAnnouncementSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_announcements'
+
+    LatestAnnouncementSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                res_find:
+                  $ref: '#/components/schemas/t_announcements'
+
+    # 公告管理模块错误响应体
+    AnnouncementDetailError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              example: "ANNOUNCEMENT_NOT_FOUND"
+
+    AddAnnouncementError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    EditAnnouncementError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    DeleteAnnouncementError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    LatestAnnouncementError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              example: "NO_ANNOUNCEMENTS"
+
+    # 分类管理模块响应体
+    CategoriesListSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                catlist:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/t_type'
+
+    CategoryDetailSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_type'
+
+    AddCategorySuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_type'
+
+    EditCategorySuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_type'
+
+    DeleteCategorySuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/t_type'
+
+    # 分类管理模块错误响应体
+    CategoriesListError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    CategoryDetailError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              example: "CATEGORY_NOT_FOUND"
+
+    AddCategoryError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    EditCategoryError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    DeleteCategoryError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+
+    # 借阅记录模块响应体
+    BorrowRecordsListSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                historylist:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/t_history'
+
+    MyBorrowRecordsSuccess:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                ownlist:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/t_history'
+
+  examples:
+    # 用户认证模块示例
+    StudentLoginExample:
+      summary: 学生登录示例
+      value:
+        account: "bluecat"
+        password: "123456qwert*"
+        usertype: "student"
+
+    TeacherLoginExample:
+      summary: 教师登录示例
+      value:
+        account: "teacherman"
+        password: "teacherpass123*"
+        usertype: "teacher"
+
+    Admin_T_LoginExample:
+      summary: 终端管理员登录示例
+      value:
+        account: "admin_t"
+        password: "admin_t123*"
+        usertype: "admin_t"
+
+    Admin_B_LoginExample:
+      summary: 图书管理员登录示例
+      value:
+        account: "admin_b"
+        password: "admin_b123*"
+        usertype: "admin_b"
+
+    Admin_L_LoginExample:
+      summary: 借阅管理员登录示例
+      value:
+        account: "admin_l"
+        password: "admin_l123*"
+        usertype: "admin_l"
+
+    StudentRegisterExample:
+      summary: 学生注册示例
+      value:
+        account: "2023013863"
+        name: "bluemaple"
+        password: "123456qwert*"
+        email: "2524115562@qq.com"
+        usertype: "student"
+
+    TeacherRegisterExample:
+      summary: 教师注册示例
+      value:
+        account: "2023112233"
+        name: "teacherman"
+        password: "teacherpass123*"
+        email: "2524115562@qq.com"
+        usertype: "teacher"
+
+    ResetPasswordExample:
+      summary: 重置密码示例
+      value:
+        _uid: "1"
+        _password: "newpassword123*"
+        _captcha: "ABCD1234"
+        _usertype: "student"
+
+    LoginSuccessExample:
+      summary: 登录成功
+      value:
+        success: true
+        message: "登录成功"
+        data:
+          token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          usertype: "student"
+          req.session_uid: 2
+
+    RegisterSuccessExample:
+      summary: 注册成功实例
+      value:
+        success: true
+        message: "注册成功"
+        data:
+          usertype: "student"
+
+    ResetPasswordSuccessExample:
+      summary: 重置密码成功实例
+      value:
+        success: true
+        message: "重置密码成功"
+        data:
+          _uid: 1
+          _utype: "student"
+          _account: "2023013863"
+          _name: "张三"
+          _password: "newpassword123*"
+          _email: "zhangsan@example.com"
+          _max_num: 10
+          lend_num: 0
+          _access: 1
+          _total: 0
+
+    CaptchaSuccessExample:
+      summary: 验证码生成成功
+      value:
+        success: true
+        message: "验证码生成成功"
+        data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAA..."
+
+    CurrentUserSuccessExample:
+      summary: 获取当前用户成功
+      value:
+        success: true
+        message: "获取用户信息成功"
+        data:
+          _uid: 1
+
+    CurrentUserErrorExample:
+      summary: 未登录
+      value:
+        success: false
+        errorCode: "NOT_LOGGED_IN"
+        message: "用户未登录"
+
+    #注册失败
+    RegisterErrorExample_AccountAlreadyExists:
+      summary: 注册失败实例_账号已存在
+      value:
+        success: false
+        errorCode: "4001"
+        message: "用户已存在"
+
+    RegisterErrorExample_PasswordTooSimple:
+      summary: 注册失败实例_密码过于简单
+      value:
+        success: false
+        errorCode: "4004"
+        message: "密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位"
+
+    #登录失败
+    LoginErrorExample_AccountNotExist:
+      summary: 登录失败实例_账号不存在
+      value:
+        success: false
+        errorCode: "4002"
+        message: "用户不存在"
+        data:
+          usertype: "student"
+
+    LoginErrorExample_PasswordIncorrect:
+      summary: 登录失败实例_密码错误
+      value:
+        success: false
+        errorCode: "4003"
+        message: "密码错误"
+        data:
+          usertype: "student"
+
+    ResetPasswordErrorExample_UserNotExist:
+      summary: 重置密码失败实例_用户不存在
+      value:
+        success: false
+        errorCode: "4002"
+        message: "用户不存在"
+
+    ResetPasswordErrorExample_PasswordTooSimple:
+      summary: 重置密码失败实例_密码过于简单
+      value:
+        success: false
+        errorCode: "4004"
+        message: "密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位"
+
+    ResetPasswordErrorExample_CapchaIncorrect:
+      summary: 重置密码失败实例_验证码错误
+      value:
+        success: false
+        errorCode: "4005"
+        message: "验证码错误"
+
+    ServerErrorExample:
+      summary: 服务器错误示例
+      value:
+        success: false
+        errorCode: "SERVER_ERROR"
+        message: "服务器错误，请稍后重试"
+
+    # 图书管理模块示例
+    AddBookExample:
+      summary: 新增图书示例
+      value:
+        _book_name: "活着"
+        _isbn: "123456789"
+        _num: 10
+        _author: "余华"
+        _press: "人民文学出版社"
+        _tid: 2
+
+    BooksListSuccessExample:
+      summary: 获取图书列表成功
+      value:
+        success: true
+        message: "获取图书列表成功"
+        data:
+          booklist:
+            - _bid: 1
+              _book_name: "活着"
+              _isbn: "123456789"
+              _num: 10
+              _author: "余华"
+              _press: "人民文学出版社"
+              _tid: 2
+              _times: 5
+              _cover_url: "http://example.com/cover.jpg"
+              _create_time: "2025-11-16"
+
+    AddBookSuccessExample:
+      summary: 新增图书成功
+      value:
+        success: true
+        message: "图书添加成功"
+
+    EditBookSuccessExample:
+      summary: 编辑图书成功
+      value:
+        success: true
+        message: "图书信息更新成功"
+        data:
+          _bid: 1
+          _book_name: "活着（修订版）"
+          _isbn: "123456789"
+          _num: 15
+          _author: "余华"
+          _press: "人民文学出版社"
+          _tid: 2
+          _times: 5
+          _cover_url: "http://example.com/cover.jpg"
+          _create_time: "2025-11-16"
+
+    DeleteBookSuccessExample:
+      summary: 删除图书成功
+      value:
+        success: true
+        message: "图书删除成功"
+
+    BorrowBookSuccessExample:
+      summary: 借阅图书成功
+      value:
+        success: true
+        message: "借书成功"
+        data:
+          borrow_history:
+            _hid: 1
+            _bid: 1
+            _uid: 2
+            _begin_date: "2025-01-01"
+            _end_date: "2025-02-01"
+            _status: 1
+
+    ReturnBookSuccessExample:
+      summary: 归还图书成功
+      value:
+        success: true
+        message: "还书成功"
+        data:
+          suc_return:
+            _hid: 1
+            _bid: 1
+            _uid: 2
+            _begin_date: "2025-01-01"
+            _end_date: "2025-02-01"
+            _status: 2
+
+    RenewBookSuccessExample:
+      summary: 续借图书成功
+      value:
+        success: true
+        message: "续借成功"
+        data:
+          res_delay:
+            _hid: 1
+            _bid: 1
+            _uid: 2
+            _begin_date: "2025-01-01"
+            _end_date: "2025-03-01"
+            _status: 1
+
+    BookRankSuccessExample:
+      summary: 图书排名成功
+      value:
+        success: true
+        message: "获取图书排名成功"
+        data:
+          res_rank:
+            - _bid: 1
+              _book_name: "活着"
+              _isbn: "123456789"
+              _num: 10
+              _author: "余华"
+              _press: "人民文学出版社"
+              _tid: 2
+              _times: 15
+              _cover_url: "http://example.com/cover.jpg"
+              _create_time: "2025-11-16"
+
+    # 读者管理模块示例
+    AddReaderExample:
+      summary: 新增读者示例
+      value:
+        _account: "2023013863"
+        _name: "张三"
+        _password: "123456qwert*"
+        _utype: "student"
+        _email: "zhangsan@example.com"
+
+    ReadersListSuccessExample:
+      summary: 获取读者列表成功
+      value:
+        success: true
+        message: "获取读者列表成功"
+        data:
+          readerlist:
+            - _uid: 1
+              _utype: "student"
+              _account: "2023013863"
+              _name: "张三"
+              _password: "123456qwert*"
+              _email: "zhangsan@example.com"
+              _max_num: 10
+              lend_num: 0
+              _access: 1
+              _total: 0
+
+    AddReaderSuccessExample:
+      summary: 新增读者成功
+      value:
+        success: true
+        message: "添加读者成功"
+        data:
+          r_add:
+            _uid: 1
+            _utype: "student"
+            _account: "2023013863"
+            _name: "张三"
+            _password: "123456qwert*"
+            _email: "zhangsan@example.com"
+            _max_num: 10
+            lend_num: 0
+            _access: 1
+            _total: 0
+
+    EditReaderSuccessExample:
+      summary: 编辑读者成功
+      value:
+        success: true
+        message: "读者信息更新成功"
+        data:
+          _uid: 1
+          _utype: "student"
+          _account: "2023013863"
+          _name: "张三丰"
+          _password: "123456qwert*"
+          _email: "zhangsanfeng@example.com"
+          _max_num: 10
+          lend_num: 0
+          _access: 1
+          _total: 0
+
+    DeleteReaderSuccessExample:
+      summary: 删除读者成功
+      value:
+        success: true
+        message: "读者信息成功删除"
+        data:
+          _uid: 1
+          _utype: "student"
+          _account: "2023013863"
+          _name: "张三"
+          _password: "123456qwert*"
+          _email: "zhangsan@example.com"
+          _max_num: 10
+          lend_num: 0
+          _access: 1
+          _total: 0
+
+    BorrowCountSuccessExample:
+      summary: 查询借阅数量成功
+      value:
+        success: true
+        message: "查询成功"
+        data:
+          _name: "张三"
+          _lend_num: 3
+
+    ReaderRankSuccessExample:
+      summary: 读者排名成功
+      value:
+        success: true
+        message: "获取读者排名成功"
+        data:
+          res_rank:
+            - _uid: 1
+              _utype: "student"
+              _account: "2023013863"
+              _name: "张三"
+              _password: "123456qwert*"
+              _email: "zhangsan@example.com"
+              _max_num: 10
+              lend_num: 5
+              _access: 1
+              _total: 120
+
+    # 公告管理模块示例
+    AddAnnouncementExample:
+      summary: 新增公告示例
+      value:
+        _title: "系统维护通知"
+        _content: "本系统将于本周六进行维护，届时将暂停服务2小时"
+
+    AnnouncementsListSuccessExample:
+      summary: 获取公告列表成功
+      value:
+        success: true
+        message: "获取公告列表成功"
+        data:
+          - _aid: 1
+            _a_title: "系统维护通知"
+            _a_content: "本系统将于本周六进行维护"
+            _a_publisher: "管理员"
+            _a_date: "2025-01-01 10:00:00"
+
+    AddAnnouncementSuccessExample:
+      summary: 新增公告成功
+      value:
+        success: true
+        message: "添加公告成功"
+        data:
+          res_insert:
+            _aid: 1
+            _a_title: "系统维护通知"
+            _a_content: "本系统将于本周六进行维护，届时将暂停服务2小时"
+            _a_publisher: "管理员"
+            _a_date: "2025-01-01 10:00:00"
+
+    EditAnnouncementSuccessExample:
+      summary: 编辑公告成功
+      value:
+        success: true
+        message: "公告编辑成功"
+        data:
+          _aid: 1
+          _a_title: "系统维护通知（更新）"
+          _a_content: "本系统将于本周六进行维护，届时将暂停服务3小时"
+          _a_publisher: "管理员"
+          _a_date: "2025-01-01 10:00:00"
+
+    DeleteAnnouncementSuccessExample:
+      summary: 删除公告成功
+      value:
+        success: true
+        message: "公告删除成功"
+        data:
+          _aid: 1
+          _a_title: "系统维护通知"
+          _a_content: "本系统将于本周六进行维护"
+          _a_publisher: "管理员"
+          _a_date: "2025-01-01 10:00:00"
+
+    LatestAnnouncementSuccessExample:
+      summary: 获取最新公告成功
+      value:
+        success: true
+        message: "获取公告成功"
+        data:
+          res_find:
+            _aid: 1
+            _a_title: "系统维护通知"
+            _a_content: "本系统将于本周六进行维护"
+            _a_publisher: "管理员"
+            _a_date: "2025-01-01 10:00:00"
+
+    # 分类管理模块示例
+    AddCategoryExample:
+      summary: 新增分类示例
+      value:
+        _type_name: "文学"
+
+    CategoriesListSuccessExample:
+      summary: 获取分类列表成功
+      value:
+        success: true
+        message: "获取分类列表成功"
+        data:
+          catlist:
+            - _tid: 1
+              _type_name: "文学"
+            - _tid: 2
+              _type_name: "科技"
+
+    AddCategorySuccessExample:
+      summary: 新增分类成功
+      value:
+        success: true
+        message: "添加分类成功"
+        data:
+          _tid: 1
+          _type_name: "文学"
+
+    EditCategorySuccessExample:
+      summary: 编辑分类成功
+      value:
+        success: true
+        message: "分类修改成功"
+        data:
+          _tid: 1
+          _type_name: "文学作品"
+
+    DeleteCategorySuccessExample:
+      summary: 删除分类成功
+      value:
+        success: true
+        message: "分类删除成功"
+        data:
+          _tid: 1
+          _type_name: "文学"
+
+    # 借阅记录模块示例
+    BorrowRecordsListSuccessExample:
+      summary: 管理员获取借阅记录成功
+      value:
+        success: true
+        message: "获取借阅记录成功"
+        data:
+          historylist:
+            - _hid: 1
+              _bid: 1
+              _uid: 2
+              _begin_date: "2025-01-01"
+              _end_date: "2025-02-01"
+              _status: 1
+
+    MyBorrowRecordsSuccessExample:
+      summary: 读者获取借阅记录成功
+      value:
+        success: true
+        message: "获取借阅记录成功"
+        data:
+          ownlist:
+            - _hid: 1
+              _bid: 1
+              _uid: 2
+              _begin_date: "2025-01-01"
+              _end_date: "2025-02-01"
+              _status: 1
