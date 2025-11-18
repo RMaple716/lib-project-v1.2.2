@@ -266,7 +266,7 @@ export default {
           body: JSON.stringify({
             account: this.loginForm.account,
             password: this.loginForm.password,
-            role: this.loginForm.userType
+            usertype: this.loginForm.userType
           })
         });
         
@@ -274,19 +274,18 @@ export default {
         
         if (res.status === 200) {
           this.showMessage('登录成功！', 'success', 2000);
-          // 延迟跳转，让用户看到成功消息
           setTimeout(() => {
-            // 根据用户角色跳转到不同页面
-            if (['terminal_admin', 'book_admin', 'borrow_admin'].includes(data.role)) {
-              window.location.href = './adminpage.html';
-            } else if (['student', 'teacher'].includes(data.role)) {
-              window.location.href = './search.html';
+            // 根据API文档，用户类型字段是 usertype，且管理员类型为 admin_t, admin_b, admin_l
+            if (['admin_t', 'admin_b', 'admin_l'].includes(data.data.usertype)) {
+              this.$router.push('/manager2'); // 跳转到管理员页面
+            } else if (['student', 'teacher'].includes(data.data.usertype)) {
+              this.$router.push('/readers'); // 跳转到读者页面
             }
           }, 1500);
         } else if (res.status === 400) {
-          if (data.code === 2) {
+          if (data.errorCode === "4002") {
             this.showMessage(data.message || '用户不存在', 'error', 4000);
-          } else if (data.code === 3) {
+          } else if (data.errorCode === "4003") {
             this.showMessage(data.message || '密码错误', 'error', 4000);
           } else {
             this.showMessage(data.message || '登录失败', 'error', 4000);
@@ -325,7 +324,7 @@ export default {
             account: this.registerForm.account,
             name: this.registerForm.name,
             email: this.registerForm.email,
-            userType: this.registerForm.userType,
+            usertype: this.registerForm.userType,
             password: this.registerForm.password
           })
         });
@@ -333,7 +332,7 @@ export default {
         const data = await res.json();
         console.log(res.status);
         
-        if (res.status === 200 && data.code === 2) {
+        if (res.status === 200 && data.success) {
           this.showMessage(data.message || '注册成功！', 'success', 3000);
           // 延迟切换到登录表单，让用户看到成功消息
           setTimeout(() => {

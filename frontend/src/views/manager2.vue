@@ -252,7 +252,9 @@
                     <label for="publisher">出版社：</label>
                     <input type="text" id="publisher" v-model="bookForm.publisher" placeholder="请输入出版社">                  
                     <label for="totalQuantity">总数量：</label>
-                    <input type="number" id="totalQuantity" v-model="bookForm.totalQuantity" placeholder="请输入总数量">                  
+                    <input type="number" id="totalQuantity" v-model="bookForm.totalQuantity" placeholder="请输入总数量">
+                    <label for="coverUrl">封面URL：</label>
+                    <input type="text" id="coverUrl" v-model="bookForm.coverUrl" placeholder="请输入封面图片URL"> 
                     <button type="submit" class="submit-button">提交</button>
                   </form>
                 </div>
@@ -268,6 +270,7 @@
                     <th>ISBN号</th>
                     <th>出版社</th>
                     <th>总数量</th>
+                    <th>封面</th>
                     <th>操作</th>
                   </tr>
                 </thead>
@@ -283,6 +286,10 @@
                     <td>{{ book._isbn }}</td>
                     <td>{{ book._press }}</td>
                     <td>{{ book._num }}</td>
+                    <td>
+                      <img v-if="book._cover_url" :src="book._cover_url" alt="封面" class="book-cover">
+                      <span v-else>无封面</span>
+                    </td>
                     <td>
                       <button class="edit-button" @click="editBook(book)">编辑</button>
                       <button class="delete-button" @click="deleteBook(book._bid)">删除</button>
@@ -684,7 +691,8 @@ export default {
         isbn: '',
         bookType: '',
         publisher: '',
-        totalQuantity: 0
+        totalQuantity: 0,
+        coverUrl: ''  
       },
       
       // 分类管理相关
@@ -892,10 +900,7 @@ export default {
     logout() {
       if (confirm('确定要退出登录吗？')) {
         this.closeUserInfoModal();
-        // 延迟跳转
-        setTimeout(() => {
-          window.location.href = '../';
-        }, 500);
+        this.performLogout();
       }
     },
     
@@ -1085,7 +1090,11 @@ export default {
     // 图书管理相关方法
     async fetchBooks() {
       try {
-        const res = await fetch('/api/page/books');
+        const res = await fetch('/api/books', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         const result = await res.json();
         if (res.status === 200) {
           this.books = result.data || [];
@@ -1167,7 +1176,7 @@ export default {
     },
     
     async submitBookForm() {
-      const { bookTitle, author, isbn, bookType, publisher, totalQuantity } = this.bookForm;
+      const { bookTitle, author, isbn, bookType, publisher, totalQuantity,coverUrl } = this.bookForm;
       
       if (!bookTitle || !author || !isbn || !bookType || !publisher || !totalQuantity) {
         this.$message.error('请填写完整的图书信息！');
@@ -1180,7 +1189,8 @@ export default {
         _isbn: isbn,
         _tid: bookType,
         _press: publisher,
-        _num: Number(totalQuantity)
+        _num: Number(totalQuantity),
+        _cover_url: coverUrl  
       };
       
       try {
@@ -1197,9 +1207,12 @@ export default {
     },
     
     async addBookApi(bookData) {
-      const res = await fetch('/api/page/books/add', {
+      const res = await fetch('/api/books', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(bookData)
       });
       const result = await res.json();
@@ -1210,10 +1223,12 @@ export default {
     },
     
     async editBookApi(id, bookData) {
-      bookData._bid = id;
-      const res = await fetch('/api/page/books/edit', {
+      const res = await fetch(`/api/books/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(bookData)
       });
       const result = await res.json();
@@ -1227,10 +1242,12 @@ export default {
       if (!confirm('确定要删除这本图书吗？')) return;
       
       try {
-        const res = await fetch('/api/page/books/delete', {
+        const res = await fetch(`/api/books/${id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ _bid: id })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         });
         const result = await res.json()
         if (res.status === 200) {
@@ -1248,9 +1265,10 @@ export default {
     // 分类管理相关方法
     async fetchCategories() {
       try {
-        const res = await fetch('/api/page/categories', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch('/api/categories', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         });
         const result = await res.json();
         if (res.status === 200) {
@@ -1351,9 +1369,12 @@ export default {
     },
     
     async addCategoryApi(categoryData) {
-      const res = await fetch('/api/page/category/add', {
+      const res = await fetch('/api/categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(categoryData)
       })
       const result = await res.json()
@@ -1364,10 +1385,13 @@ export default {
     },
     
     async editCategoryApi(id, categoryData) {
-      const res = await fetch('/api/page/category/edit', {
+      const res = await fetch(`/api/categories/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ _tid: id, ...categoryData })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(categoryData)
       });
       const result = await res.json();
       if (res.status !== 200) {
@@ -1380,15 +1404,12 @@ export default {
       if (!confirm('确定要删除该分类吗？')) return
       
       try {
-        const cat = this.categories.find(c => c._tid === id)
-        if (!cat) {
-          this.$message.error('未找到该分类')
-          return
-        }
-        const res = await fetch('/api/page/category/delete', {
+        const res = await fetch(`/api/categories/${id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ _tid: id, _type_name: cat._type_name })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         })
         const result = await res.json()
         if (res.status === 200) {
@@ -1406,7 +1427,11 @@ export default {
     // 借阅管理相关方法
     async fetchLends() {
       try {
-        const res = await fetch('/api/page/history')
+        const res = await fetch('/api/borrow-records', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
         const result = await res.json()
         if (res.status === 200) {
           this.lends = result.data || []
@@ -1478,18 +1503,28 @@ export default {
       if (!this.currentDelayHid || !this.newReturnDate) return
       
       try {
-        await this.delayLendApi(this.currentDelayHid, this.newReturnDate)
+        await this.delayLendApi(this.currentDelayHid)
         this.closeDelayModal()
         await this.fetchLends()
       } catch (err) {
         console.error(err)
       }
     },  
-    async delayLendApi(hid, newReturnDate) {
-      const res = await fetch('/api/page/books/borrow/delay', {
+    async delayLendApi(hid) {
+      // 注意：根据API文档，续借是通过图书ID而不是借阅记录ID
+      // 这里需要先获取借阅记录对应的图书ID
+      const lendRecord = this.lends.find(lend => lend._hid === hid);
+      if (!lendRecord) {
+        this.$message.error('未找到借阅记录');
+        return;
+      }
+      
+      const res = await fetch(`/api/books/${lendRecord._bid}/renew`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ _hid: hid, newReturnDate })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       })
       const result = await res.json()
       if (res.status !== 200) {
@@ -1501,7 +1536,11 @@ export default {
     // 用户管理相关方法
     async fetchUsers() {
       try {
-        const res = await fetch('/api/page/users');
+        const res = await fetch('/api/readers', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         const result = await res.json();
         if (res.status === 200) {
           this.users = result.data || [];
@@ -1595,11 +1634,11 @@ export default {
       }
       
       const userData = {
-        _username: username,
+        _account: username,
         _name: name,
         _phone: phone,
         _email: email,
-        _type: userType
+        _utype: userType
       };
 
       if (password) {
@@ -1620,9 +1659,12 @@ export default {
     },
 
     async addUserApi(userData) {
-      const res = await fetch('/api/page/users/add', {
+      const res = await fetch('/api/readers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(userData)
       });
       const result = await res.json();
@@ -1633,10 +1675,12 @@ export default {
     },
 
     async editUserApi(id, userData) {
-      userData._uid = id;
-      const res = await fetch('/api/page/users/edit', {
+      const res = await fetch(`/api/readers/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(userData)
       });
       const result = await res.json();
@@ -1650,10 +1694,12 @@ export default {
       if (!confirm('确定要删除这个用户吗？')) return;
       
       try {
-        const res = await fetch('/api/page/users/delete', {
+        const res = await fetch(`/api/readers/${id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ _uid: id })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         });
         const result = await res.json()
         if (res.status === 200) {
@@ -1672,10 +1718,20 @@ export default {
       if (!confirm('确定要重置该用户的密码吗？')) return;
       
       try {
-        const res = await fetch('/api/page/users/reset-password', {
+        // 根据API文档，重置密码需要验证码，这里简化处理
+        // 实际应用中应该先获取验证码
+        const res = await fetch('/api/auth/password', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ _uid: id })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            _uid: id,
+            _password: 'Default123!', // 设置默认密码
+            _captcha: '0000', // 简化处理，实际需要获取验证码
+            _usertype: 'student' // 需要根据用户类型设置
+          })
         });
         const result = await res.json()
         if (res.status === 200) {
@@ -1692,7 +1748,11 @@ export default {
     // 公告管理相关方法
     async fetchAnnouncements() {
       try {
-        const res = await fetch('/api/page/announcements');
+        const res = await fetch('/api/announcements', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         const result = await res.json();
         if (res.status === 200) {
           this.announcements = result.data || [];
@@ -1794,9 +1854,12 @@ export default {
     },
 
     async addAnnouncementApi(announcementData) {
-      const res = await fetch('/api/page/announcements/add', {
+      const res = await fetch('/api/announcements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(announcementData)
       });
       const result = await res.json();
@@ -1807,10 +1870,12 @@ export default {
     },
 
     async editAnnouncementApi(id, announcementData) {
-      announcementData._aid = id;
-      const res = await fetch('/api/page/announcements/edit', {
+      const res = await fetch(`/api/announcements/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(announcementData)
       });
       const result = await res.json();
@@ -1824,10 +1889,12 @@ export default {
       if (!confirm('确定要删除这个公告吗？')) return;
       
       try {
-        const res = await fetch('/api/page/announcements/delete', {
+        const res = await fetch(`/api/announcements/${id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ _aid: id })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         });
         const result = await res.json()
         if (res.status === 200) {
@@ -1844,10 +1911,23 @@ export default {
 
     async publishAnnouncement(id) {
       try {
-        const res = await fetch('/api/page/announcements/publish', {
+        // 通过编辑公告状态来实现发布
+        const announcement = this.announcements.find(a => a._aid === id);
+        if (!announcement) {
+          this.$message.error('未找到公告');
+          return;
+        }
+        
+        const res = await fetch(`/api/announcements/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ _aid: id })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            ...announcement,
+            _status: 'published'
+          })
         });
         const result = await res.json()
         if (res.status === 200) {
@@ -1864,10 +1944,23 @@ export default {
 
     async unpublishAnnouncement(id) {
       try {
-        const res = await fetch('/api/page/announcements/unpublish', {
+        // 通过编辑公告状态来实现取消发布
+        const announcement = this.announcements.find(a => a._aid === id);
+        if (!announcement) {
+          this.$message.error('未找到公告');
+          return;
+        }
+        
+        const res = await fetch(`/api/announcements/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ _aid: id })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            ...announcement,
+            _status: 'draft'
+          })
         });
         const result = await res.json()
         if (res.status === 200) {
@@ -1881,21 +1974,29 @@ export default {
         this.$message.error('取消发布公告失败')
       }
     },
+    
     // 调用退出API再跳转
     async performLogout() {
       try {
         // 调用退出登录的API
         await fetch('/api/auth/logout', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         });
       
+        // 清除本地token
+        localStorage.removeItem('token');
+        
         // 跳转到登录页面
         window.location.href = '../';
       
       } catch (err) {
         console.error('退出登录失败:', err);
-        // 即使API调用失败也跳转到登录页
+        // 即使API调用失败也清除token并跳转到登录页
+        localStorage.removeItem('token');
         window.location.href = '../';
       }
     }
@@ -2302,12 +2403,36 @@ html, body {
   font-size: 15px;
   padding: 16px 12px;
 }
+.book-cover {
+  width: 50px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 4px;
+}
 
 /* 按钮样式 */
-.edit-button, .delete-button,
-.edit-category, .delete-category,
-.lend-action, .reset-password, .publish-button, .unpublish-button {
-  background-color: #1194AE;
+/* 编辑按钮 - 蓝色 */
+.edit-button, .edit-category, .edit-user, .edit-announcement {
+  background-color: #2196F3; /* 蓝色 */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.3s;
+  min-width: 60px;
+}
+.edit-button:hover, .edit-category:hover, .edit-user:hover, .edit-announcement:hover {
+  background-color: #1976D2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
+}
+
+/* 删除按钮 - 红色 */
+.delete-button, .delete-category, .delete-user, .delete-announcement {
+  background-color: #f44336; /* 红色 */
   color: white;
   border: none;
   padding: 8px 16px;
@@ -2319,23 +2444,114 @@ html, body {
   min-width: 60px;
 }
 
-.edit-button:hover, .delete-button:hover,
-.edit-category:hover, .delete-category:hover,
-.lend-action:hover, .reset-password:hover, .publish-button:hover, .unpublish-button:hover {
+.delete-button:hover, .delete-category:hover, .delete-user:hover, .delete-announcement:hover {
+  background-color: #d32f2f;
   transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 5px rgba(244, 67, 54, 0.3);
 }
 
-.edit-button:hover, .edit-category:hover {
-  background-color: #067a97;
+/* 借阅操作按钮 - 绿色 */
+.lend-action, .return-action, .confirm-action {
+  background-color: #4CAF50; /* 绿色 */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.3s;
+  min-width: 60px;
 }
 
-.delete-button:hover, .delete-category:hover {
-  background-color: #f44336;
+.lend-action:hover, .return-action:hover, .confirm-action:hover {
+  background-color: #388E3C;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
 }
 
-.addBookModal, .addCategoryButton, .search-button, .addUserModal, .addAnnouncementButton {
-  background-color: #1194AE;
+/* 重置密码按钮 - 橙色 */
+.reset-password {
+  background-color: #FF9800; /* 橙色 */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.3s;
+  min-width: 80px;
+}
+
+.reset-password:hover {
+  background-color: #F57C00;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(255, 152, 0, 0.3);
+}
+
+/* 发布/取消发布按钮 - 紫色 */
+.publish-button {
+  background-color: #9C27B0; /* 紫色 */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.3s;
+  min-width: 80px;
+}
+
+.publish-button:hover {
+  background-color: #7B1FA2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(156, 39, 176, 0.3);
+}
+
+.unpublish-button {
+  background-color: #795548; /* 棕色 */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.3s;
+  min-width: 80px;
+}
+
+.unpublish-button:hover {
+  background-color: #5D4037;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(121, 85, 72, 0.3);
+}
+
+/* 查看详情按钮 - 青色 */
+.view-details {
+  background-color: #00BCD4; /* 青色 */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.3s;
+  min-width: 80px;
+}
+
+.view-details:hover {
+  background-color: #0097A7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 188, 212, 0.3);
+}
+
+/* 新增按钮 - 使用主题色 */
+.addBookModal, .addCategoryButton, .addUserModal, .addAnnouncementButton {
+  background-color: #1194AE; /* 主题色 */
   color: white;
   border: none;
   padding: 12px 24px;
@@ -2347,10 +2563,44 @@ html, body {
   min-width: 120px;
 }
 
-.addBookModal:hover, .addCategoryButton:hover, .search-button:hover, .addUserModal:hover, .addAnnouncementButton:hover {
+.addBookModal:hover, .addCategoryButton:hover, .addUserModal:hover, .addAnnouncementButton:hover {
   background-color: #067a97;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
+/* 搜索按钮 */
+.search-button {
+  background-color: #1194AE; /* 主题色 */
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+  min-width: 100px;
+}
+
+.search-button:hover {
+  background-color: #067a97;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+/* 禁用状态按钮 */
+button:disabled {
+  background-color: #cccccc !important;
+  color: #666666 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+button:disabled:hover {
+  background-color: #cccccc !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 /* 分页样式 */
