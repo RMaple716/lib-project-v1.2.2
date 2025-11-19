@@ -49,6 +49,11 @@ const routes = [
     path: '/manager2',
     name: 'Manager2',
     component: () => import('../views/manager2.vue')
+  },
+  {
+    path: '/readers',
+    name: 'Readers',
+    component: () => import('../views/readers.vue')
   }
 ]
 
