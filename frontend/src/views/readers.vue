@@ -640,7 +640,7 @@ import slide5 from '@/assets/slide5.jpg'
 import topIcon from '@/assets/top.jpg'
 
 // 设置axios默认配置
-axios.defaults.baseURL = 'http://localhost:3000';
+axios.defaults.baseURL = '/api';
 
 // 请求拦截器添加token
 axios.interceptors.request.use(config => {
