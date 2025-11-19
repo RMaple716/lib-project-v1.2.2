@@ -1,8 +1,0 @@
-{
-  "devDependencies": {
-    "@types/pg": "^8.15.6"
-  },
-  "dependencies": {
-    "particles.js": "^2.0.0"
-  }
-}
