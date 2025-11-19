@@ -41,9 +41,9 @@ const routes = [
     component: () => import('../views/manager.vue')
   },
   {
-    path: '/test',
-    name: 'Test',
-    component: () => import('../views/test.vue')
+    path: 'readers',
+    name: 'Readers',
+    component: () => import('../views/readers.vue')
   },
   {
     path: '/manager2',
