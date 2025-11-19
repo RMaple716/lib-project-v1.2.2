@@ -279,7 +279,7 @@ export default {
             if (['admin_t', 'admin_b', 'admin_l'].includes(data.data.usertype)) {
               this.$router.push('/manager2'); // 跳转到管理员页面
             } else if (['student', 'teacher'].includes(data.data.usertype)) {
-              this.$router.push('/test'); // 跳转到读者页面
+              this.$router.push('/readers'); // 跳转到读者页面
             }
           }, 1500);
         } else if (res.status === 400) {
