@@ -923,8 +923,6 @@ export default {
       const draftCount = this.announcements.length - publishedCount;
       return [publishedCount, draftCount];
     },
-    
-    // 原有其他方法保持不变...
     // 图书管理相关方法
     async fetchBooks() {
       try {

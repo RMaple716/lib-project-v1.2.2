@@ -35,9 +35,9 @@
             <select id="loginUserType" v-model="loginForm.userType">
               <option value="student">学生</option>
               <option value="teacher">教师</option>
-              <option value="terminal_admin">终端管理员</option>
-              <option value="book_admin">图书管理员</option>
-              <option value="borrow_admin">借阅管理员</option>
+              <option value="admin_t">终端管理员</option>
+              <option value="admin_b">图书管理员</option>
+              <option value="admin_l">借阅管理员</option>
             </select>
           </div>
           <div class="remember-me">
