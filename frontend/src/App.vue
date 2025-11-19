@@ -6,6 +6,7 @@
       <router-link to="/manager">图书管理员</router-link>
       <router-link to="/readers">读者</router-link>
       <router-link to="/manager2">图书管理员2</router-link>
+      <router-link to="/readers">读者2</router-link>
     </nav>
     <router-view/>
   </div>
