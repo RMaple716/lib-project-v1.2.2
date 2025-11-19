@@ -41,7 +41,7 @@ const routes = [
     component: () => import('../views/manager.vue')
   },
   {
-    path: 'readers',
+    path: '/readers',
     name: 'Readers',
     component: () => import('../views/readers.vue')
   },
@@ -49,11 +49,6 @@ const routes = [
     path: '/manager2',
     name: 'Manager2',
     component: () => import('../views/manager2.vue')
-  },
-  {
-    path: '/readers',
-    name: 'Readers',
-    component: () => import('../views/readers.vue')
   }
 ]
 
