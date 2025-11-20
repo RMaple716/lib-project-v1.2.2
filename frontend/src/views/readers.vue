@@ -639,12 +639,12 @@ import slide4 from '@/assets/slide4.jpg'
 import slide5 from '@/assets/slide5.jpg'
 import topIcon from '@/assets/top.jpg'
 
-// 设置axios默认配置
-axios.defaults.baseURL = 'http://localhost:3000';
+//  设置axios默认配置
+axios.defaults.baseURL = '';
 
 // 请求拦截器添加token
 axios.interceptors.request.use(config => {
-  const token = localStorage.getItem('jwt_token');
+  const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
