@@ -842,6 +842,14 @@ export default {
   },
   
   mounted() {
+  // 添加 token 检查
+  const token = localStorage.getItem('token');
+  if (!token) {
+    // 如果没有 token，跳转到登录页或显示错误
+    console.error('未找到 token，请先登录');
+    window.location.href = '../'; // 如果需要跳转登录页
+    return;
+  }
     // 初始化数据
     this.fetchBooks();
     this.fetchCategories();
@@ -1089,12 +1097,24 @@ export default {
     
     // 图书管理相关方法
     async fetchBooks() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
       try {
         const res = await fetch('/api/books', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
+
+        // 只在这里处理401,token过期反馈
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
+
         const result = await res.json();
         if (res.status === 200) {
           this.books = result.data || [];
@@ -1264,12 +1284,24 @@ export default {
     
     // 分类管理相关方法
     async fetchCategories() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
       try {
         const res = await fetch('/api/categories', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
+
+        // 只在这里处理401,token过期反馈
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
+
         const result = await res.json();
         if (res.status === 200) {
           this.categories = result.data || [];
@@ -1426,12 +1458,24 @@ export default {
     
     // 借阅管理相关方法
     async fetchLends() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
       try {
         const res = await fetch('/api/borrow-records', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         })
+
+        // 只在这里处理401,token过期反馈
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
+
         const result = await res.json()
         if (res.status === 200) {
           this.lends = result.data || []
@@ -1535,12 +1579,23 @@ export default {
 
     // 用户管理相关方法
     async fetchUsers() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
       try {
         const res = await fetch('/api/readers', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
+
+        // 只在这里处理401
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
         const result = await res.json();
         if (res.status === 200) {
           this.users = result.data || [];
@@ -1747,12 +1802,24 @@ export default {
 
     // 公告管理相关方法
     async fetchAnnouncements() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
       try {
         const res = await fetch('/api/announcements', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
+
+        // 只在这里处理401,token过期反馈
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
+
         const result = await res.json();
         if (res.status === 200) {
           this.announcements = result.data || [];
