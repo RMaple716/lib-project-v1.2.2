@@ -842,22 +842,16 @@ export default {
   },
   
   mounted() {
-  // 添加 token 检查
-  const token = localStorage.getItem('token');
-  if (!token) {
-    // 如果没有 token，跳转到登录页或显示错误
-    console.error('未找到 token，请先登录');
-    window.location.href = '../'; // 如果需要跳转登录页
-    return;
-  }
-    // 初始化数据
+    console.log('=== 管理员页面加载开始 ===');
+    console.log('token:', localStorage.getItem('token'));
+    console.log('所有localStorage:', localStorage);
+    // 先正常初始化数据
     this.fetchBooks();
     this.fetchCategories();
     this.fetchLends();
     this.fetchUsers();
     this.fetchAnnouncements();
     
-    // 初始化图表
     this.$nextTick(() => {
       this.initCharts();
     });
@@ -1598,7 +1592,7 @@ export default {
         }
         const result = await res.json();
         if (res.status === 200) {
-          this.users = result.data.ReadersList || [];
+          this.users = result.data.readerlist || [];
           this.filteredUsers = [];
         } else {
           this.users = [];
@@ -1822,7 +1816,7 @@ export default {
 
         const result = await res.json();
         if (res.status === 200) {
-          this.announcements = result.data.AnnouncementsList || [];
+          this.announcements = result.data.data || [];
           this.filteredAnnouncements = []; 
         } else {
           this.announcements = [];
