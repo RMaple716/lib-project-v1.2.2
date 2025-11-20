@@ -785,6 +785,9 @@ export default {
       const end = start + this.categoryRowsPerPage;
       return dataSource.slice(start, end);
     },
+    visibleCategoryPages() {  
+      return this.generateVisiblePages(this.categoryCurrentPage, this.totalCategoryPages);
+    },
     
     // 借阅分页计算
     totalLendPages() {
@@ -796,6 +799,9 @@ export default {
       const start = (this.lendCurrentPage - 1) * this.lendRowsPerPage;
       const end = start + this.lendRowsPerPage;
       return dataSource.slice(start, end);
+    },
+    visibleLendPages() {  
+      return this.generateVisiblePages(this.lendCurrentPage, this.totalLendPages);
     },
 
     // 用户分页计算
@@ -823,6 +829,9 @@ export default {
       const start = (this.announcementCurrentPage - 1) * this.announcementRowsPerPage;
       const end = start + this.announcementRowsPerPage;
       return dataSource.slice(start, end);
+    },
+    visibleAnnouncementPages() { 
+      return this.generateVisiblePages(this.announcementCurrentPage, this.totalAnnouncementPages);
     },
     
     // 统计数据 - 新增activeLends计算属性
