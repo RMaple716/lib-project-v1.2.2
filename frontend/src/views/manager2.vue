@@ -1117,7 +1117,7 @@ export default {
 
         const result = await res.json();
         if (res.status === 200) {
-          this.books = result.data || [];
+          this.books = result.data.booklist || [];
           this.filteredBooks = [];
         } else {
           this.books = [];
@@ -1304,7 +1304,7 @@ export default {
 
         const result = await res.json();
         if (res.status === 200) {
-          this.categories = result.data || [];
+          this.categories = result.data.CategoriesList || [];
           this.filteredCategories = [];
         } else {
           this.categories = [];
@@ -1478,7 +1478,7 @@ export default {
 
         const result = await res.json()
         if (res.status === 200) {
-          this.lends = result.data || []
+          this.lends = result.data.BorrowRecordsList || []
           this.filteredLends = []; // 重置搜索状态
         } else {
           this.lends = []
@@ -1598,7 +1598,7 @@ export default {
         }
         const result = await res.json();
         if (res.status === 200) {
-          this.users = result.data || [];
+          this.users = result.data.ReadersList || [];
           this.filteredUsers = [];
         } else {
           this.users = [];
@@ -1822,7 +1822,7 @@ export default {
 
         const result = await res.json();
         if (res.status === 200) {
-          this.announcements = result.data || [];
+          this.announcements = result.data.AnnouncementsList || [];
           this.filteredAnnouncements = []; 
         } else {
           this.announcements = [];
