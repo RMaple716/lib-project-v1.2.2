@@ -5,13 +5,24 @@
       <!-- 上侧导航导航栏 -->
       <nav class="navbar">
         <div class="logo">
-          <img src="@/assets/logoo.png" alt="图书管理系统logo" class="logo-img">
-          图书管理系统</div>
+          <img
+            src="@/assets/logoo.png"
+            alt="图书管理系统logo"
+            class="logo-img"
+          />
+          图书管理系统
+        </div>
         <ul class="nav-links">
-          <li><a href="#" @click.prevent="changePage('search')">图书大厅</a></li>
-          <li><a href="#" @click.prevent="changePage('personal')">个人信息</a></li>
+          <li>
+            <a href="#" @click.prevent="changePage('search')">图书大厅</a>
+          </li>
+          <li>
+            <a href="#" @click.prevent="changePage('personal')">个人信息</a>
+          </li>
           <li><a href="#" @click.prevent="changePage('aid')">公告信息</a></li>
-          <li><a href="#" @click.prevent="changePage('feedback')">意见建议</a></li>
+          <li>
+            <a href="#" @click.prevent="changePage('feedback')">意见建议</a>
+          </li>
         </ul>
       </nav>
 
@@ -19,25 +30,30 @@
       <main>
         <!-- 图书查询页面 -->
         <div v-if="currentPage === 'search'">
-
           <div class="search-container">
             <div class="searchbar">
               <select v-model="searchType" class="search-select">
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input type="text" v-model="searchQuery" placeholder="请输入查询内容">
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="请输入查询内容"
+              />
               <button @click="gotoSearchResult">检索</button>
             </div>
-            
+
             <!-- 图书类别筛选 -->
             <div class="category-filter">
               <span class="filter-label">图书类别：</span>
-              <button 
-                v-for="category in bookCategories" 
+              <button
+                v-for="category in bookCategories"
                 :key="category.value"
                 @click="filterByCategory(category.value)"
-                :class="{ 'active-category': currentCategory === category.value }"
+                :class="{
+                  'active-category': currentCategory === category.value,
+                }"
               >
                 {{ category.label }}
               </button>
@@ -45,9 +61,20 @@
           </div>
 
           <!-- 轮播 -->
-          <div class="hero-carousel" @mouseenter="stopCarousel" @mouseleave="startCarousel">
-            <div class="hero-track" :style="{ transform: `translateX(-${carouselIndex * 100}%)` }">
-              <div class="hero-slide" v-for="(img, idx) in carouselImages" :key="idx">
+          <div
+            class="hero-carousel"
+            @mouseenter="stopCarousel"
+            @mouseleave="startCarousel"
+          >
+            <div
+              class="hero-track"
+              :style="{ transform: `translateX(-${carouselIndex * 100}%)` }"
+            >
+              <div
+                class="hero-slide"
+                v-for="(img, idx) in carouselImages"
+                :key="idx"
+              >
                 <img :src="img" :alt="`slide-${idx}`" />
               </div>
             </div>
@@ -76,12 +103,33 @@
           <div class="books-section">
             <div class="section-header">
               <h2>新书推荐</h2>
-              <a href="#" @click.prevent="changePage('allBooks', 'new')" class="view-all">查看全部</a>
+              <a
+                href="#"
+                @click.prevent="changePage('allBooks', 'new')"
+                class="view-all"
+                >查看全部</a
+              >
             </div>
             <div class="books-grid">
-              <div class="book-card" v-for="(book, index) in filteredNewBooks" :key="'new-' + index" @click="viewBookDetail(book)">
+              <div
+                class="book-card"
+                v-for="(book, index) in filteredNewBooks"
+                :key="'new-' + index"
+                @click="viewBookDetail(book)"
+              >
                 <div class="book-cover">
-                  <div class="cover-placeholder">{{ book._book_name.substring(0, 2) }}</div>
+                  <img
+                    :src="getFullCoverUrl(book._cover_url)"
+                    :alt="book._book_name"
+                    class="book-img"
+                    @error="handleImgError($event, book)"
+                  />
+                  <div
+                    class="cover-placeholder"
+                    v-if="!book._cover_url || imgErrorMap[book._bid]"
+                  >
+                    {{ book._book_name.substring(0, 2) }}
+                  </div>
                 </div>
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
@@ -95,12 +143,33 @@
           <div class="books-section">
             <div class="section-header">
               <h2>热门推荐</h2>
-              <a href="#" @click.prevent="changePage('allBooks', 'hot')" class="view-all">查看全部</a>
+              <a
+                href="#"
+                @click.prevent="changePage('allBooks', 'hot')"
+                class="view-all"
+                >查看全部</a
+              >
             </div>
             <div class="books-grid">
-              <div class="book-card" v-for="(book, index) in filteredHotBooks" :key="'hot-' + index" @click="viewBookDetail(book)">
+              <div
+                class="book-card"
+                v-for="(book, index) in filteredHotBooks"
+                :key="'hot-' + index"
+                @click="viewBookDetail(book)"
+              >
                 <div class="book-cover">
-                  <div class="cover-placeholder">{{ book._book_name.substring(0, 2) }}</div>
+                  <img
+                    :src="getFullCoverUrl(book._cover_url)"
+                    :alt="book._book_name"
+                    class="book-img"
+                    @error="handleImgError($event, book)"
+                  />
+                  <div
+                    class="cover-placeholder"
+                    v-if="!book._cover_url || imgErrorMap[book._bid]"
+                  >
+                    {{ book._book_name.substring(0, 2) }}
+                  </div>
                 </div>
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
@@ -114,12 +183,33 @@
           <div class="books-section">
             <div class="section-header">
               <h2>全部图书</h2>
-              <a href="#" @click.prevent="changePage('allBooks', 'all')" class="view-all">查看全部</a>
+              <a
+                href="#"
+                @click.prevent="changePage('allBooks', 'all')"
+                class="view-all"
+                >查看全部</a
+              >
             </div>
             <div class="books-grid">
-              <div class="book-card" v-for="(book, index) in currentPageItems" :key="'all-' + index" @click="viewBookDetail(book)">
+              <div
+                class="book-card"
+                v-for="(book, index) in currentPageItems"
+                :key="'all-' + index"
+                @click="viewBookDetail(book)"
+              >
                 <div class="book-cover">
-                  <div class="cover-placeholder">{{ book._book_name.substring(0, 2) }}</div>
+                  <img
+                    :src="getFullCoverUrl(book._cover_url)"
+                    :alt="book._book_name"
+                    class="book-img"
+                    @error="handleImgError($event, book)"
+                  />
+                  <div
+                    class="cover-placeholder"
+                    v-if="!book._cover_url || imgErrorMap[book._bid]"
+                  >
+                    {{ book._book_name.substring(0, 2) }}
+                  </div>
                 </div>
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
@@ -138,17 +228,23 @@
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input type="text" v-model="searchQuery" placeholder="请输入查询内容">
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="请输入查询内容"
+              />
               <button @click="gotoSearchResult">重新检索</button>
             </div>
-            
+
             <div class="category-filter">
               <span class="filter-label">图书类别：</span>
-              <button 
-                v-for="category in bookCategories" 
+              <button
+                v-for="category in bookCategories"
                 :key="category.value"
                 @click="filterByCategoryInResult(category.value)"
-                :class="{ 'active-category': currentCategory === category.value }"
+                :class="{
+                  'active-category': currentCategory === category.value,
+                }"
               >
                 {{ category.label }}
               </button>
@@ -156,24 +252,47 @@
           </div>
 
           <div class="all-books-container">
-            <button @click="changePage('search')" class="back-btn">返回图书大厅</button>
+            <button @click="changePage('search')" class="back-btn">
+              返回图书大厅
+            </button>
             <h2>
-              搜索结果: 
+              搜索结果:
               <span class="search-query-display">
-                {{ searchType === 'book' ? '图书名称包含 "' : '作者包含 "' }}{{ searchQuery }}"
-                <span v-if="currentCategory">，类别: {{ currentCategory }}</span>
+                {{ searchType === "book" ? '图书名称包含 "' : '作者包含 "'
+                }}{{ searchQuery }}"
+                <span v-if="currentCategory"
+                  >，类别: {{ currentCategory }}</span
+                >
               </span>
-              <span class="result-count">共 {{ filteredSearchResults.length }} 条结果</span>
+              <span class="result-count"
+                >共 {{ filteredSearchResults.length }} 条结果</span
+              >
             </h2>
-            
+
             <div v-if="filteredSearchResults.length === 0" class="no-results">
               没有找到符合条件的图书，请尝试其他搜索条件。
             </div>
-            
+
             <div class="books-grid">
-              <div class="book-card" v-for="(book, index) in currentSearchResultItems" :key="'search-' + index" @click="viewBookDetail(book)">
+              <div
+                class="book-card"
+                v-for="(book, index) in currentSearchResultItems"
+                :key="'search-' + index"
+                @click="viewBookDetail(book)"
+              >
                 <div class="book-cover">
-                  <div class="cover-placeholder">{{ book._book_name.substring(0, 2) }}</div>
+                  <img
+                    :src="getFullCoverUrl(book._cover_url)"
+                    :alt="book._book_name"
+                    class="book-img"
+                    @error="handleImgError($event, book)"
+                  />
+                  <div
+                    class="cover-placeholder"
+                    v-if="!book._cover_url || imgErrorMap[book._bid]"
+                  >
+                    {{ book._book_name.substring(0, 2) }}
+                  </div>
                 </div>
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
@@ -186,15 +305,46 @@
             <div class="pagination" v-if="filteredSearchResults.length > 0">
               <span class="total-pages">共{{ totalSearchResultPages }}页</span>
               <span class="page-numbers">
-                <button @click="changeSearchResultPageNum(1)" :disabled="currentSearchResultPageNum === 1">首页</button>
-                <button @click="changeSearchResultPageNum(currentSearchResultPageNum - 1)" :disabled="currentSearchResultPageNum === 1">上一页</button>
-                <button v-for="page in visibleSearchResultPages" :key="'search-page-' + page" 
-                  @click="changeSearchResultPageNum(page)" 
-                  :class="{ 'active': currentSearchResultPageNum === page }">
+                <button
+                  @click="changeSearchResultPageNum(1)"
+                  :disabled="currentSearchResultPageNum === 1"
+                >
+                  首页
+                </button>
+                <button
+                  @click="
+                    changeSearchResultPageNum(currentSearchResultPageNum - 1)
+                  "
+                  :disabled="currentSearchResultPageNum === 1"
+                >
+                  上一页
+                </button>
+                <button
+                  v-for="page in visibleSearchResultPages"
+                  :key="'search-page-' + page"
+                  @click="changeSearchResultPageNum(page)"
+                  :class="{ active: currentSearchResultPageNum === page }"
+                >
                   {{ page }}
                 </button>
-                <button @click="changeSearchResultPageNum(currentSearchResultPageNum + 1)" :disabled="currentSearchResultPageNum === totalSearchResultPages">下一页</button>
-                <button @click="changeSearchResultPageNum(totalSearchResultPages)" :disabled="currentSearchResultPageNum === totalSearchResultPages">末页</button>
+                <button
+                  @click="
+                    changeSearchResultPageNum(currentSearchResultPageNum + 1)
+                  "
+                  :disabled="
+                    currentSearchResultPageNum === totalSearchResultPages
+                  "
+                >
+                  下一页
+                </button>
+                <button
+                  @click="changeSearchResultPageNum(totalSearchResultPages)"
+                  :disabled="
+                    currentSearchResultPageNum === totalSearchResultPages
+                  "
+                >
+                  末页
+                </button>
               </span>
             </div>
           </div>
@@ -208,17 +358,23 @@
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input type="text" v-model="searchQuery" placeholder="请输入查询内容">
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="请输入查询内容"
+              />
               <button @click="gotoSearchResult">检索</button>
             </div>
-            
+
             <div class="category-filter">
               <span class="filter-label">图书类别：</span>
-              <button 
-                v-for="category in bookCategories" 
+              <button
+                v-for="category in bookCategories"
                 :key="category.value"
                 @click="filterByCategory(category.value)"
-                :class="{ 'active-category': currentCategory === category.value }"
+                :class="{
+                  'active-category': currentCategory === category.value,
+                }"
               >
                 {{ category.label }}
               </button>
@@ -229,7 +385,20 @@
             <button @click="changePage('search')" class="back-btn">返回</button>
             <div class="detail-content">
               <div class="detail-cover">
-                <div class="detail-placeholder">{{ currentBook?._book_name?.substring(0, 2) }}</div>
+                <img
+                  :src="getFullCoverUrl(currentBook?._cover_url)"
+                  :alt="currentBook?._book_name"
+                  class="book-img"
+                  @error="handleImgError($event, currentBook)"
+                />
+                <div
+                  class="detail-placeholder"
+                  v-if="
+                    !currentBook?._cover_url || imgErrorMap[currentBook?._bid]
+                  "
+                >
+                  {{ currentBook?._book_name?.substring(0, 2) }}
+                </div>
               </div>
               <div class="detail-info">
                 <h1 class="detail-title">{{ currentBook?._book_name }}</h1>
@@ -238,12 +407,12 @@
                 <p><strong>图书类型：</strong>{{ currentBook?._type_name }}</p>
                 <p><strong>库存数量：</strong>{{ currentBook?._num }}</p>
                 <p><strong>借阅次数：</strong>{{ currentBook?._times || 0 }}</p>
-                <button 
-                  @click="borrowBook(currentBook?._bid)" 
+                <button
+                  @click="borrowBook(currentBook?._bid)"
                   :disabled="currentBook?._num <= 0"
                   class="borrow-btn"
                 >
-                  {{ currentBook?._num > 0 ? '借阅' : '无库存' }}
+                  {{ currentBook?._num > 0 ? "借阅" : "无库存" }}
                 </button>
               </div>
             </div>
@@ -258,17 +427,23 @@
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input type="text" v-model="searchQuery" placeholder="请输入查询内容">
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="请输入查询内容"
+              />
               <button @click="gotoSearchResult">检索</button>
             </div>
-            
+
             <div class="category-filter">
               <span class="filter-label">图书类别：</span>
-              <button 
-                v-for="category in bookCategories" 
+              <button
+                v-for="category in bookCategories"
                 :key="category.value"
                 @click="filterByCategory(category.value)"
-                :class="{ 'active-category': currentCategory === category.value }"
+                :class="{
+                  'active-category': currentCategory === category.value,
+                }"
               >
                 {{ category.label }}
               </button>
@@ -278,14 +453,35 @@
           <div class="all-books-container">
             <button @click="changePage('search')" class="back-btn">返回</button>
             <h2>
-              {{ pageType === 'new' ? '全部新书' : 
-                pageType === 'hot' ? '全部热门图书' : '所有图书' }}
+              {{
+                pageType === "new"
+                  ? "全部新书"
+                  : pageType === "hot"
+                  ? "全部热门图书"
+                  : "所有图书"
+              }}
             </h2>
-            
+
             <div class="books-grid">
-              <div class="book-card" v-for="(book, index) in filteredBooks" :key="'all-' + index" @click="viewBookDetail(book)">
+              <div
+                class="book-card"
+                v-for="(book, index) in filteredBooks"
+                :key="'all-' + index"
+                @click="viewBookDetail(book)"
+              >
                 <div class="book-cover">
-                  <div class="cover-placeholder">{{ book._book_name.substring(0, 2) }}</div>
+                  <img
+                    :src="getFullCoverUrl(book._cover_url)"
+                    :alt="book._book_name"
+                    class="book-img"
+                    @error="handleImgError($event, book)"
+                  />
+                  <div
+                    class="cover-placeholder"
+                    v-if="!book._cover_url || imgErrorMap[book._bid]"
+                  >
+                    {{ book._book_name.substring(0, 2) }}
+                  </div>
                 </div>
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
@@ -297,15 +493,38 @@
             <div class="pagination">
               <span class="total-pages">共{{ totalPages }}页</span>
               <span class="page-numbers">
-                <button @click="changePageNum(1)" :disabled="currentPageNum === 1">首页</button>
-                <button @click="changePageNum(currentPageNum - 1)" :disabled="currentPageNum === 1">上一页</button>
-                <button v-for="page in visiblePages" :key="page" 
-                  @click="changePageNum(page)" 
-                  :class="{ 'active': currentPageNum === page }">
+                <button
+                  @click="changePageNum(1)"
+                  :disabled="currentPageNum === 1"
+                >
+                  首页
+                </button>
+                <button
+                  @click="changePageNum(currentPageNum - 1)"
+                  :disabled="currentPageNum === 1"
+                >
+                  上一页
+                </button>
+                <button
+                  v-for="page in visiblePages"
+                  :key="page"
+                  @click="changePageNum(page)"
+                  :class="{ active: currentPageNum === page }"
+                >
                   {{ page }}
                 </button>
-                <button @click="changePageNum(currentPageNum + 1)" :disabled="currentPageNum === totalPages">下一页</button>
-                <button @click="changePageNum(totalPages)" :disabled="currentPageNum === totalPages">末页</button>
+                <button
+                  @click="changePageNum(currentPageNum + 1)"
+                  :disabled="currentPageNum === totalPages"
+                >
+                  下一页
+                </button>
+                <button
+                  @click="changePageNum(totalPages)"
+                  :disabled="currentPageNum === totalPages"
+                >
+                  末页
+                </button>
               </span>
             </div>
           </div>
@@ -316,88 +535,90 @@
           <div class="personal-container">
             <div class="personal-sidebar">
               <ul class="sidebar-nav">
-                <li 
-                  :class="{ 'active': personalTab === 'account' }"
+                <li
+                  :class="{ active: personalTab === 'account' }"
                   @click="personalTab = 'account'"
                 >
                   账户信息
                 </li>
-                <li 
-                  :class="{ 'active': personalTab === 'borrowing' }"
+                <li
+                  :class="{ active: personalTab === 'borrowing' }"
                   @click="personalTab = 'borrowing'"
                 >
                   我的借阅
                 </li>
-                <li 
-                  :class="{ 'active': personalTab === 'collection' }"
+                <li
+                  :class="{ active: personalTab === 'collection' }"
                   @click="personalTab = 'collection'"
                 >
                   我的收藏
                 </li>
               </ul>
             </div>
-            
+
             <div class="personal-content">
               <div v-if="personalTab === 'account'">
                 <h2>账户信息</h2>
                 <div class="account-info">
                   <div class="info-item">
                     <label>用户名：</label>
-                    <span>{{ userInfo?.username || '加载中...' }}</span>
+                    <span>{{ userInfo?.username || "加载中..." }}</span>
                   </div>
                   <div class="info-item">
                     <label>联系电话：</label>
-                    <span>{{ userInfo?.phone || '加载中...' }}</span>
+                    <span>{{ userInfo?.phone || "加载中..." }}</span>
                   </div>
                   <div class="info-item">
                     <label>邮箱：</label>
-                    <span>{{ userInfo?.email || '加载中...' }}</span>
+                    <span>{{ userInfo?.email || "加载中..." }}</span>
                   </div>
                   <div class="info-actions">
                     <button class="edit-btn">编辑信息</button>
-                    <button class="change-pwd-btn" @click="gotoResetPassword">修改密码</button>
+                    <button class="change-pwd-btn" @click="gotoResetPassword">
+                      修改密码
+                    </button>
                   </div>
                 </div>
               </div>
-              
+
               <div v-if="personalTab === 'borrowing'">
                 <h2>我的借阅</h2>
-                
+
                 <div class="personal-search">
                   <select v-model="borrowingSearchType" class="search-select">
                     <option value="book">按图书名称查询</option>
                     <option value="author">按作者姓名查询</option>
                     <option value="date">按借阅时间查询</option>
                   </select>
-                  <input 
-                    type="text" 
-                    v-model="borrowingSearchQuery" 
+                  <input
+                    type="text"
+                    v-model="borrowingSearchQuery"
                     placeholder="请输入查询内容"
-                  >
+                  />
                   <button @click="searchBorrowing">检索</button>
                 </div>
-                
+
                 <div class="status-tabs">
-                  <button 
-                    :class="{ 'active': borrowingStatus === 'all' }"
+                  <button
+                    :class="{ active: borrowingStatus === 'all' }"
                     @click="borrowingStatus = 'all'"
                   >
                     共借阅 ({{ borrowingStats?.total || 0 }})
                   </button>
-                  <button 
-                    :class="{ 'active': borrowingStatus === 'borrowing' }"
+                  <button
+                    :class="{ active: borrowingStatus === 'borrowing' }"
                     @click="borrowingStatus = 'borrowing'"
                   >
                     借阅中 ({{ borrowingStats?.borrowing || 0 }})
                   </button>
-                  <button 
-                    :class="{ 'active': borrowingStatus === 'returned' }"
+                  <button
+                    :class="{ active: borrowingStatus === 'returned' }"
                     @click="borrowingStatus = 'returned'"
                   >
                     已归还 ({{ borrowingStats?.returned || 0 }})
                   </button>
                 </div>
-                
+
                 <table id="borrowing-table">
                   <thead>
                     <tr>
@@ -413,15 +634,31 @@
                   </thead>
                   <tbody>
                     <tr v-if="borrowingList.length === 0">
-                      <td colspan="8" style="text-align: center; padding: 20px;">
+                      <td colspan="8" style="text-align: center; padding: 20px">
                         暂无借阅记录
                       </td>
                     </tr>
-                    <tr v-for="(record, index) in borrowingList" :key="record.id">
+                    <tr
+                      v-for="(record, index) in borrowingList"
+                      :key="record.id"
+                    >
                       <td>{{ index + 1 }}</td>
                       <td>
                         <div class="table-cover">
-                          <div class="cover-placeholder">{{ record.bookName.substring(0, 2) }}</div>
+                          <img
+                            :src="getFullCoverUrl(record.coverUrl)"
+                            :alt="record.bookName"
+                            class="book-img"
+                            @error="handleImgError($event, record)"
+                          />
+                          <div
+                            class="cover-placeholder"
+                            v-if="
+                              !record.coverUrl || imgErrorMap[record.bookId]
+                            "
+                          >
+                            {{ record.bookName.substring(0, 2) }}
+                          </div>
                         </div>
                       </td>
                       <td>{{ record.bookName }}</td>
@@ -429,51 +666,107 @@
                       <td>{{ record.borrowDate }}</td>
                       <td>{{ record.dueDate }}</td>
                       <td>
-                        <span class="status-tag" :class="record.status === 'borrowing' ? 'borrowing' : 'returned'">
-                          {{ record.status === 'borrowing' ? '借阅中' : '已归还' }}
+                        <span
+                          class="status-tag"
+                          :class="
+                            record.status === 'borrowing'
+                              ? 'borrowing'
+                              : 'returned'
+                          "
+                        >
+                          {{
+                            record.status === "borrowing" ? "借阅中" : "已归还"
+                          }}
                         </span>
                       </td>
                       <td>
-                        <button v-if="record.status === 'borrowing'" class="return-btn" @click="returnBook(record.bookId)">还书</button>
-                        <button v-if="record.status === 'borrowing'" class="delay-btn" @click="renewBook(record.bookId)">续借</button>
-                        <button v-if="record.status === 'returned'" class="reborrow-btn" @click="borrowBook(record.bookId)">再次借阅</button>
+                        <button
+                          v-if="record.status === 'borrowing'"
+                          class="return-btn"
+                          @click="returnBook(record.bookId)"
+                        >
+                          还书
+                        </button>
+                        <button
+                          v-if="record.status === 'borrowing'"
+                          class="delay-btn"
+                          @click="renewBook(record.bookId)"
+                        >
+                          续借
+                        </button>
+                        <button
+                          v-if="record.status === 'returned'"
+                          class="reborrow-btn"
+                          @click="borrowBook(record.bookId)"
+                        >
+                          再次借阅
+                        </button>
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              
+
               <div v-if="personalTab === 'collection'">
                 <h2>我的收藏</h2>
-                
+
                 <div class="personal-search">
                   <select v-model="collectionSearchType" class="search-select">
                     <option value="book">按图书名称查询</option>
                     <option value="author">按作者姓名查询</option>
                     <option value="date">按收藏时间查询</option>
                   </select>
-                  <input 
-                    type="text" 
-                    v-model="collectionSearchQuery" 
+                  <input
+                    type="text"
+                    v-model="collectionSearchQuery"
                     placeholder="请输入查询内容"
-                  >
+                  />
                   <button @click="searchCollection">检索</button>
                 </div>
-                
+
                 <div class="collection-grid">
-                  <div v-if="collectionList.length === 0" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                  <div
+                    v-if="collectionList.length === 0"
+                    style="
+                      grid-column: 1 / -1;
+                      text-align: center;
+                      padding: 40px;
+                    "
+                  >
                     暂无收藏记录
                   </div>
-                  <div class="collection-item" v-for="item in collectionList" :key="item.id">
+                  <div
+                    class="collection-item"
+                    v-for="item in collectionList"
+                    :key="item.id"
+                  >
                     <div class="book-cover">
-                      <div class="cover-placeholder">{{ item.bookName.substring(0, 2) }}</div>
+                      <img
+                        :src="getFullCoverUrl(item.coverUrl)"
+                        :alt="item.bookName"
+                        class="book-img"
+                        @error="handleImgError($event, item)"
+                      />
+                      <div
+                        class="cover-placeholder"
+                        v-if="!item.coverUrl || imgErrorMap[item.bookId]"
+                      >
+                        {{ item.bookName.substring(0, 2) }}
+                      </div>
                     </div>
                     <div class="collection-info">
                       <h3 class="book-title">{{ item.bookName }}</h3>
                       <p class="book-author">{{ item.author }}</p>
-                      <p class="collect-date">收藏时间: {{ item.collectDate }}</p>
+                      <p class="collect-date">
+                        收藏时间: {{ item.collectDate }}
+                      </p>
                       <div class="collection-actions">
-                        <button class="borrow-btn" @click="borrowBook(item.bookId)">借阅</button>
+                        <button
+                          class="borrow-btn"
+                          @click="borrowBook(item.bookId)"
+                        >
+                          借阅
+                        </button>
                         <button class="cancel-collect-btn">取消收藏</button>
                       </div>
                     </div>
@@ -492,7 +785,11 @@
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input type="text" v-model="searchQuery" placeholder="请输入查询内容">
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="请输入查询内容"
+              />
               <button @click="gotoSearchResult">检索</button>
             </div>
           </div>
@@ -502,7 +799,9 @@
             <li v-for="announcement in announcements" :key="announcement._id">
               <div class="announcement-title">{{ announcement._title }}</div>
               <div class="announcement-date">{{ announcement._date }}</div>
-              <div class="announcement-content">{{ announcement._content }}</div>
+              <div class="announcement-content">
+                {{ announcement._content }}
+              </div>
             </li>
           </ul>
         </div>
@@ -515,7 +814,11 @@
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input type="text" v-model="searchQuery" placeholder="请输入查询内容">
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="请输入查询内容"
+              />
               <button @click="gotoSearchResult">检索</button>
             </div>
           </div>
@@ -523,32 +826,44 @@
           <div class="feedback-container">
             <button @click="changePage('search')" class="back-btn">返回</button>
             <h2>意见建议</h2>
-            
+
             <div class="feedback-tabs">
-              <button 
-                :class="{ 'active': feedbackTab === 'new' }"
+              <button
+                :class="{ active: feedbackTab === 'new' }"
                 @click="feedbackTab = 'new'"
               >
                 提交新意见
               </button>
-              <button 
-                :class="{ 'active': feedbackTab === 'history' }"
+              <button
+                :class="{ active: feedbackTab === 'history' }"
                 @click="feedbackTab = 'history'"
               >
                 历史记录
               </button>
             </div>
-            
+
             <!-- 提交新意见表单 -->
             <div v-if="feedbackTab === 'new'" class="feedback-form-container">
-              <form @submit.prevent="handleFeedbackSubmit" class="feedback-form">
+              <form
+                @submit.prevent="handleFeedbackSubmit"
+                class="feedback-form"
+              >
                 <div class="form-row">
                   <label>姓名 <span class="required">*</span></label>
-                  <input type="text" v-model.trim="feedbackName" placeholder="请输入姓名" required />
+                  <input
+                    type="text"
+                    v-model.trim="feedbackName"
+                    placeholder="请输入姓名"
+                    required
+                  />
                 </div>
                 <div class="form-row">
                   <label>邮箱</label>
-                  <input type="email" v-model.trim="feedbackEmail" placeholder="选填：example@mail.com" />
+                  <input
+                    type="email"
+                    v-model.trim="feedbackEmail"
+                    placeholder="选填：example@mail.com"
+                  />
                 </div>
                 <div class="form-row">
                   <label>类别</label>
@@ -560,35 +875,50 @@
                 </div>
                 <div class="form-row">
                   <label>意见内容 <span class="required">*</span></label>
-                  <textarea v-model="feedbackMessage" rows="6" placeholder="请填写您的意见或问题" required></textarea>
+                  <textarea
+                    v-model="feedbackMessage"
+                    rows="6"
+                    placeholder="请填写您的意见或问题"
+                    required
+                  ></textarea>
                 </div>
                 <div class="form-row form-actions">
-                  <span class="error-message" v-if="feedbackError">{{ feedbackError }}</span>
+                  <span class="error-message" v-if="feedbackError">{{
+                    feedbackError
+                  }}</span>
                   <button type="submit">提交</button>
                 </div>
               </form>
             </div>
-            
+
             <!-- 历史记录列表 -->
             <div v-if="feedbackTab === 'history'" class="feedback-history">
               <div v-if="feedbackHistory.length === 0" class="no-history">
                 暂无意见建议记录
               </div>
-              
+
               <div class="history-list">
-                <div class="history-item" v-for="(item, index) in feedbackHistory" :key="index">
+                <div
+                  class="history-item"
+                  v-for="(item, index) in feedbackHistory"
+                  :key="index"
+                >
                   <div class="history-header">
                     <div class="history-title">
-                      {{ item.type }}：{{ item.message.substring(0, 30) }}{{ item.message.length > 30 ? '...' : '' }}
+                      {{ item.type }}：{{ item.message.substring(0, 30)
+                      }}{{ item.message.length > 30 ? "..." : "" }}
                     </div>
                     <div class="history-date">{{ item.date }}</div>
                   </div>
                   <div class="history-content">
                     <p><strong>姓名：</strong>{{ item.name }}</p>
-                    <p><strong>邮箱：</strong>{{ item.email || '未提供' }}</p>
+                    <p><strong>邮箱：</strong>{{ item.email || "未提供" }}</p>
                     <p><strong>内容：</strong>{{ item.message }}</p>
                   </div>
-                  <div class="history-status" :class="item.status === '已回复' ? 'replied' : 'pending'">
+                  <div
+                    class="history-status"
+                    :class="item.status === '已回复' ? 'replied' : 'pending'"
+                  >
                     {{ item.status }}
                     <div v-if="item.reply" class="history-reply">
                       <strong>回复：</strong>{{ item.reply }}
@@ -596,20 +926,43 @@
                   </div>
                 </div>
               </div>
-              
+
               <!-- 历史记录分页 -->
               <div class="pagination" v-if="feedbackHistory.length > 0">
                 <span class="total-pages">共{{ totalFeedbackPages }}页</span>
                 <span class="page-numbers">
-                  <button @click="changeFeedbackPage(1)" :disabled="currentFeedbackPage === 1">首页</button>
-                  <button @click="changeFeedbackPage(currentFeedbackPage - 1)" :disabled="currentFeedbackPage === 1">上一页</button>
-                  <button v-for="page in visibleFeedbackPages" :key="'feedback-page-' + page" 
-                    @click="changeFeedbackPage(page)" 
-                    :class="{ 'active': currentFeedbackPage === page }">
+                  <button
+                    @click="changeFeedbackPage(1)"
+                    :disabled="currentFeedbackPage === 1"
+                  >
+                    首页
+                  </button>
+                  <button
+                    @click="changeFeedbackPage(currentFeedbackPage - 1)"
+                    :disabled="currentFeedbackPage === 1"
+                  >
+                    上一页
+                  </button>
+                  <button
+                    v-for="page in visibleFeedbackPages"
+                    :key="'feedback-page-' + page"
+                    @click="changeFeedbackPage(page)"
+                    :class="{ active: currentFeedbackPage === page }"
+                  >
                     {{ page }}
                   </button>
-                  <button @click="changeFeedbackPage(currentFeedbackPage + 1)" :disabled="currentFeedbackPage === totalFeedbackPages">下一页</button>
-                  <button @click="changeFeedbackPage(totalFeedbackPages)" :disabled="currentFeedbackPage === totalFeedbackPages">末页</button>
+                  <button
+                    @click="changeFeedbackPage(currentFeedbackPage + 1)"
+                    :disabled="currentFeedbackPage === totalFeedbackPages"
+                  >
+                    下一页
+                  </button>
+                  <button
+                    @click="changeFeedbackPage(totalFeedbackPages)"
+                    :disabled="currentFeedbackPage === totalFeedbackPages"
+                  >
+                    末页
+                  </button>
                 </span>
               </div>
             </div>
@@ -618,11 +971,7 @@
       </main>
 
       <!-- 回到顶部按钮 -->
-      <button
-        class="back-to-top"
-        @click="scrollToTop"
-        aria-label="回到顶部"
-      >
+      <button class="back-to-top" @click="scrollToTop" aria-label="回到顶部">
         <img :src="topIcon" alt="top" />
       </button>
     </div>
@@ -631,20 +980,20 @@
 
 <script>
 /* eslint-disable */
-import axios from 'axios';
-import slide1 from '@/assets/slide1.jpg'
-import slide2 from '@/assets/slide2.jpg'
-import slide3 from '@/assets/slide3.jpg'
-import slide4 from '@/assets/slide4.jpg'
-import slide5 from '@/assets/slide5.jpg'
-import topIcon from '@/assets/top.jpg'
+import axios from "axios";
+import slide1 from "@/assets/slide1.jpg";
+import slide2 from "@/assets/slide2.jpg";
+import slide3 from "@/assets/slide3.jpg";
+import slide4 from "@/assets/slide4.jpg";
+import slide5 from "@/assets/slide5.jpg";
+import topIcon from "@/assets/top.jpg";
 
 // 设置axios默认配置
-axios.defaults.baseURL = '/api';
+axios.defaults.baseURL = "";
 
 // 请求拦截器添加token
-axios.interceptors.request.use(config => {
-  const token = localStorage.getItem('jwt_token');
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -652,13 +1001,13 @@ axios.interceptors.request.use(config => {
 });
 
 export default {
-  name: 'UserPortal',
+  name: "UserPortal",
   data() {
     return {
-      currentPage: 'search', 
-      pageType: '', 
-      searchType: 'book',
-      searchQuery: '',
+      currentPage: "search",
+      pageType: "",
+      searchType: "book",
+      searchQuery: "",
       books: [],
       newBooks: [],
       hotBooks: [],
@@ -666,11 +1015,11 @@ export default {
       borrowingHistory: [],
       announcements: [],
       currentBook: null,
-      feedbackName: '',
-      feedbackEmail: '',
-      feedbackType: '建议',
-      feedbackMessage: '',
-      feedbackError: '',
+      feedbackName: "",
+      feedbackEmail: "",
+      feedbackType: "建议",
+      feedbackMessage: "",
+      feedbackError: "",
       carouselImages: [slide1, slide2, slide3, slide4, slide5],
       topIcon: topIcon,
       carouselIndex: 0,
@@ -678,156 +1027,163 @@ export default {
       currentPageNum: 1,
       rowsPerPage: 10,
       bookCategories: [
-        { label: '全部', value: '' },
-        { label: '科技', value: '科技' },
-        { label: '小说', value: '小说' },
-        { label: '金融', value: '金融' },
-        { label: '教育', value: '教育' },
-        { label: '生活', value: '生活' },
-        { label: '历史', value: '历史' },
-        { label: '童书', value: '童书' },
-        { label: '励志', value: '励志' }
+        { label: "全部", value: "" },
+        { label: "科技", value: "科技" },
+        { label: "小说", value: "小说" },
+        { label: "金融", value: "金融" },
+        { label: "教育", value: "教育" },
+        { label: "生活", value: "生活" },
+        { label: "历史", value: "历史" },
+        { label: "童书", value: "童书" },
+        { label: "励志", value: "励志" },
       ],
-      currentCategory: '',
+      currentCategory: "",
 
       // 个人信息页面相关数据
-      personalTab: 'account',
+      personalTab: "account",
       userInfo: null,
       borrowingList: [],
       borrowingStats: { total: 0, borrowing: 0, returned: 0 },
       collectionList: [],
-      borrowingSearchType: 'book',
-      borrowingSearchQuery: '',
-      borrowingStatus: 'all',
-      collectionSearchType: 'book',
-      collectionSearchQuery: '',
+      borrowingSearchType: "book",
+      borrowingSearchQuery: "",
+      borrowingStatus: "all",
+      collectionSearchType: "book",
+      collectionSearchQuery: "",
 
       // 意见建议页面相关数据
-      feedbackTab: 'new', // new 或 history
+      feedbackTab: "new", // new 或 history
       feedbackHistory: [
         {
-          name: '张三',
-          email: 'zhangsan@example.com',
-          type: '建议',
-          message: '希望增加更多计算机类的书籍，特别是人工智能和机器学习方面的最新著作。目前这方面的藏书比较陈旧，不能满足学习需求。',
-          date: '2025-10-15',
-          status: '已回复',
-          reply: '感谢您的建议，我们已计划采购一批最新的人工智能相关书籍，预计下个月到货。'
+          name: "张三",
+          email: "zhangsan@example.com",
+          type: "建议",
+          message:
+            "希望增加更多计算机类的书籍，特别是人工智能和机器学习方面的最新著作。目前这方面的藏书比较陈旧，不能满足学习需求。",
+          date: "2025-10-15",
+          status: "已回复",
+          reply:
+            "感谢您的建议，我们已计划采购一批最新的人工智能相关书籍，预计下个月到货。",
         },
         {
-          name: '李四',
-          email: '',
-          type: '问题',
-          message: '图书馆的自助借还设备经常出现故障，希望能尽快维修或更换新设备。',
-          date: '2025-10-20',
-          status: '已回复',
-          reply: '我们已联系技术人员进行检修，目前设备已恢复正常使用。'
+          name: "李四",
+          email: "",
+          type: "问题",
+          message:
+            "图书馆的自助借还设备经常出现故障，希望能尽快维修或更换新设备。",
+          date: "2025-10-20",
+          status: "已回复",
+          reply: "我们已联系技术人员进行检修，目前设备已恢复正常使用。",
         },
         {
-          name: '王五',
-          email: 'wangwu@example.com',
-          type: '其他',
-          message: '建议延长周末的开放时间，方便学生利用周末时间学习。',
-          date: '2025-11-05',
-          status: '处理中',
-          reply: ''
+          name: "王五",
+          email: "wangwu@example.com",
+          type: "其他",
+          message: "建议延长周末的开放时间，方便学生利用周末时间学习。",
+          date: "2025-11-05",
+          status: "处理中",
+          reply: "",
         },
         {
-          name: '王五',
-          email: 'wangwu@example.com',
-          type: '其他',
-          message: '建议延长周末的开放时间，方便学生利用周末时间学习。',
-          date: '2025-11-05',
-          status: '处理中',
-          reply: ''
+          name: "王五",
+          email: "wangwu@example.com",
+          type: "其他",
+          message: "建议延长周末的开放时间，方便学生利用周末时间学习。",
+          date: "2025-11-05",
+          status: "处理中",
+          reply: "",
         },
         {
-          name: '王五',
-          email: 'wangwu@example.com',
-          type: '其他',
-          message: '建议延长周末的开放时间，方便学生利用周末时间学习。',
-          date: '2025-11-05',
-          status: '处理中',
-          reply: ''
+          name: "王五",
+          email: "wangwu@example.com",
+          type: "其他",
+          message: "建议延长周末的开放时间，方便学生利用周末时间学习。",
+          date: "2025-11-05",
+          status: "处理中",
+          reply: "",
         },
         {
-          name: '王五',
-          email: 'wangwu@example.com',
-          type: '其他',
-          message: '建议延长周末的开放时间，方便学生利用周末时间学习。',
-          date: '2025-11-05',
-          status: '处理中',
-          reply: ''
+          name: "王五",
+          email: "wangwu@example.com",
+          type: "其他",
+          message: "建议延长周末的开放时间，方便学生利用周末时间学习。",
+          date: "2025-11-05",
+          status: "处理中",
+          reply: "",
         },
         {
-          name: '王五',
-          email: 'wangwu@example.com',
-          type: '其他',
-          message: '建议延长周末的开放时间，方便学生利用周末时间学习。',
-          date: '2025-11-05',
-          status: '处理中',
-          reply: ''
+          name: "王五",
+          email: "wangwu@example.com",
+          type: "其他",
+          message: "建议延长周末的开放时间，方便学生利用周末时间学习。",
+          date: "2025-11-05",
+          status: "处理中",
+          reply: "",
         },
         {
-          name: '王五',
-          email: 'wangwu@example.com',
-          type: '其他',
-          message: '建议延长周末的开放时间，方便学生利用周末时间学习。',
-          date: '2025-11-05',
-          status: '处理中',
-          reply: ''
-        }
+          name: "王五",
+          email: "wangwu@example.com",
+          type: "其他",
+          message: "建议延长周末的开放时间，方便学生利用周末时间学习。",
+          date: "2025-11-05",
+          status: "处理中",
+          reply: "",
+        },
       ],
       currentFeedbackPage: 1,
       feedbacksPerPage: 5,
 
       // 搜索结果页面相关数据
       currentSearchResultPageNum: 1,
-      
+
       // 验证码相关
-      captchaCode: '',
-      captchaImage: ''
+      captchaCode: "",
+      captchaImage: "",
+      // 图片加载错误记录（按图书id标记）
+      imgErrorMap: {},
     };
   },
   computed: {
     // 原有计算属性保持不变
     filteredBooks() {
       let result = [...this.books];
-      
-      if (this.currentPage === 'allBooks') {
-        if (this.pageType === 'new') {
+
+      if (this.currentPage === "allBooks") {
+        if (this.pageType === "new") {
           result = [...this.newBooks];
-        } else if (this.pageType === 'hot') {
+        } else if (this.pageType === "hot") {
           result = [...this.hotBooks];
         }
       }
-      
+
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase();
-        result = result.filter(book => {
-          if (this.searchType === 'book') {
+        result = result.filter((book) => {
+          if (this.searchType === "book") {
             return book._book_name.toLowerCase().includes(query);
           } else {
             return book._author.toLowerCase().includes(query);
           }
         });
       }
-      
+
       if (this.currentCategory) {
-        result = result.filter(book => book._type_name === this.currentCategory);
+        result = result.filter(
+          (book) => book._type_name === this.currentCategory
+        );
       }
-      
+
       return result;
     },
 
     filteredNewBooks() {
-      return this.newBooks.filter(book => {
+      return this.newBooks.filter((book) => {
         if (this.currentCategory && book._type_name !== this.currentCategory) {
           return false;
         }
         if (this.searchQuery) {
           const query = this.searchQuery.toLowerCase();
-          if (this.searchType === 'book') {
+          if (this.searchType === "book") {
             return book._book_name.toLowerCase().includes(query);
           } else {
             return book._author.toLowerCase().includes(query);
@@ -838,13 +1194,13 @@ export default {
     },
 
     filteredHotBooks() {
-      return this.hotBooks.filter(book => {
+      return this.hotBooks.filter((book) => {
         if (this.currentCategory && book._type_name !== this.currentCategory) {
           return false;
         }
         if (this.searchQuery) {
           const query = this.searchQuery.toLowerCase();
-          if (this.searchType === 'book') {
+          if (this.searchType === "book") {
             return book._book_name.toLowerCase().includes(query);
           } else {
             return book._author.toLowerCase().includes(query);
@@ -855,11 +1211,13 @@ export default {
     },
 
     totalPages() {
-      const dataSource = this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
+      const dataSource =
+        this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
       return Math.ceil(dataSource.length / this.rowsPerPage) || 1;
     },
     currentPageItems() {
-      const dataSource = this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
+      const dataSource =
+        this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
       const start = (this.currentPageNum - 1) * this.rowsPerPage;
       const end = start + this.rowsPerPage;
       return dataSource.slice(start, end);
@@ -875,53 +1233,65 @@ export default {
       return this.feedbackHistory.slice(start, end);
     },
     totalFeedbackPages() {
-      return Math.ceil(this.feedbackHistory.length / this.feedbacksPerPage) || 1;
+      return (
+        Math.ceil(this.feedbackHistory.length / this.feedbacksPerPage) || 1
+      );
     },
     visibleFeedbackPages() {
-      return this.generateVisiblePages(this.currentFeedbackPage, this.totalFeedbackPages);
+      return this.generateVisiblePages(
+        this.currentFeedbackPage,
+        this.totalFeedbackPages
+      );
     },
 
     // 搜索结果相关计算属性
     filteredSearchResults() {
       let allBooks = [...this.books];
-      
+
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase();
-        allBooks = allBooks.filter(book => {
-          if (this.searchType === 'book') {
+        allBooks = allBooks.filter((book) => {
+          if (this.searchType === "book") {
             return book._book_name.toLowerCase().includes(query);
           } else {
             return book._author.toLowerCase().includes(query);
           }
         });
       }
-      
+
       if (this.currentCategory) {
-        allBooks = allBooks.filter(book => book._type_name === this.currentCategory);
+        allBooks = allBooks.filter(
+          (book) => book._type_name === this.currentCategory
+        );
       }
-      
+
       return allBooks;
     },
-    
+
     totalSearchResultPages() {
-      return Math.ceil(this.filteredSearchResults.length / this.rowsPerPage) || 1;
+      return (
+        Math.ceil(this.filteredSearchResults.length / this.rowsPerPage) || 1
+      );
     },
-    
+
     currentSearchResultItems() {
       const start = (this.currentSearchResultPageNum - 1) * this.rowsPerPage;
       const end = start + this.rowsPerPage;
       return this.filteredSearchResults.slice(start, end);
     },
-    
+
     visibleSearchResultPages() {
-      return this.generateVisiblePages(this.currentSearchResultPageNum, this.totalSearchResultPages);
-    }
+      return this.generateVisiblePages(
+        this.currentSearchResultPageNum,
+        this.totalSearchResultPages
+      );
+    },
   },
   methods: {
     // 原有方法保持不变
     scrollToTop() {
-      if (typeof window !== 'undefined' && window.scrollTo) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (typeof window !== "undefined" && window.scrollTo) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
       document.documentElement.scrollTop = 0;
@@ -929,14 +1299,19 @@ export default {
     },
 
     nextSlide() {
-      this.carouselIndex = (this.carouselIndex + 1) % this.carouselImages.length;
+      this.carouselIndex =
+        (this.carouselIndex + 1) % this.carouselImages.length;
     },
     prevSlide() {
-      this.carouselIndex = (this.carouselIndex - 1 + this.carouselImages.length) % this.carouselImages.length;
+      this.carouselIndex =
+        (this.carouselIndex - 1 + this.carouselImages.length) %
+        this.carouselImages.length;
     },
     startCarousel() {
       this.stopCarousel();
-      this.carouselTimer = setInterval(() => { this.nextSlide() }, 4000);
+      this.carouselTimer = setInterval(() => {
+        this.nextSlide();
+      }, 4000);
     },
     stopCarousel() {
       if (this.carouselTimer) {
@@ -945,37 +1320,37 @@ export default {
       }
     },
 
-    async changePage(page, type = '') {
+    async changePage(page, type = "") {
       this.currentPage = page;
       this.pageType = type;
       this.currentPageNum = 1;
       this.currentFeedbackPage = 1;
       this.currentSearchResultPageNum = 1; // 重置搜索结果页码
-      this.currentCategory = '';
-      
-      if (page === 'personal') {
-        this.personalTab = 'account';
+      this.currentCategory = "";
+
+      if (page === "personal") {
+        this.personalTab = "account";
         await this.loadPersonalData();
       }
-      
-      if (page === 'feedback') {
+
+      if (page === "feedback") {
         await this.loadFeedbackHistory();
       }
-      
+
       switch (page) {
-        case 'search':
+        case "search":
           await this.loadSearchPage();
           break;
-        case 'personal':
+        case "personal":
           await Promise.all([
             this.loadBorrowingInfo(),
-            this.loadBorrowingHistory()
+            this.loadBorrowingHistory(),
           ]);
           break;
-        case 'aid':
+        case "aid":
           await this.loadAnnouncements();
           break;
-        case 'allBooks':
+        case "allBooks":
           // 已加载
           break;
       }
@@ -984,13 +1359,13 @@ export default {
     // 跳转到搜索结果页面
     async gotoSearchResult() {
       if (!this.searchQuery.trim() && !this.currentCategory) {
-        alert('请输入搜索内容或选择图书类别');
+        alert("请输入搜索内容或选择图书类别");
         return;
       }
-      
-      this.currentPage = 'searchResult';
+
+      this.currentPage = "searchResult";
       this.currentSearchResultPageNum = 1;
-      
+
       // 如果还没有加载过图书数据，则先加载
       if (this.books.length === 0) {
         await this.loadSearchPage();
@@ -1005,7 +1380,7 @@ export default {
 
     // 搜索结果分页
     changeSearchResultPageNum(page) {
-      if (page === '...') return;
+      if (page === "...") return;
       if (page < 1 || page > this.totalSearchResultPages) return;
       this.currentSearchResultPageNum = page;
     },
@@ -1013,18 +1388,21 @@ export default {
     async loadPersonalData() {
       try {
         // 获取当前用户信息
-        const response = await axios.get('/api/auth/current-user');
+        const response = await axios.get("/api/auth/current-user");
         this.userInfo = response.data.data;
       } catch (error) {
-        console.error('加载个人数据失败:', error.response?.data || error.message);
-        alert('加载个人信息失败，请重新登录');
+        console.error(
+          "加载个人数据失败:",
+          error.response?.data || error.message
+        );
+        alert("加载个人信息失败，请重新登录");
         // 可以在这里跳转到登录页
       }
     },
 
     viewBookDetail(book) {
       this.currentBook = book;
-      this.currentPage = 'bookDetail';
+      this.currentPage = "bookDetail";
     },
 
     // 修改：原搜索方法改为只更新数据不跳转
@@ -1037,26 +1415,38 @@ export default {
         }
         if (this.currentCategory) {
           // 假设类别筛选使用category参数
-          params.category = this.bookCategories.find(c => c.label === this.currentCategory)?.value;
+          params.category = this.bookCategories.find(
+            (c) => c.label === this.currentCategory
+          )?.value;
         }
-        
-        const response = await axios.get('/api/books', { params });
+
+        const response = await axios.get("/api/books", { params });
         this.books = response.data.data;
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {
-        console.error('搜索图书失败:', error.response?.data || error.message);
-        alert('搜索图书失败: ' + (error.response?.data?.message || error.message));
+        console.error("搜索图书失败:", error.response?.data || error.message);
+        alert(
+          "搜索图书失败: " + (error.response?.data?.message || error.message)
+        );
       }
     },
 
     searchBorrowing() {
-      console.log('搜索借阅记录:', this.borrowingSearchType, this.borrowingSearchQuery);
+      console.log(
+        "搜索借阅记录:",
+        this.borrowingSearchType,
+        this.borrowingSearchQuery
+      );
       // 这里可以实现借阅记录的搜索逻辑
     },
 
     searchCollection() {
-      console.log('搜索收藏记录:', this.collectionSearchType, this.collectionSearchQuery);
+      console.log(
+        "搜索收藏记录:",
+        this.collectionSearchType,
+        this.collectionSearchQuery
+      );
       // 这里可以实现收藏记录的搜索逻辑
     },
 
@@ -1064,7 +1454,7 @@ export default {
       this.newBooks = [...this.books]
         .sort((a, b) => new Date(b._add_time) - new Date(a._add_time))
         .slice(0, 8);
-      
+
       this.hotBooks = [...this.books]
         .sort((a, b) => b._times - a._times)
         .slice(0, 8);
@@ -1074,86 +1464,92 @@ export default {
       this.currentCategory = category;
       this.currentPageNum = 1;
       // 如果当前在搜索页面，执行搜索
-      if (this.currentPage === 'search') {
+      if (this.currentPage === "search") {
         this.searchAndRenderBooks();
       }
     },
 
     async borrowBook(bookId) {
       if (!bookId) return;
-      
+
       try {
         const response = await axios.post(`/api/books/${bookId}/borrow`);
         if (response.data.code === 200) {
-          alert('借阅成功');
+          alert("借阅成功");
           await this.loadSearchPage();
           // 更新当前图书详情页的图书信息
-          if (this.currentPage === 'bookDetail' && this.currentBook?._bid === bookId) {
-            this.currentBook = this.books.find(book => book._bid === bookId);
+          if (
+            this.currentPage === "bookDetail" &&
+            this.currentBook?._bid === bookId
+          ) {
+            this.currentBook = this.books.find((book) => book._bid === bookId);
           }
           // 更新借阅记录
-          if (this.currentPage === 'personal' && this.personalTab === 'borrowing') {
+          if (
+            this.currentPage === "personal" &&
+            this.personalTab === "borrowing"
+          ) {
             await this.loadBorrowingInfo();
           }
         } else {
-          alert('借阅失败: ' + response.data.message);
+          alert("借阅失败: " + response.data.message);
         }
       } catch (error) {
-        console.error('借阅失败:', error.response?.data || error.message);
-        alert('借阅失败: ' + (error.response?.data?.message || error.message));
+        console.error("借阅失败:", error.response?.data || error.message);
+        alert("借阅失败: " + (error.response?.data?.message || error.message));
       }
     },
 
     async returnBook(bookId) {
       if (!bookId) return;
-      
+
       try {
         const response = await axios.put(`/api/books/${bookId}/return`);
         if (response.data.code === 200) {
-          alert('还书成功');
+          alert("还书成功");
           await Promise.all([
             this.loadBorrowingInfo(),
-            this.loadBorrowingHistory()
+            this.loadBorrowingHistory(),
           ]);
           await this.loadSearchPage();
         } else {
-          alert('还书失败: ' + response.data.message);
+          alert("还书失败: " + response.data.message);
         }
       } catch (error) {
-        console.error('还书失败:', error.response?.data || error.message);
-        alert('还书失败: ' + (error.response?.data?.message || error.message));
+        console.error("还书失败:", error.response?.data || error.message);
+        alert("还书失败: " + (error.response?.data?.message || error.message));
       }
     },
 
     async renewBook(bookId) {
       if (!bookId) return;
-      
+
       try {
         const response = await axios.put(`/api/books/${bookId}/renew`);
         if (response.data.code === 200) {
-          alert('续借成功');
+          alert("续借成功");
           await Promise.all([
             this.loadBorrowingInfo(),
-            this.loadBorrowingHistory()
+            this.loadBorrowingHistory(),
           ]);
         } else {
-          alert('续借失败: ' + response.data.message);
+          alert("续借失败: " + response.data.message);
         }
       } catch (error) {
-        console.error('续借失败:', error.response?.data || error.message);
-        alert('续借失败: ' + (error.response?.data?.message || error.message));
+        console.error("续借失败:", error.response?.data || error.message);
+        alert("续借失败: " + (error.response?.data?.message || error.message));
       }
     },
 
     async handleFeedbackSubmit() {
-      this.feedbackError = '';
+      this.feedbackError = "";
       if (!this.feedbackName || !this.feedbackName.trim()) {
-        this.feedbackError = '请填写姓名';
+        this.feedbackError = "请填写姓名";
         return;
       }
-      
+
       if (!this.feedbackMessage || !this.feedbackMessage.trim()) {
-        this.feedbackError = '请填写意见内容';
+        this.feedbackError = "请填写意见内容";
         return;
       }
 
@@ -1164,27 +1560,27 @@ export default {
           email: this.feedbackEmail,
           type: this.feedbackType,
           message: this.feedbackMessage,
-          date: new Date().toISOString().split('T')[0],
-          status: '处理中',
-          reply: ''
+          date: new Date().toISOString().split("T")[0],
+          status: "处理中",
+          reply: "",
         };
-        
+
         this.feedbackHistory.unshift(newFeedback);
-        alert('感谢您的反馈，已提交！');
+        alert("感谢您的反馈，已提交！");
         this.clearFeedbackForm();
-        
-        this.feedbackTab = 'history';
+
+        this.feedbackTab = "history";
       } catch (error) {
-        this.feedbackError = '提交失败，请重试';
+        this.feedbackError = "提交失败，请重试";
       }
     },
 
     clearFeedbackForm() {
-      this.feedbackName = '';
-      this.feedbackEmail = '';
-      this.feedbackType = '建议';
-      this.feedbackMessage = '';
-      this.feedbackError = '';
+      this.feedbackName = "";
+      this.feedbackEmail = "";
+      this.feedbackType = "建议";
+      this.feedbackMessage = "";
+      this.feedbackError = "";
     },
 
     async loadFeedbackHistory() {
@@ -1193,85 +1589,130 @@ export default {
         // const response = await axios.get('/api/feedbacks/history');
         // this.feedbackHistory = response.data.data;
       } catch (error) {
-        console.error('加载意见建议历史失败:', error.response?.data || error.message);
+        console.error(
+          "加载意见建议历史失败:",
+          error.response?.data || error.message
+        );
       }
     },
 
     async loadSearchPage() {
       try {
-        const response = await axios.get('/api/books');
+        const response = await axios.get("/api/books");
         this.books = response.data.data;
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {
-        alert('加载图书失败: ' + (error.response?.data?.message || error.message));
+        alert(
+          "加载图书失败: " + (error.response?.data?.message || error.message)
+        );
       }
     },
 
     async loadBorrowingInfo() {
       try {
         // 获取我的借阅记录
-        const response = await axios.get('/api/records/my');
+        const response = await axios.get("/api/records/my");
         const records = response.data.data;
-        
-        this.borrowingList = records.map(record => ({
+
+        this.borrowingList = records.map((record) => ({
           id: record._hid,
           bookId: record._bid,
           bookName: record._book_name,
+          coverUrl: record._cover_url || "",
           author: record._author,
-          borrowDate: new Date(record._begin_time).toISOString().split('T')[0],
-          dueDate: new Date(record._end_date).toISOString().split('T')[0],
-          status: record.status ? 'returned' : 'borrowing'
+          borrowDate: new Date(record._begin_time).toISOString().split("T")[0],
+          dueDate: new Date(record._end_date).toISOString().split("T")[0],
+          status: record.status ? "returned" : "borrowing",
         }));
-        
+
         // 统计借阅状态
         this.borrowingStats = {
           total: records.length,
-          borrowing: records.filter(r => !r.status).length,
-          returned: records.filter(r => r.status).length
+          borrowing: records.filter((r) => !r.status).length,
+          returned: records.filter((r) => r.status).length,
         };
       } catch (error) {
-        alert('加载借阅信息失败: ' + (error.response?.data?.message || error.message));
+        alert(
+          "加载借阅信息失败: " +
+            (error.response?.data?.message || error.message)
+        );
+      }
+    },
+
+    // 图片加载错误处理，recordOrBook 可以是包含 id/ _bid / bookId 的对象
+    handleImgError(event, recordOrBook) {
+      try {
+        const key =
+          recordOrBook &&
+          (recordOrBook._bid || recordOrBook.bookId || recordOrBook.id);
+        if (key) {
+          this.$set(this.imgErrorMap, key, true);
+        }
+        if (event && event.target) {
+          event.target.style.display = "none";
+        }
+      } catch (e) {
+        console.warn("handleImgError error", e);
+      }
+    },
+
+    // 处理相对路径或非http的封面地址，返回可用于<img>的完整URL或空字符串
+    getFullCoverUrl(src) {
+      if (!src) return "";
+      try {
+        if (/^https?:\/\//i.test(src)) return src;
+        if (src.startsWith("/")) return window.location.origin + src;
+        return src;
+      } catch (e) {
+        return src;
       }
     },
 
     async loadBorrowingHistory() {
       try {
         // 获取我的借阅记录（全部，包括已归还）
-        const response = await axios.get('/api/records/my');
+        const response = await axios.get("/api/records/my");
         const records = response.data.data;
-        
-        this.borrowingHistory = records.map(record => ({
+
+        this.borrowingHistory = records.map((record) => ({
           _hid: record._hid,
           bookId: record._bid,
           bookName: record._book_name,
-          borrowDate: new Date(record._begin_time).toISOString().split('T')[0],
-          returnDate: record.status ? new Date(record._end_date).toISOString().split('T')[0] : '',
-          status: record.status ? '已还' : '借阅中'
+          borrowDate: new Date(record._begin_time).toISOString().split("T")[0],
+          returnDate: record.status
+            ? new Date(record._end_date).toISOString().split("T")[0]
+            : "",
+          status: record.status ? "已还" : "借阅中",
         }));
       } catch (error) {
-        alert('加载借阅历史失败: ' + (error.response?.data?.message || error.message));
+        alert(
+          "加载借阅历史失败: " +
+            (error.response?.data?.message || error.message)
+        );
       }
     },
 
     async loadAnnouncements() {
       try {
-        const response = await axios.get('/api/announcements');
+        const response = await axios.get("/api/announcements");
         this.announcements = response.data.data;
       } catch (error) {
-        alert('加载公告失败: ' + (error.response?.data?.message || error.message));
+        alert(
+          "加载公告失败: " + (error.response?.data?.message || error.message)
+        );
       }
     },
 
     // 获取验证码
     async getCaptcha() {
       try {
-        const response = await axios.get('/api/auth/captcha');
+        const response = await axios.get("/api/auth/captcha");
         this.captchaImage = response.data.data.image;
         return response.data.data.token;
       } catch (error) {
-        console.error('获取验证码失败:', error.response?.data || error.message);
-        alert('获取验证码失败，请重试');
+        console.error("获取验证码失败:", error.response?.data || error.message);
+        alert("获取验证码失败，请重试");
         return null;
       }
     },
@@ -1282,33 +1723,35 @@ export default {
         // 获取验证码
         const captchaToken = await this.getCaptcha();
         if (!captchaToken) return;
-        
+
         // 这里可以显示验证码输入框
-        const newPassword = prompt('请输入新密码:');
+        const newPassword = prompt("请输入新密码:");
         if (!newPassword) return;
-        
-        const confirmPassword = prompt('请确认新密码:');
+
+        const confirmPassword = prompt("请确认新密码:");
         if (newPassword !== confirmPassword) {
-          alert('两次输入的密码不一致');
+          alert("两次输入的密码不一致");
           return;
         }
-        
-        const captchaInput = prompt('请输入验证码:');
+
+        const captchaInput = prompt("请输入验证码:");
         if (!captchaInput) return;
-        
+
         // 调用重置密码API
-        await axios.put('/api/auth/password', {
+        await axios.put("/api/auth/password", {
           account: this.userInfo?.studentId,
           password: newPassword,
           captcha: captchaInput,
-          captchaToken: captchaToken
+          captchaToken: captchaToken,
         });
-        
-        alert('密码重置成功，请重新登录');
+
+        alert("密码重置成功，请重新登录");
         // 这里可以跳转到登录页
       } catch (error) {
-        console.error('重置密码失败:', error.response?.data || error.message);
-        alert('重置密码失败: ' + (error.response?.data?.message || error.message));
+        console.error("重置密码失败:", error.response?.data || error.message);
+        alert(
+          "重置密码失败: " + (error.response?.data?.message || error.message)
+        );
       }
     },
 
@@ -1325,33 +1768,33 @@ export default {
           for (let i = 1; i <= 4; i++) {
             visiblePages.push(i);
           }
-          visiblePages.push('...', totalPages);
+          visiblePages.push("...", totalPages);
         } else if (currentPage >= totalPages - 2) {
-          visiblePages.push(1, '...');
+          visiblePages.push(1, "...");
           for (let i = totalPages - 3; i <= totalPages; i++) {
             visiblePages.push(i);
           }
         } else {
-          visiblePages.push(1, '...');
+          visiblePages.push(1, "...");
           for (let i = currentPage - 1; i <= currentPage + 1; i++) {
             visiblePages.push(i);
           }
-          visiblePages.push('...', totalPages);
+          visiblePages.push("...", totalPages);
         }
       }
       return visiblePages;
     },
     changePageNum(page) {
-      if (page === '...') return;
+      if (page === "...") return;
       if (page < 1 || page > this.totalPages) return;
       this.currentPageNum = page;
     },
 
     changeFeedbackPage(page) {
-      if (page === '...') return;
+      if (page === "...") return;
       if (page < 1 || page > this.totalFeedbackPages) return;
       this.currentFeedbackPage = page;
-    }
+    },
   },
   mounted() {
     this.startCarousel();
@@ -1369,11 +1812,11 @@ export default {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Arial', sans-serif;
+  font-family: "Arial", sans-serif;
 }
 
 body {
-  background-image: url('../../public/images.jpg');
+  background-image: url("../../public/images.jpg");
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
@@ -1384,7 +1827,7 @@ body {
 
 .navbar {
   width: 100%;
-  background: #1194AE;
+  background: #1194ae;
   color: white;
   height: 64px;
   position: fixed;
@@ -1417,7 +1860,7 @@ body {
   padding: 0;
   display: flex;
   align-items: center;
-  flex:1;
+  flex: 1;
   justify-content: center;
 }
 
@@ -1433,7 +1876,7 @@ body {
   transition: background 0.15s, transform 0.15s;
   display: inline-block;
   font-size: 22px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   font-weight: 500;
   text-align: center;
 }
@@ -1465,11 +1908,12 @@ table {
   width: 100%;
   border-collapse: collapse;
   background: white;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
 }
 
-th, td {
+th,
+td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid #ddd;
@@ -1502,7 +1946,7 @@ footer {
   align-items: center;
   background: white;
   border-radius: 6px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 1200px;
   overflow: hidden;
@@ -1528,7 +1972,7 @@ footer {
 
 .searchbar button {
   padding: 16px 30px;
-  background-color: #1194AE;
+  background-color: #1194ae;
   color: white;
   border: none;
   font-size: 16px;
@@ -1571,7 +2015,7 @@ footer {
 }
 
 .category-filter button.active-category {
-  background-color: #1194AE;
+  background-color: #1194ae;
   color: white;
 }
 
@@ -1656,8 +2100,12 @@ button:hover {
   margin-bottom: 10px;
 }
 
-.text-success { color: green; }
-.text-warning { color: orange; }
+.text-success {
+  color: green;
+}
+.text-warning {
+  color: orange;
+}
 
 .hero-carousel {
   width: 100%;
@@ -1667,7 +2115,7 @@ button:hover {
   overflow: hidden;
   position: relative;
   border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 .hero-track {
   display: flex;
@@ -1692,7 +2140,7 @@ button:hover {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   color: #fff;
   border: none;
   width: 50px;
@@ -1713,12 +2161,16 @@ button:hover {
 }
 
 .hero-arrow:hover {
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   transform: translateY(-50%) scale(1.05);
 }
 
-.hero-arrow--left { left: 20px; }
-.hero-arrow--right { right: 20px; }
+.hero-arrow--left {
+  left: 20px;
+}
+.hero-arrow--right {
+  right: 20px;
+}
 
 .back-to-top {
   position: fixed;
@@ -1727,16 +2179,18 @@ button:hover {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 300;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
   transition: transform 0.15s;
 }
-.back-to-top:hover { transform: scale(1.05); }
+.back-to-top:hover {
+  transform: scale(1.05);
+}
 .back-to-top img {
   width: 100%;
   height: 100%;
@@ -1750,7 +2204,7 @@ button:hover {
   border-radius: 5px;
   padding: 20px;
   margin-bottom: 30px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 .error-message {
@@ -1809,7 +2263,7 @@ button:hover {
   background-color: white;
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
 }
 
 .section-header {
@@ -1820,7 +2274,7 @@ button:hover {
 }
 
 .view-all {
-  color: #1194AE;
+  color: #1194ae;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
@@ -1845,7 +2299,7 @@ button:hover {
 
 .book-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .book-cover {
@@ -1884,7 +2338,7 @@ button:hover {
   border-radius: 8px;
   padding: 30px;
   margin-top: 20px;
-  box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
 }
 
 .detail-content {
@@ -1928,7 +2382,7 @@ button:hover {
   border-radius: 8px;
   padding: 30px;
   margin-top: 20px;
-  box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
 }
 
 /* 个人信息页面样式 */
@@ -1936,7 +2390,7 @@ button:hover {
   display: flex;
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
   overflow: hidden;
 }
 
@@ -1967,8 +2421,8 @@ button:hover {
 
 .sidebar-nav li.active {
   background-color: white;
-  border-left-color: #1194AE;
-  color: #1194AE;
+  border-left-color: #1194ae;
+  color: #1194ae;
   font-weight: 500;
 }
 
@@ -2049,7 +2503,7 @@ button:hover {
 }
 
 .status-tabs button.active {
-  background-color: #1194AE;
+  background-color: #1194ae;
   color: white;
 }
 
@@ -2091,7 +2545,7 @@ button:hover {
 }
 
 .reborrow-btn {
-  background-color: #1194AE;
+  background-color: #1194ae;
 }
 
 /* 我的收藏样式 */
@@ -2112,7 +2566,7 @@ button:hover {
 
 .collection-item:hover {
   transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .collection-item .book-cover {
@@ -2149,7 +2603,7 @@ button:hover {
   border-radius: 8px;
   padding: 30px;
   margin-top: 20px;
-  box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
 }
 
 .feedback-tabs {
@@ -2169,7 +2623,7 @@ button:hover {
 }
 
 .feedback-tabs button.active {
-  background-color: #1194AE;
+  background-color: #1194ae;
   color: white;
 }
 
@@ -2195,8 +2649,8 @@ button:hover {
   font-weight: 500;
 }
 
-.feedback-form input, 
-.feedback-form select, 
+.feedback-form input,
+.feedback-form select,
 .feedback-form textarea {
   width: 100%;
   padding: 10px 12px;
@@ -2220,7 +2674,7 @@ button:hover {
 .feedback-form .form-actions button {
   padding: 10px 20px;
   font-size: 16px;
-  background-color: #1194AE;
+  background-color: #1194ae;
 }
 
 .feedback-history {
@@ -2245,7 +2699,7 @@ button:hover {
   background-color: #f9f9f9;
   border-radius: 8px;
   padding: 20px;
-  border-left: 4px solid #1194AE;
+  border-left: 4px solid #1194ae;
 }
 
 .history-header {
@@ -2306,7 +2760,7 @@ button:hover {
 
 .result-count {
   font-size: 16px;
-  color: #1194AE;
+  color: #1194ae;
   margin-left: 15px;
   font-weight: normal;
 }
