@@ -1521,7 +1521,7 @@ export default {
       }
     },
 
-    async renewBook(bookId) {
+    async renewBook(bookId) { //续借
       if (!bookId) return;
 
       try {
@@ -1541,7 +1541,7 @@ export default {
       }
     },
 
-    async handleFeedbackSubmit() {
+    async handleFeedbackSubmit() {//处理反馈意见提交
       this.feedbackError = "";
       if (!this.feedbackName || !this.feedbackName.trim()) {
         this.feedbackError = "请填写姓名";
@@ -1599,7 +1599,7 @@ export default {
     async loadSearchPage() {
       try {
         const response = await axios.get("/api/books");
-        this.books = response.data.data;
+        this.books = response.data.data.booklist;
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {

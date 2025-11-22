@@ -271,14 +271,32 @@ export default {
         });
         
         const data = await res.json();
-        
+        console.log('=== 登录响应 ===');
+        console.log('状态码:', res.status);
+        console.log('响应数据:', data);
+
         if (res.status === 200) {
           this.showMessage('登录成功！', 'success', 2000);
+
+           // 🔥 关键修复：添加 token 存储
+          if (data.data && data.data.token) {
+            localStorage.setItem('token', data.data.token);
+            console.log('✅ token已存储:', data.data.token);
+            console.log('存储后检查:', localStorage.getItem('token'));
+          } else {
+            console.error('❌ API返回中没有token:', data);
+            this.showMessage('登录失败：未获取到token', 'error', 4000);
+            return;
+          }
+
           setTimeout(() => {
+            console.log('跳转前检查token:', localStorage.getItem('token'));
             // 根据API文档，用户类型字段是 usertype，且管理员类型为 admin_t, admin_b, admin_l
             if (['admin_t', 'admin_b', 'admin_l'].includes(data.data.usertype)) {
+              console.log('跳转到管理员页面');
               this.$router.push('/manager2'); // 跳转到管理员页面
             } else if (['student', 'teacher'].includes(data.data.usertype)) {
+              console.log('跳转到读者页面');
               this.$router.push('/readers'); // 跳转到读者页面
             }
           }, 1500);
