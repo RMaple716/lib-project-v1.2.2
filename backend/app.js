@@ -8,6 +8,8 @@ const { syncDatabase } = require('./models');
 // 路由导入
 const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
+const readerRoutes = require('./routes/readers');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +33,7 @@ app.use((req, res, next) => {
 // 路由配置
 app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
+app.use('/api/readers', readerRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {

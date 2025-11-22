@@ -852,8 +852,20 @@ export default {
   
   mounted() {
     console.log('=== 管理员页面加载开始 ===');
+    // 检查所有可能的 token
     console.log('token:', localStorage.getItem('token'));
+    console.log('jwt_token:', localStorage.getItem('jwt_token'));
     console.log('所有localStorage:', localStorage);
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('❌ 没有找到token，请先登录');
+      // 临时：设置测试token用于调试
+      localStorage.setItem('token', 'test-admin-token-for-debug');
+      console.log('⚠️ 已设置测试token');
+    } else {
+      console.log('✅ token存在，开始初始化数据');
+    }
     // 先正常初始化数据
     this.fetchBooks();
     this.fetchCategories();
@@ -871,7 +883,7 @@ export default {
     changePage(page) {
       console.log('切换页面到:', page);
       this.currentPage = page;
-      
+      console.log("跳转页面：")
       // 当切换回主页时，重新渲染图表
       if (page === 'home') {
         this.$nextTick(() => {
@@ -1120,14 +1132,17 @@ export default {
 
         const result = await res.json();
         if (res.status === 200) {
+          console.log('✅ 图书数据获取成功:', result);
           this.books = result.data.booklist || [];
           this.filteredBooks = [];
         } else {
+          console.log('❌ 图书数据获取失败:', result);
           this.books = [];
           this.filteredBooks = [];
           this.$message.error(result.message || '没有找到图书');
         }
       } catch (err) {
+        console.log("❌ 获取图书数据时发生错误:");
         console.error(err);
         this.$message.error('无法获取图书数据，请稍后再试');
       }
@@ -1530,8 +1545,26 @@ export default {
     },
     
     formatDate(dateString) {
-      return new Date(dateString).toISOString().split('T')[0]
-    },
+  // 添加空值检查
+  if (!dateString) return '-';
+  
+  try {
+    // 将输入转换为 Date 对象
+    const dateObj = new Date(dateString);
+    
+    // 检查日期是否有效
+    if (isNaN(dateObj.getTime())) {
+      console.warn('无效的日期值:', dateString);
+      return '-';
+    }
+    
+    // 使用 toISOString 之前确保日期有效
+    return dateObj.toISOString().split('T')[0]; // 只返回日期部分
+  } catch (error) {
+    console.error('日期格式化错误:', error);
+    return '-';
+  }
+},
     
     delayLend(hid, endDate) {
       this.currentDelayHid = hid
