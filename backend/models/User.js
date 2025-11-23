@@ -44,8 +44,13 @@ const User = sequelize.define('User', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
     field: 'lend_num'
+  },
+  _access: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1,
+    field: '_access'
   }
-}, {
+  }, {
   tableName: 't_user',
   timestamps: false,
   hooks: {
@@ -60,6 +65,14 @@ const User = sequelize.define('User', {
 // 实例方法：验证密码
 User.prototype.validatePassword = async function(password) {
   return await bcrypt.compare(password, this._password);
+};
+
+// 添加关联方法
+User.associate = function(models) {
+  User.hasMany(models.BorrowRecord, {
+    foreignKey: '_uid',
+    as: 'borrowRecords'
+  });
 };
 
 module.exports = User;

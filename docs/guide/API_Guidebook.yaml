@@ -68,7 +68,7 @@ paths:
   # ==============================
   # 认证管理
   # ==============================
-  /api/auth/login: 
+  /api/auth/login:
     post:
       tags: [认证管理]
       summary: 用户登录
@@ -78,39 +78,102 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              type: object
+              required:
+                - account
+                - password
+                - usertype
+              properties:
+                account:
+                  type: string
+                  description: 用户账号
+                password:
+                  type: string
+                  description: 用户密码
+                usertype:
+                  type: string
+                  description: 用户角色
+                  enum: [student, teacher, admin_t, admin_b, admin_l]
             examples:
-              student:
-                $ref: '#/components/examples/StudentLoginExample'
-              teacher:
-                $ref: '#/components/examples/TeacherLoginExample'
-              admin_t:
-                $ref: '#/components/examples/Admin_T_LoginExample'
-              admin_b:
-                $ref: '#/components/examples/Admin_B_LoginExample'
-              admin_l:
-                $ref: '#/components/examples/Admin_L_LoginExample'
+                student:
+                  $ref: '#/components/examples/StudentLoginExample'
+                teacher:
+                  $ref: '#/components/examples/TeacherLoginExample'
+                admin_t:
+                  $ref: '#/components/examples/Admin_T_LoginExample'
+                admin_b:
+                  $ref: '#/components/examples/Admin_B_LoginExample'
+                admin_l:
+                  $ref: '#/components/examples/Admin_L_LoginExample'
       responses:
         '200':
           description: 登录成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token:
+                            type: string
+                            description: JWT Token
+                          usertype:
+                            type: string
+                            description: 用户类型
+                          userInfo:
+                            type: object
+                            properties:
+                              _uid:
+                                type: number
+                                description: 用户ID
+                              _name:
+                                type: string
+                                description: 用户姓名
+                              _account:
+                                type: string
+                                description: 用户账号
+                              _email:
+                                type: string
+                                description: 用户邮箱
               examples:
                 login_succeeded:
-                  $ref: '#/components/examples/LoginSuccessExample'
+                  value:
+                    success: true
+                    message: "登录成功"
+                    data:
+                      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      usertype: "student"
+                      userInfo:
+                        _uid: 2
+                        _name: "张三"
+                        _account: "2023013863"
+                        _email: "zhangsan@example.com"
         '400':
-          description: 用户不存在或密码错误
+          description: 登录失败
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginError'
               examples:
+                missing_fields:
+                  value:
+                    success: false
+                    errorCode: "MISSING_FIELDS"
+                    message: "请提供账号、密码和用户类型"
+                user_not_exists:
+                  value:
+                    success: false
+                    errorCode: "USER_NOT_EXISTS"
+                    message: "用户不存在"
                 password_incorrect:
-                  $ref: '#/components/examples/LoginErrorExample_PasswordIncorrect'
-                user_unexists:
-                  $ref: '#/components/examples/LoginErrorExample_AccountNotExist'
+                  value:
+                    success: false
+                    errorCode: "PASSWORD_INCORRECT"
+                    message: "密码错误"
         '500':
           description: 服务器错误
           content:
@@ -120,7 +183,7 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
+  
   /api/auth/register:
     post:
       tags: [认证管理]
@@ -130,7 +193,30 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              type: object
+              required:
+                - account
+                - name
+                - email
+                - usertype
+                - password
+              properties:
+                account:
+                  type: string
+                  description: 用户账号
+                name:
+                  type: string
+                  description: 用户姓名
+                email:
+                  type: string
+                  description: 用户邮箱
+                usertype:
+                  type: string
+                  description: 用户角色
+                  enum: [student, teacher, admin_t, admin_b, admin_l]
+                password:
+                  type: string
+                  description: 用户密码
             examples:
               student:
                 $ref: '#/components/examples/StudentRegisterExample'
@@ -142,21 +228,57 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegisterSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          _uid:
+                            type: number
+                            description: 用户ID
+                          _utype:
+                            type: string
+                            description: 用户类型
+                          _account:
+                            type: string
+                            description: 用户账号
+                          _name:
+                            type: string
+                            description: 用户姓名
               examples:
                 register_success:
-                  $ref: '#/components/examples/RegisterSuccessExample'
+                  value:
+                    success: true
+                    message: "注册成功"
+                    data:
+                      _uid: 1
+                      _utype: "student"
+                      _account: "2023013863"
+                      _name: "张三"
         '400':
-          description: 参数错误
+          description: 注册失败
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RegisterError'
               examples:
-                account_already_exists:
-                  $ref: '#/components/examples/RegisterErrorExample_AccountAlreadyExists'
+                missing_fields:
+                  value:
+                    success: false
+                    errorCode: "MISSING_FIELDS"
+                    message: "请提供完整的注册信息"
                 password_too_simple:
-                  $ref: '#/components/examples/RegisterErrorExample_PasswordTooSimple'
+                  value:
+                    success: false
+                    errorCode: "PASSWORD_TOO_SIMPLE"
+                    message: "密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位"
+                user_already_exists:
+                  value:
+                    success: false
+                    errorCode: "USER_ALREADY_EXISTS"
+                    message: "用户已存在"
         '500':
           description: 服务器错误
           content:
@@ -176,7 +298,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResetPasswordRequest'
+              type: object
+              required:
+                - _uid
+                - _password
+                - _captcha
+              properties:
+                _uid:
+                  type: string
+                  description: 用户ID
+                _password:
+                  type: string
+                  description: 用户密码
+                _captcha:
+                  type: string
+                  description: 验证码
+                _usertype:
+                  type: string
+                  description: 用户角色
+                  enum: [student, teacher, admin_t, admin_b, admin_l]
             examples:
               reset_password:
                 $ref: '#/components/examples/ResetPasswordExample'
@@ -186,23 +326,66 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResetPasswordSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          _uid:
+                            type: number
+                            description: 用户ID
+                          _utype:
+                            type: string
+                            description: 用户类型
+                          _account:
+                            type: string
+                            description: 用户账号
+                          _name:
+                            type: string
+                            description: 用户姓名
+                          _email:
+                            type: string
+                            description: 用户邮箱
               examples:
                 reset_success:
-                  $ref: '#/components/examples/ResetPasswordSuccessExample'
+                  value:
+                    success: true
+                    message: "重置密码成功"
+                    data:
+                      _uid: 1
+                      _utype: "student"
+                      _account: "2023013863"
+                      _name: "张三"
+                      _email: "zhangsan@example.com"
         '400':
-          description: 参数错误
+          description: 重置密码失败
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResetPasswordError'
               examples:
-                user_not_exist:
-                  $ref: '#/components/examples/ResetPasswordErrorExample_UserNotExist'
-                password_too_simple:
-                  $ref: '#/components/examples/ResetPasswordErrorExample_PasswordTooSimple'
+                missing_fields:
+                  value:
+                    success: false
+                    errorCode: "MISSING_FIELDS"
+                    message: "请提供用户ID、新密码和验证码"
                 captcha_incorrect:
-                  $ref: '#/components/examples/ResetPasswordErrorExample_CapchaIncorrect'
+                  value:
+                    success: false
+                    errorCode: "CAPTCHA_INCORRECT"
+                    message: "验证码错误"
+                password_too_simple:
+                  value:
+                    success: false
+                    errorCode: "PASSWORD_TOO_SIMPLE"
+                    message: "密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位"
+                user_not_exist:
+                  value:
+                    success: false
+                    errorCode: "USER_NOT_EXIST"
+                    message: "用户不存在"
         '500':
           description: 服务器错误
           content:
@@ -217,16 +400,46 @@ paths:
     get:
       tags: [认证管理]
       summary: 获取验证码
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 用户ID
       responses:
         '200':
           description: 成功生成验证码
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CaptchaSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        description: 验证码SVG图片数据
               examples:
                 captcha_success:
-                  $ref: '#/components/examples/CaptchaSuccessExample'
+                  value:
+                    success: true
+                    message: "验证码生成成功"
+                    data: "<svg>验证码SVG数据...</svg>"
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                missing_user_id:
+                  value:
+                    success: false
+                    errorCode: "MISSING_USER_ID"
+                    message: "请提供用户ID"
         '500':
           description: 服务器错误
           content:
@@ -247,19 +460,58 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CurrentUserSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_user'
               examples:
                 current_user_success:
-                  $ref: '#/components/examples/CurrentUserSuccessExample'
-        '400':
-          description: 未登录
+                  value:
+                    success: true
+                    message: "获取用户信息成功"
+                    data:
+                      _uid: 1
+                      _utype: "student"
+                      _account: "2023013863"
+                      _name: "张三"
+                      _email: "zhangsan@example.com"
+                      _max_num: 10
+                      lend_num: 0
+                      _access: 1
+                      _total: 0
+        '401':
+          description: 未登录或Token无效
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CurrentUserError'
               examples:
                 not_logged_in:
-                  $ref: '#/components/examples/CurrentUserErrorExample'
+                  value:
+                    success: false
+                    errorCode: "NOT_LOGGED_IN"
+                    message: "用户未登录"
+                invalid_token:
+                  value:
+                    success: false
+                    errorCode: "INVALID_TOKEN"
+                    message: "Token无效"
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                user_not_found:
+                  value:
+                    success: false
+                    errorCode: "USER_NOT_FOUND"
+                    message: "用户不存在"
         '500':
           description: 服务器错误
           content:
@@ -283,7 +535,7 @@ paths:
           required: false
           schema:
             type: string
-          description: 搜索关键词
+          description: 搜索关键词（书名、作者、出版社）
         - name: category
           in: query
           required: false
@@ -296,19 +548,36 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BooksListSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          booklist:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/t_book'
               examples:
                 books_list_success:
-                  $ref: '#/components/examples/BooksListSuccessExample'
-        '400':
-          description: 获取失败
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BooksListError'
-              examples:
-                books_list_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "获取图书列表成功"
+                    data:
+                      booklist:
+                        - _bid: 1
+                          _book_name: "活着"
+                          _isbn: "123456789"
+                          _num: 10
+                          _author: "余华"
+                          _press: "人民文学出版社"
+                          _tid: 2
+                          _times: 5
+                          _cover_url: "http://example.com/cover.jpg"
+                          _create_time: "2025-11-16"
+                          category:
+                            _type_name: "文学"
         '500':
           description: 服务器错误
           content:
@@ -318,7 +587,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
     post:
       tags: [图书管理]
       summary: 新增图书
@@ -327,7 +595,36 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AddBookRequest'
+              type: object
+              required:
+                - _book_name
+                - _isbn
+                - _num
+                - _author
+                - _press
+                - _tid
+              properties:
+                _book_name:
+                  type: string
+                  description: 书名
+                _isbn:
+                  type: string
+                  description: ISBN码
+                _num:
+                  type: integer
+                  description: 馆藏数量
+                _author:
+                  type: string
+                  description: 作者
+                _press:
+                  type: string
+                  description: 出版社
+                _tid:
+                  type: integer
+                  description: 图书类型ID
+                _cover_url:
+                  type: string
+                  description: 封面图片URL
             examples:
               add_book_example:
                 $ref: '#/components/examples/AddBookExample'
@@ -337,10 +634,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AddBookSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_book'
               examples:
                 add_book_success:
-                  $ref: '#/components/examples/AddBookSuccessExample'
+                  value:
+                    success: true
+                    message: "图书添加成功"
+                    data:
+                      _bid: 1
+                      _book_name: "活着"
+                      _isbn: "123456789"
+                      _num: 10
+                      _author: "余华"
+                      _press: "人民文学出版社"
+                      _tid: 2
+                      _times: 0
+                      _cover_url: "http://example.com/cover.jpg"
+                      _create_time: "2025-11-16"
         '400':
           description: 参数错误
           content:
@@ -348,8 +663,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/AddBookError'
               examples:
-                add_book_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                missing_fields:
+                  value:
+                    success: false
+                    errorCode: "MISSING_FIELDS"
+                    message: "请提供完整的图书信息"
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                permission_denied:
+                  value:
+                    success: false
+                    errorCode: "PERMISSION_DENIED"
+                    message: "没有权限执行此操作"
         '500':
           description: 服务器错误
           content:
@@ -359,7 +691,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
   /api/books/{id}:
     get:
       tags: [图书管理]
@@ -376,10 +707,30 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BookDetailSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_book'
               examples:
                 book_detail_success:
-                  $ref: '#/components/examples/BooksListSuccessExample'
+                  value:
+                    success: true
+                    message: "成功获取图书详情"
+                    data:
+                      _bid: 1
+                      _book_name: "活着"
+                      _isbn: "123456789"
+                      _num: 10
+                      _author: "余华"
+                      _press: "人民文学出版社"
+                      _tid: 2
+                      _times: 5
+                      _cover_url: "http://example.com/cover.jpg"
+                      _create_time: "2025-11-16"
+                      category:
+                        _type_name: "文学"
         '404':
           description: 图书不存在
           content:
@@ -388,7 +739,10 @@ paths:
                 $ref: '#/components/schemas/BookDetailError'
               examples:
                 book_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "BOOK_NOT_FOUND"
+                    message: "图书不存在"
 
     put:
       tags: [图书管理]
@@ -431,6 +785,9 @@ paths:
                 _tid:
                   type: integer
                   description: 图书类型ID
+                _cover_url:
+                  type: string
+                  description: 封面图片URL
             examples:
               edit_book_example:
                 $ref: '#/components/examples/AddBookExample'
@@ -440,10 +797,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EditBookSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_book'
               examples:
                 edit_book_success:
-                  $ref: '#/components/examples/EditBookSuccessExample'
+                  value:
+                    success: true
+                    message: "图书信息更新成功"
+                    data:
+                      _bid: 1
+                      _book_name: "活着（修订版）"
+                      _isbn: "123456789"
+                      _num: 15
+                      _author: "余华"
+                      _press: "人民文学出版社"
+                      _tid: 2
+                      _times: 5
+                      _cover_url: "http://example.com/cover.jpg"
+                      _create_time: "2025-11-16"
         '400':
           description: 参数错误
           content:
@@ -451,8 +826,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/EditBookError'
               examples:
-                edit_book_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                missing_fields:
+                  value:
+                    success: false
+                    errorCode: "MISSING_FIELDS"
+                    message: "请提供完整的图书信息"
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                permission_denied:
+                  value:
+                    success: false
+                    errorCode: "PERMISSION_DENIED"
+                    message: "没有权限执行此操作"
         '404':
           description: 图书不存在
           content:
@@ -461,7 +853,10 @@ paths:
                 $ref: '#/components/schemas/EditBookError'
               examples:
                 book_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "BOOK_NOT_FOUND"
+                    message: "图书不存在"
 
     delete:
       tags: [图书管理]
@@ -478,10 +873,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeleteBookSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_book'
               examples:
                 delete_book_success:
-                  $ref: '#/components/examples/DeleteBookSuccessExample'
+                  value:
+                    success: true
+                    message: "图书删除成功"
+                    data:
+                      _bid: 1
+                      _book_name: "活着"
+                      _isbn: "123456789"
+                      _num: 10
+                      _author: "余华"
+                      _press: "人民文学出版社"
+                      _tid: 2
+                      _times: 5
+                      _cover_url: "http://example.com/cover.jpg"
+                      _create_time: "2025-11-16"
         '400':
           description: 无法删除
           content:
@@ -489,8 +902,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeleteBookError'
               examples:
-                delete_book_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                book_has_borrow_records:
+                  value:
+                    success: false
+                    errorCode: "BOOK_HAS_BORROW_RECORDS"
+                    message: "该书有未归还的借阅记录，无法删除"
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                permission_denied:
+                  value:
+                    success: false
+                    errorCode: "PERMISSION_DENIED"
+                    message: "没有权限执行此操作"
         '404':
           description: 图书不存在
           content:
@@ -499,7 +929,10 @@ paths:
                 $ref: '#/components/schemas/DeleteBookError'
               examples:
                 book_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "BOOK_NOT_FOUND"
+                    message: "图书不存在"
 
   /api/books/{id}/borrow:
     post:
@@ -517,10 +950,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BorrowBookSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          borrow_history:
+                            $ref: '#/components/schemas/t_history'
               examples:
                 borrow_book_success:
-                  $ref: '#/components/examples/BorrowBookSuccessExample'
+                  value:
+                    success: true
+                    message: "借书成功"
+                    data:
+                      borrow_history:
+                        _hid: 1
+                        _bid: 1
+                        _uid: 2
+                        _begin_date: "2025-01-01"
+                        _end_date: "2025-02-01"
+                        _status: 0
         '400':
           description: 借书失败
           content:
@@ -528,8 +979,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/BorrowBookError'
               examples:
-                borrow_book_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                book_out_of_stock:
+                  value:
+                    success: false
+                    errorCode: "BOOK_OUT_OF_STOCK"
+                    message: "该书暂无库存"
+                max_borrow_limit:
+                  value:
+                    success: false
+                    errorCode: "MAX_BORROW_LIMIT"
+                    message: "已达到最大借阅数量"
+                already_borrowed_twice:
+                  value:
+                    success: false
+                    errorCode: "ALREADY_BORROWED_TWICE"
+                    message: "同一本书籍只能连续借阅两次"
         '404':
           description: 图书不存在
           content:
@@ -538,37 +1002,49 @@ paths:
                 $ref: '#/components/schemas/BorrowBookError'
               examples:
                 book_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
-  /api/books/{id}/return:
+                  value:
+                    success: false
+                    errorCode: "BOOK_NOT_FOUND"
+                    message: "图书不存在"
+  /api/books/{hid}/return:
     put:
       tags: [图书管理]
       summary: 归还图书
       parameters:
-        - name: id
+        - name: hid
           in: path
           required: true
           schema:
             type: integer
+          description: 借阅记录ID
       responses:
         '200':
           description: 还书成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReturnBookSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          suc_return:
+                            $ref: '#/components/schemas/t_history'
               examples:
                 return_book_success:
-                  $ref: '#/components/examples/ReturnBookSuccessExample'
-        '400':
-          description: 还书失败
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReturnBookError'
-              examples:
-                return_book_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "还书成功"
+                    data:
+                      suc_return:
+                        _hid: 1
+                        _bid: 1
+                        _uid: 2
+                        _begin_date: "2025-01-01"
+                        _end_date: "2025-01-15"
+                        _status: 1
         '404':
           description: 借阅记录不存在
           content:
@@ -576,38 +1052,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReturnBookError'
               examples:
-                record_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
-  /api/books/{id}/renew:
+                borrow_record_not_found:
+                  value:
+                    success: false
+                    errorCode: "BORROW_RECORD_NOT_FOUND"
+                    message: "借阅记录不存在"
+  /api/books/{hid}/renew:
     put:
       tags: [图书管理]
       summary: 续借图书
       parameters:
-        - name: id
+        - name: hid
           in: path
           required: true
           schema:
             type: integer
+          description: 借阅记录ID
       responses:
         '200':
           description: 续借成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RenewBookSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          res_delay:
+                            $ref: '#/components/schemas/t_history'
               examples:
                 renew_book_success:
-                  $ref: '#/components/examples/RenewBookSuccessExample'
-        '400':
-          description: 续借失败
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RenewBookError'
-              examples:
-                renew_book_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "续借成功"
+                    data:
+                      res_delay:
+                        _hid: 1
+                        _bid: 1
+                        _uid: 2
+                        _begin_date: "2025-01-01"
+                        _end_date: "2025-03-01"
+                        _status: 0
         '404':
           description: 借阅记录不存在
           content:
@@ -615,8 +1103,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/RenewBookError'
               examples:
-                record_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                borrow_record_not_found:
+                  value:
+                    success: false
+                    errorCode: "BORROW_RECORD_NOT_FOUND"
+                    message: "借阅记录不存在或不可续借"
 
   /api/books/rank:
     get:
@@ -628,10 +1119,36 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BookRankSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          res_rank:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/t_book'
               examples:
                 book_rank_success:
-                  $ref: '#/components/examples/BookRankSuccessExample'
+                  value:
+                    success: true
+                    message: "获取图书排名成功"
+                    data:
+                      res_rank:
+                        - _bid: 1
+                          _book_name: "活着"
+                          _isbn: "123456789"
+                          _num: 10
+                          _author: "余华"
+                          _press: "人民文学出版社"
+                          _tid: 2
+                          _times: 15
+                          _cover_url: "http://example.com/cover.jpg"
+                          _create_time: "2025-11-16"
+                          category:
+                            _type_name: "文学"
         '500':
           description: 服务器错误
           content:
@@ -641,7 +1158,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
   # ==============================
   # 读者管理
   # ==============================
@@ -649,16 +1165,46 @@ paths:
     get:
       tags: [读者管理]
       summary: 获取读者列表
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 搜索关键词（用户ID、账号、姓名）
       responses:
         '200':
           description: 成功获取读者列表
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReadersListSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          readerlist:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/t_user'
               examples:
                 readers_list_success:
-                  $ref: '#/components/examples/ReadersListSuccessExample'
+                  value:
+                    success: true
+                    message: "获取读者列表成功"
+                    data:
+                      readerlist:
+                        - _uid: 1
+                          _utype: "student"
+                          _account: "2023013863"
+                          _name: "张三"
+                          _email: "zhangsan@example.com"
+                          _max_num: 10
+                          lend_num: 0
+                          _access: 1
+
         '500':
           description: 服务器错误
           content:
@@ -668,7 +1214,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
     post:
       tags: [读者管理]
       summary: 新增读者
@@ -710,10 +1255,31 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AddReaderSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          r_add:
+                            $ref: '#/components/schemas/t_user'
               examples:
                 add_reader_success:
-                  $ref: '#/components/examples/AddReaderSuccessExample'
+                  value:
+                    success: true
+                    message: "读者添加成功"
+                    data:
+                      r_add:
+                        _uid: 1
+                        _utype: "student"
+                        _account: "2023013863"
+                        _name: "张三"
+                        _email: "zhangsan@example.com"
+                        _max_num: 10
+                        lend_num: 0
+                        _access: 1
+
         '400':
           description: 参数错误
           content:
@@ -721,8 +1287,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/AddReaderError'
               examples:
-                add_reader_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                missing_fields:
+                  value:
+                    success: false
+                    errorCode: "MISSING_FIELDS"
+                    message: "请提供完整的读者信息"
+                invalid_user_type:
+                  value:
+                    success: false
+                    errorCode: "INVALID_USER_TYPE"
+                    message: "用户类型只能是student或teacher"
+                user_already_exists:
+                  value:
+                    success: false
+                    errorCode: "USER_ALREADY_EXISTS"
+                    message: "用户账号已存在"
+                password_too_simple:
+                  value:
+                    success: false
+                    errorCode: "PASSWORD_TOO_SIMPLE"
+                    message: "密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位"
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                permission_denied:
+                  value:
+                    success: false
+                    errorCode: "PERMISSION_DENIED"
+                    message: "没有权限执行此操作"
         '500':
           description: 服务器错误
           content:
@@ -732,7 +1330,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
   /api/readers/{id}:
     get:
       tags: [读者管理]
@@ -749,10 +1346,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReaderDetailSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_user'
               examples:
                 reader_detail_success:
-                  $ref: '#/components/examples/ReadersListSuccessExample'
+                  value:
+                    success: true
+                    message: "成功获取读者详情"
+                    data:
+                      _uid: 1
+                      _utype: "student"
+                      _account: "2023013863"
+                      _name: "张三"
+                      _email: "zhangsan@example.com"
+                      _max_num: 10
+                      lend_num: 0
+                      _access: 1
         '404':
           description: 读者不存在
           content:
@@ -761,7 +1374,10 @@ paths:
                 $ref: '#/components/schemas/ReaderDetailError'
               examples:
                 reader_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "READER_NOT_FOUND"
+                    message: "读者不存在"
 
     put:
       tags: [读者管理]
@@ -801,10 +1417,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EditReaderSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_user'
               examples:
                 edit_reader_success:
-                  $ref: '#/components/examples/EditReaderSuccessExample'
+                  value:
+                    success: true
+                    message: "读者信息更新成功"
+                    data:
+                      _uid: 1
+                      _utype: "student"
+                      _account: "2023013863"
+                      _name: "张三丰"
+                      _email: "zhangsanfeng@example.com"
+                      _max_num: 10
+                      lend_num: 0
+                      _access: 1
+
         '400':
           description: 参数错误
           content:
@@ -812,8 +1445,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/EditReaderError'
               examples:
-                edit_reader_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                missing_fields:
+                  value:
+                    success: false
+                    errorCode: "MISSING_FIELDS"
+                    message: "请提供完整的读者信息"
+                account_already_exists:
+                  value:
+                    success: false
+                    errorCode: "ACCOUNT_ALREADY_EXISTS"
+                    message: "账号已被其他用户使用"
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                permission_denied:
+                  value:
+                    success: false
+                    errorCode: "PERMISSION_DENIED"
+                    message: "没有权限执行此操作"
         '404':
           description: 读者不存在
           content:
@@ -822,8 +1477,10 @@ paths:
                 $ref: '#/components/schemas/EditReaderError'
               examples:
                 reader_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
+                  value:
+                    success: false
+                    errorCode: "READER_NOT_FOUND"
+                    message: "读者不存在"
     delete:
       tags: [读者管理]
       summary: 删除读者
@@ -839,10 +1496,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeleteReaderSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_user'
               examples:
                 delete_reader_success:
-                  $ref: '#/components/examples/DeleteReaderSuccessExample'
+                  value:
+                    success: true
+                    message: "读者删除成功"
+                    data:
+                      _uid: 1
+                      _utype: "student"
+                      _account: "2023013863"
+                      _name: "张三"
+                      _email: "zhangsan@example.com"
+                      _max_num: 10
+                      lend_num: 0
+                      _access: 1
+                    
         '400':
           description: 无法删除
           content:
@@ -850,8 +1524,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeleteReaderError'
               examples:
-                delete_reader_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                reader_has_active_borrows:
+                  value:
+                    success: false
+                    errorCode: "READER_HAS_ACTIVE_BORROWS"
+                    message: "该读者有未归还的图书，无法删除"
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+              examples:
+                permission_denied:
+                  value:
+                    success: false
+                    errorCode: "PERMISSION_DENIED"
+                    message: "没有权限执行此操作"
         '404':
           description: 读者不存在
           content:
@@ -860,8 +1551,10 @@ paths:
                 $ref: '#/components/schemas/DeleteReaderError'
               examples:
                 reader_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
+                  value:
+                    success: false
+                    errorCode: "READER_NOT_FOUND"
+                    message: "读者不存在"
   /api/readers/{id}/borrow-count:
     get:
       tags: [读者管理]
@@ -878,10 +1571,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BorrowCountSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          _name:
+                            type: string
+                            description: 读者姓名
+                          _lend_num:
+                            type: number
+                            description: 当前借阅数量
               examples:
                 borrow_count_success:
-                  $ref: '#/components/examples/BorrowCountSuccessExample'
+                  value:
+                    success: true
+                    message: "查询成功"
+                    data:
+                      _name: "张三"
+                      _lend_num: 3
         '404':
           description: 读者不存在
           content:
@@ -890,8 +1600,10 @@ paths:
                 $ref: '#/components/schemas/BorrowCountError'
               examples:
                 reader_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
+                  value:
+                    success: false
+                    errorCode: "READER_NOT_FOUND"
+                    message: "读者不存在"
   /api/readers/rank:
     get:
       tags: [读者管理]
@@ -902,10 +1614,42 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReaderRankSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          res_rank:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/t_user'
               examples:
                 reader_rank_success:
-                  $ref: '#/components/examples/ReaderRankSuccessExample'
+                  value:
+                    success: true
+                    message: "获取读者排名成功"
+                    data:
+                      res_rank:
+                        - _uid: 1
+                          _utype: "student"
+                          _account: "2023013863"
+                          _name: "张三"
+                          _email: "zhangsan@example.com"
+                          _max_num: 10
+                          lend_num: 5
+                          _access: 1
+                          _total: 120
+                        - _uid: 2
+                          _utype: "teacher"
+                          _account: "2023013864"
+                          _name: "李四"
+                          _email: "lisi@example.com"
+                          _max_num: 20
+                          lend_num: 3
+                          _access: 1
+                          _total: 80
         '500':
           description: 服务器错误
           content:
@@ -915,7 +1659,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
   # ==============================
   # 公告管理
   # ==============================
@@ -929,10 +1672,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnnouncementsListSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/t_announcements'
               examples:
                 announcements_list_success:
-                  $ref: '#/components/examples/AnnouncementsListSuccessExample'
+                  value:
+                    success: true
+                    message: "获取公告列表成功"
+                    data:
+                      - _aid: 1
+                        _title: "系统维护通知"
+                        _content: "本系统将于本周六进行维护"
+                        _publisher: "管理员"
+                        _date: "2025-01-01 10:00:00"
         '500':
           description: 服务器错误
           content:
@@ -942,7 +1700,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
     post:
       tags: [公告管理]
       summary: 新增公告
@@ -951,7 +1708,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AddAnnouncementRequest'
+              type: object
+              required:
+                - _title
+                - _content
+              properties:
+                _title:
+                  type: string
+                  description: 公告标题
+                _content:
+                  type: string
+                  description: 公告内容
             examples:
               add_announcement_example:
                 $ref: '#/components/examples/AddAnnouncementExample'
@@ -964,16 +1731,16 @@ paths:
                 $ref: '#/components/schemas/AddAnnouncementSuccess'
               examples:
                 add_announcement_success:
-                  $ref: '#/components/examples/AddAnnouncementSuccessExample'
-        '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AddAnnouncementError'
-              examples:
-                add_announcement_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "添加公告成功"
+                    data:
+                      res_insert:
+                        _aid: 1
+                        _title: "系统维护通知"
+                        _content: "本系统将于本周六进行维护，届时将暂停服务2小时"
+                        _publisher: "管理员"
+                        _date: "2025-01-01 10:00:00"
         '500':
           description: 服务器错误
           content:
@@ -1000,10 +1767,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnnouncementDetailSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_announcements'
               examples:
                 announcement_detail_success:
-                  $ref: '#/components/examples/AnnouncementsListSuccessExample'
+                  value:
+                    success: true
+                    message: "成功获取公告详情"
+                    data:
+                      _aid: 1
+                      _title: "系统维护通知"
+                      _content: "本系统将于本周六进行维护"
+                      _publisher: "管理员"
+                      _date: "2025-01-01 10:00:00"
         '404':
           description: 公告不存在
           content:
@@ -1012,8 +1792,10 @@ paths:
                 $ref: '#/components/schemas/AnnouncementDetailError'
               examples:
                 announcement_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
+                  value:
+                    success: false
+                    errorCode: "ANNOUNCEMENT_NOT_FOUND"
+                    message: "公告不存在"
     put:
       tags: [公告管理]
       summary: 更新公告
@@ -1048,19 +1830,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EditAnnouncementSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_announcements'
               examples:
                 edit_announcement_success:
-                  $ref: '#/components/examples/EditAnnouncementSuccessExample'
-        '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EditAnnouncementError'
-              examples:
-                edit_announcement_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "公告更新成功"
+                    data:
+                      _aid: 1
+                      _title: "系统维护通知（更新）"
+                      _content: "本系统将于本周六进行维护，届时将暂停服务3小时"
+                      _publisher: "管理员"
+                      _date: "2025-01-01 10:00:00"
         '404':
           description: 公告不存在
           content:
@@ -1069,8 +1855,10 @@ paths:
                 $ref: '#/components/schemas/EditAnnouncementError'
               examples:
                 announcement_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
+                  value:
+                    success: false
+                    errorCode: "ANNOUNCEMENT_NOT_FOUND"
+                    message: "公告不存在"
     delete:
       tags: [公告管理]
       summary: 删除公告
@@ -1086,19 +1874,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeleteAnnouncementSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_announcements'
               examples:
                 delete_announcement_success:
-                  $ref: '#/components/examples/DeleteAnnouncementSuccessExample'
-        '400':
-          description: 无法删除
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeleteAnnouncementError'
-              examples:
-                delete_announcement_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "公告删除成功"
+                    data:
+                      _aid: 1
+                      _title: "系统维护通知"
+                      _content: "本系统将于本周六进行维护"
+                      _publisher: "管理员"
+                      _date: "2025-01-01 10:00:00"
         '404':
           description: 公告不存在
           content:
@@ -1107,31 +1899,10 @@ paths:
                 $ref: '#/components/schemas/DeleteAnnouncementError'
               examples:
                 announcement_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
-
-  /api/announcements/latest:
-    get:
-      tags: [公告管理]
-      summary: 获取最新公告
-      responses:
-        '200':
-          description: 成功获取最新公告
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LatestAnnouncementSuccess'
-              examples:
-                latest_announcement_success:
-                  $ref: '#/components/examples/LatestAnnouncementSuccessExample'
-        '404':
-          description: 暂无公告
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LatestAnnouncementError'
-              examples:
-                no_announcements:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "ANNOUNCEMENT_NOT_FOUND"
+                    message: "公告不存在"
 
   # ==============================
   # 分类管理
@@ -1146,10 +1917,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CategoriesListSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          catlist:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/t_type'
               examples:
                 categories_list_success:
-                  $ref: '#/components/examples/CategoriesListSuccessExample'
+                  value:
+                    success: true
+                    message: "获取分类列表成功"
+                    data:
+                      catlist:
+                        - _tid: 1
+                          _type_name: "文学"
+                        - _tid: 2
+                          _type_name: "科技"
         '500':
           description: 服务器错误
           content:
@@ -1159,7 +1948,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
     post:
       tags: [分类管理]
       summary: 新增分类
@@ -1184,19 +1972,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AddCategorySuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_type'
               examples:
                 add_category_success:
-                  $ref: '#/components/examples/AddCategorySuccessExample'
-        '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AddCategoryError'
-              examples:
-                add_category_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "添加分类成功"
+                    data:
+                      _tid: 1
+                      _type_name: "文学"
         '500':
           description: 服务器错误
           content:
@@ -1223,10 +2012,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CategoryDetailSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_type'
               examples:
                 category_detail_success:
-                  $ref: '#/components/examples/CategoriesListSuccessExample'
+                  value:
+                    success: true
+                    message: "成功获取分类详情"
+                    data:
+                      _tid: 1
+                      _type_name: "文学"
         '404':
           description: 分类不存在
           content:
@@ -1235,7 +2034,10 @@ paths:
                 $ref: '#/components/schemas/CategoryDetailError'
               examples:
                 category_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "CATEGORY_NOT_FOUND"
+                    message: "分类不存在"
 
     put:
       tags: [分类管理]
@@ -1267,19 +2069,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EditCategorySuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_type'
               examples:
                 edit_category_success:
-                  $ref: '#/components/examples/EditCategorySuccessExample'
-        '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EditCategoryError'
-              examples:
-                edit_category_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "分类更新成功"
+                    data:
+                      _tid: 1
+                      _type_name: "文学作品"
         '404':
           description: 分类不存在
           content:
@@ -1288,7 +2091,10 @@ paths:
                 $ref: '#/components/schemas/EditCategoryError'
               examples:
                 category_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "CATEGORY_NOT_FOUND"
+                    message: "分类不存在"
 
     delete:
       tags: [分类管理]
@@ -1305,19 +2111,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeleteCategorySuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/t_type'
               examples:
                 delete_category_success:
-                  $ref: '#/components/examples/DeleteCategorySuccessExample'
-        '400':
-          description: 无法删除
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeleteCategoryError'
-              examples:
-                delete_category_error:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: true
+                    message: "分类删除成功"
+                    data:
+                      _tid: 1
+                      _type_name: "文学"
         '404':
           description: 分类不存在
           content:
@@ -1326,7 +2133,10 @@ paths:
                 $ref: '#/components/schemas/DeleteCategoryError'
               examples:
                 category_not_found:
-                  $ref: '#/components/examples/ServerErrorExample'
+                  value:
+                    success: false
+                    errorCode: "CATEGORY_NOT_FOUND"
+                    message: "分类不存在"
 
   # ==============================
   # 借阅记录
@@ -1341,10 +2151,65 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BorrowRecordsListSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          historylist:
+                            type: array
+                            items:
+                              allOf:
+                                - $ref: '#/components/schemas/t_history'
+                                - type: object
+                                  properties:
+                                    user:
+                                      type: object
+                                      properties:
+                                        _uid:
+                                          type: integer
+                                          description: 用户ID
+                                        _name:
+                                          type: string
+                                          description: 用户姓名
+                                        _account:
+                                          type: string
+                                          description: 用户账号
+                                    book:
+                                      type: object
+                                      properties:
+                                        _bid:
+                                          type: integer
+                                          description: 图书ID
+                                        _book_name:
+                                          type: string
+                                          description: 图书名称
+                                        _author:
+                                          type: string
+                                          description: 作者
               examples:
                 borrow_records_success:
-                  $ref: '#/components/examples/BorrowRecordsListSuccessExample'
+                  value:
+                    success: true
+                    message: "获取借阅记录成功"
+                    data:
+                      historylist:
+                        - _hid: 1
+                          _bid: 1
+                          _uid: 2
+                          _begin_time: "2025-01-01"
+                          _end_time: "2025-02-01"
+                          _status: 0
+                          user:
+                            _uid: 2
+                            _name: "张三"
+                            _account: "2023013863"
+                          book:
+                            _bid: 1
+                            _book_name: "活着"
+                            _author: "余华"
         '500':
           description: 服务器错误
           content:
@@ -1354,7 +2219,6 @@ paths:
               examples:
                 server_error:
                   $ref: '#/components/examples/ServerErrorExample'
-
   /api/borrow-records/my:
     get:
       tags: [借阅记录]
@@ -1365,10 +2229,53 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MyBorrowRecordsSuccess'
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          ownlist:
+                            type: array
+                            items:
+                              allOf:
+                                - $ref: '#/components/schemas/t_history'
+                                - type: object
+                                  properties:
+                                    book:
+                                      type: object
+                                      properties:
+                                        _book_name:
+                                          type: string
+                                          description: 图书名称
+                                        _isbn:
+                                          type: string
+                                          description: ISBN码
+                                        _author:
+                                          type: string
+                                          description: 作者
+                                        _cover_url:
+                                          type: string
+                                          description: 封面图片URL
               examples:
                 my_borrow_records_success:
-                  $ref: '#/components/examples/MyBorrowRecordsSuccessExample'
+                  value:
+                    success: true
+                    message: "获取借阅记录成功"
+                    data:
+                      ownlist:
+                        - _hid: 1
+                          _bid: 1
+                          _uid: 2
+                          _begin_time: "2025-01-01"
+                          _end_time: "2025-02-01"
+                          _status: 0
+                          book:
+                            _book_name: "活着"
+                            _isbn: "123456789"
+                            _author: "余华"
+                            _cover_url: "http://example.com/cover.jpg"
         '500':
           description: 服务器错误
           content:
@@ -1447,7 +2354,12 @@ components:
           type: string
           format: datetime
           description: 创建时间
-
+        category:
+          type: object
+          properties:
+            _type_name:
+              type: string
+              description: 分类名称
     t_type:
       type: object
       properties:
@@ -1485,7 +2397,7 @@ components:
         _status:
           type: number
           format: int32
-          description: 借阅状态
+          description: 借阅状态（0-借出中，1-已归还）
 
     t_user:
       type: object
@@ -1533,16 +2445,16 @@ components:
           type: integer
           format: int32
           description: 公告ID
-        _a_title:
+        _title:
           type: string
           description: 公告标题
-        _a_content:
+        _content:
           type: string
           description: 公告内容
-        _a_publisher:
+        _publisher:
           type: string
           description: 发布者
-        _a_date:
+        _date:
           type: string
           format: date-time
           description: 创建时间
@@ -1628,10 +2540,21 @@ components:
                 usertype:
                   type: string
                   description: 用户类型
-                req.session_uid:
-                  type: number
-                  description: 会话用户ID
-
+                userInfo:
+                  type: object
+                  properties:
+                    _uid:
+                      type: number
+                      description: 用户ID
+                    _name:
+                      type: string
+                      description: 用户姓名
+                    _account:
+                      type: string
+                      description: 用户账号
+                    _email:
+                      type: string
+                      description: 用户邮箱
     RegisterSuccess:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
@@ -1640,9 +2563,18 @@ components:
             data:
               type: object
               properties:
-                usertype:
+                _uid:
+                  type: number
+                  description: 用户ID
+                _utype:
                   type: string
                   description: 用户类型
+                _account:
+                  type: string
+                  description: 用户账号
+                _name:
+                  type: string
+                  description: 用户姓名
 
     ResetPasswordSuccess:
       allOf:
@@ -1650,7 +2582,23 @@ components:
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/t_user'
+              type: object
+              properties:
+                _uid:
+                  type: number
+                  description: 用户ID
+                _utype:
+                  type: string
+                  description: 用户类型
+                _account:
+                  type: string
+                  description: 用户账号
+                _name:
+                  type: string
+                  description: 用户姓名
+                _email:
+                  type: string
+                  description: 用户邮箱
 
     CaptchaSuccess:
       allOf:
@@ -1659,7 +2607,7 @@ components:
           properties:
             data:
               type: string
-              description: 验证码图片的base64编码
+              description: 验证码SVG图片数据
 
     CurrentUserSuccess:
       allOf:
@@ -1908,7 +2856,6 @@ components:
               properties:
                 r_add:
                   $ref: '#/components/schemas/t_user'
-
     EditReaderSuccess:
       allOf:
         - $ref: '#/components/schemas/BaseResponse'
@@ -2190,7 +3137,34 @@ components:
                 historylist:
                   type: array
                   items:
-                    $ref: '#/components/schemas/t_history'
+                    allOf:
+                      - $ref: '#/components/schemas/t_history'
+                      - type: object
+                        properties:
+                          user:
+                            type: object
+                            properties:
+                              _uid:
+                                type: integer
+                                description: 用户ID
+                              _name:
+                                type: string
+                                description: 用户姓名
+                              _account:
+                                type: string
+                                description: 用户账号
+                          book:
+                            type: object
+                            properties:
+                              _bid:
+                                type: integer
+                                description: 图书ID
+                              _book_name:
+                                type: string
+                                description: 图书名称
+                              _author:
+                                type: string
+                                description: 作者
 
     MyBorrowRecordsSuccess:
       allOf:
@@ -2203,8 +3177,25 @@ components:
                 ownlist:
                   type: array
                   items:
-                    $ref: '#/components/schemas/t_history'
-
+                    allOf:
+                      - $ref: '#/components/schemas/t_history'
+                      - type: object
+                        properties:
+                          book:
+                            type: object
+                            properties:
+                              _book_name:
+                                type: string
+                                description: 图书名称
+                              _isbn:
+                                type: string
+                                description: ISBN码
+                              _author:
+                                type: string
+                                description: 作者
+                              _cover_url:
+                                type: string
+                                description: 封面图片URL
   examples:
     # 用户认证模块示例
     StudentLoginExample:
@@ -2276,7 +3267,11 @@ components:
         data:
           token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
           usertype: "student"
-          req.session_uid: 2
+          userInfo:
+            _uid: 2
+            _name: "张三"
+            _account: "2023013863"
+            _email: "zhangsan@example.com"
 
     RegisterSuccessExample:
       summary: 注册成功实例
@@ -2284,7 +3279,10 @@ components:
         success: true
         message: "注册成功"
         data:
-          usertype: "student"
+          _uid: 1
+          _utype: "student"
+          _account: "2023013863"
+          _name: "张三"
 
     ResetPasswordSuccessExample:
       summary: 重置密码成功实例
@@ -2296,19 +3294,14 @@ components:
           _utype: "student"
           _account: "2023013863"
           _name: "张三"
-          _password: "newpassword123*"
           _email: "zhangsan@example.com"
-          _max_num: 10
-          lend_num: 0
-          _access: 1
-          _total: 0
 
     CaptchaSuccessExample:
       summary: 验证码生成成功
       value:
         success: true
         message: "验证码生成成功"
-        data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAA..."
+        data: "<svg width=\"150\" height=\"50\" xmlns=\"http://www.w3.org/2000/svg\">...</svg>"
 
     CurrentUserSuccessExample:
       summary: 获取当前用户成功
@@ -2317,9 +3310,17 @@ components:
         message: "获取用户信息成功"
         data:
           _uid: 1
+          _utype: "student"
+          _account: "2023013863"
+          _name: "张三"
+          _email: "zhangsan@example.com"
+          _max_num: 10
+          lend_num: 0
+          _access: 1
+          _total: 0
 
     CurrentUserErrorExample:
-      summary: 未登录
+      summary: 未登录或Token无效
       value:
         success: false
         errorCode: "NOT_LOGGED_IN"
@@ -2330,54 +3331,50 @@ components:
       summary: 注册失败实例_账号已存在
       value:
         success: false
-        errorCode: "4001"
+        errorCode: "USER_ALREADY_EXISTS"
         message: "用户已存在"
-
+    
     RegisterErrorExample_PasswordTooSimple:
       summary: 注册失败实例_密码过于简单
       value:
         success: false
-        errorCode: "4004"
+        errorCode: "PASSWORD_TOO_SIMPLE"
         message: "密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位"
-
+    
     #登录失败
     LoginErrorExample_AccountNotExist:
       summary: 登录失败实例_账号不存在
       value:
         success: false
-        errorCode: "4002"
+        errorCode: "USER_NOT_EXISTS"
         message: "用户不存在"
-        data:
-          usertype: "student"
-
+    
     LoginErrorExample_PasswordIncorrect:
       summary: 登录失败实例_密码错误
       value:
         success: false
-        errorCode: "4003"
+        errorCode: "PASSWORD_INCORRECT"
         message: "密码错误"
-        data:
-          usertype: "student"
 
     ResetPasswordErrorExample_UserNotExist:
       summary: 重置密码失败实例_用户不存在
       value:
         success: false
-        errorCode: "4002"
+        errorCode: "USER_NOT_EXIST"
         message: "用户不存在"
-
+    
     ResetPasswordErrorExample_PasswordTooSimple:
       summary: 重置密码失败实例_密码过于简单
       value:
         success: false
-        errorCode: "4004"
+        errorCode: "PASSWORD_TOO_SIMPLE"
         message: "密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位"
-
+    
     ResetPasswordErrorExample_CapchaIncorrect:
       summary: 重置密码失败实例_验证码错误
       value:
         success: false
-        errorCode: "4005"
+        errorCode: "CAPTCHA_INCORRECT"
         message: "验证码错误"
 
     ServerErrorExample:
@@ -2387,16 +3384,49 @@ components:
         errorCode: "SERVER_ERROR"
         message: "服务器错误，请稍后重试"
 
+    # 新增：缺少字段错误示例
+    MissingFieldsErrorExample:
+      summary: 缺少必要字段
+      value:
+        success: false
+        errorCode: "MISSING_FIELDS"
+        message: "请提供完整的必要信息"
+    
+    # 新增：Token无效错误示例
+    InvalidTokenErrorExample:
+      summary: Token无效
+      value:
+        success: false
+        errorCode: "INVALID_TOKEN"
+        message: "Token无效"
+    
+    # 新增：用户不存在错误示例（获取当前用户时）
+    UserNotFoundErrorExample:
+      summary: 用户不存在
+      value:
+        success: false
+        errorCode: "USER_NOT_FOUND"
+        message: "用户不存在"
+    
+    # 新增：缺少用户ID错误示例
+    MissingUserIdErrorExample:
+      summary: 缺少用户ID
+      value:
+        success: false
+        errorCode: "MISSING_USER_ID"
+        message: "请提供用户ID"
+
     # 图书管理模块示例
     AddBookExample:
-      summary: 新增图书示例
-      value:
-        _book_name: "活着"
-        _isbn: "123456789"
-        _num: 10
-        _author: "余华"
-        _press: "人民文学出版社"
-        _tid: 2
+        summary: 新增图书示例
+        value:
+          _book_name: "活着"
+          _isbn: "123456789"
+          _num: 10
+          _author: "余华"
+          _press: "人民文学出版社"
+          _tid: 2
+          _cover_url: "http://example.com/cover.jpg"
 
     BooksListSuccessExample:
       summary: 获取图书列表成功
@@ -2415,12 +3445,25 @@ components:
               _times: 5
               _cover_url: "http://example.com/cover.jpg"
               _create_time: "2025-11-16"
+              category:
+                _type_name: "文学"
 
     AddBookSuccessExample:
       summary: 新增图书成功
       value:
         success: true
         message: "图书添加成功"
+        data:
+          _bid: 1
+          _book_name: "活着"
+          _isbn: "123456789"
+          _num: 10
+          _author: "余华"
+          _press: "人民文学出版社"
+          _tid: 2
+          _times: 0
+          _cover_url: "http://example.com/cover.jpg"
+          _create_time: "2025-11-16"
 
     EditBookSuccessExample:
       summary: 编辑图书成功
@@ -2438,13 +3481,24 @@ components:
           _times: 5
           _cover_url: "http://example.com/cover.jpg"
           _create_time: "2025-11-16"
-
+    
     DeleteBookSuccessExample:
       summary: 删除图书成功
       value:
         success: true
         message: "图书删除成功"
-
+        data:
+          _bid: 1
+          _book_name: "活着"
+          _isbn: "123456789"
+          _num: 10
+          _author: "余华"
+          _press: "人民文学出版社"
+          _tid: 2
+          _times: 5
+          _cover_url: "http://example.com/cover.jpg"
+          _create_time: "2025-11-16"
+    
     BorrowBookSuccessExample:
       summary: 借阅图书成功
       value:
@@ -2457,7 +3511,7 @@ components:
             _uid: 2
             _begin_date: "2025-01-01"
             _end_date: "2025-02-01"
-            _status: 1
+            _status: 0
 
     ReturnBookSuccessExample:
       summary: 归还图书成功
@@ -2470,8 +3524,8 @@ components:
             _bid: 1
             _uid: 2
             _begin_date: "2025-01-01"
-            _end_date: "2025-02-01"
-            _status: 2
+            _end_date: "2025-01-15"
+            _status: 1
 
     RenewBookSuccessExample:
       summary: 续借图书成功
@@ -2485,7 +3539,7 @@ components:
             _uid: 2
             _begin_date: "2025-01-01"
             _end_date: "2025-03-01"
-            _status: 1
+            _status: 0
 
     BookRankSuccessExample:
       summary: 图书排名成功
@@ -2504,6 +3558,65 @@ components:
               _times: 15
               _cover_url: "http://example.com/cover.jpg"
               _create_time: "2025-11-16"
+              category:
+                _type_name: "文学"
+
+    
+    # 权限不足错误示例
+    PermissionDeniedErrorExample:
+      summary: 权限不足
+      value:
+        success: false
+        errorCode: "PERMISSION_DENIED"
+        message: "没有权限执行此操作"
+    
+    # 图书无库存错误示例
+    BookOutOfStockErrorExample:
+      summary: 图书无库存
+      value:
+        success: false
+        errorCode: "BOOK_OUT_OF_STOCK"
+        message: "该书暂无库存"
+    
+    # 达到最大借阅数量错误示例
+    MaxBorrowLimitErrorExample:
+      summary: 达到最大借阅数量
+      value:
+        success: false
+        errorCode: "MAX_BORROW_LIMIT"
+        message: "已达到最大借阅数量"
+    
+    # 同一本书借阅两次错误示例
+    AlreadyBorrowedTwiceErrorExample:
+      summary: 同一本书借阅两次
+      value:
+        success: false
+        errorCode: "ALREADY_BORROWED_TWICE"
+        message: "同一本书籍只能连续借阅两次"
+    
+    # 有未归还记录无法删除错误示例
+    BookHasBorrowRecordsErrorExample:
+      summary: 有未归还记录无法删除
+      value:
+        success: false
+        errorCode: "BOOK_HAS_BORROW_RECORDS"
+        message: "该书有未归还的借阅记录，无法删除"
+    
+    # 借阅记录不存在错误示例
+    BorrowRecordNotFoundErrorExample:
+      summary: 借阅记录不存在
+      value:
+        success: false
+        errorCode: "BORROW_RECORD_NOT_FOUND"
+        message: "借阅记录不存在"
+    
+    # 缺少字段错误示例（图书管理）
+    MissingFieldsBookErrorExample:
+      summary: 缺少必要字段
+      value:
+        success: false
+        errorCode: "MISSING_FIELDS"
+        message: "请提供完整的图书信息"
 
     # 读者管理模块示例
     AddReaderExample:
@@ -2526,30 +3639,35 @@ components:
               _utype: "student"
               _account: "2023013863"
               _name: "张三"
-              _password: "123456qwert*"
               _email: "zhangsan@example.com"
               _max_num: 10
               lend_num: 0
               _access: 1
-              _total: 0
+            - _uid: 2
+              _utype: "teacher"
+              _account: "2023013864"
+              _name: "李四"
+              _email: "lisi@example.com"
+              _max_num: 20
+              lend_num: 0
+              _access: 1
 
     AddReaderSuccessExample:
       summary: 新增读者成功
       value:
         success: true
-        message: "添加读者成功"
+        message: "读者添加成功"
         data:
           r_add:
             _uid: 1
             _utype: "student"
             _account: "2023013863"
             _name: "张三"
-            _password: "123456qwert*"
             _email: "zhangsan@example.com"
             _max_num: 10
             lend_num: 0
             _access: 1
-            _total: 0
+
 
     EditReaderSuccessExample:
       summary: 编辑读者成功
@@ -2561,29 +3679,26 @@ components:
           _utype: "student"
           _account: "2023013863"
           _name: "张三丰"
-          _password: "123456qwert*"
           _email: "zhangsanfeng@example.com"
           _max_num: 10
           lend_num: 0
           _access: 1
-          _total: 0
+
 
     DeleteReaderSuccessExample:
       summary: 删除读者成功
       value:
         success: true
-        message: "读者信息成功删除"
+        message: "读者删除成功"
         data:
           _uid: 1
           _utype: "student"
           _account: "2023013863"
           _name: "张三"
-          _password: "123456qwert*"
           _email: "zhangsan@example.com"
           _max_num: 10
           lend_num: 0
           _access: 1
-          _total: 0
 
     BorrowCountSuccessExample:
       summary: 查询借阅数量成功
@@ -2605,13 +3720,42 @@ components:
               _utype: "student"
               _account: "2023013863"
               _name: "张三"
-              _password: "123456qwert*"
               _email: "zhangsan@example.com"
               _max_num: 10
               lend_num: 5
               _access: 1
-              _total: 120
+            - _uid: 2
+              _utype: "teacher"
+              _account: "2023013864"
+              _name: "李四"
+              _email: "lisi@example.com"
+              _max_num: 20
+              lend_num: 3
+              _access: 1
 
+    # 无效用户类型错误示例
+    InvalidUserTypeErrorExample:
+      summary: 无效用户类型
+      value:
+        success: false
+        errorCode: "INVALID_USER_TYPE"
+        message: "用户类型只能是student或teacher"
+    
+    # 账号已被使用错误示例
+    AccountAlreadyExistsErrorExample:
+      summary: 账号已被其他用户使用
+      value:
+        success: false
+        errorCode: "ACCOUNT_ALREADY_EXISTS"
+        message: "账号已被其他用户使用"
+    
+    # 读者有未归还图书错误示例
+    ReaderHasActiveBorrowsErrorExample:
+      summary: 读者有未归还图书
+      value:
+        success: false
+        errorCode: "READER_HAS_ACTIVE_BORROWS"
+        message: "该读者有未归还的图书，无法删除"              
     # 公告管理模块示例
     AddAnnouncementExample:
       summary: 新增公告示例
@@ -2626,10 +3770,15 @@ components:
         message: "获取公告列表成功"
         data:
           - _aid: 1
-            _a_title: "系统维护通知"
-            _a_content: "本系统将于本周六进行维护"
-            _a_publisher: "管理员"
-            _a_date: "2025-01-01 10:00:00"
+            _title: "系统维护通知"
+            _content: "本系统将于本周六进行维护"
+            _publisher: "管理员"
+            _date: "2025-01-01 10:00:00"
+          - _aid: 2
+            _title: "图书馆开放时间调整"
+            _content: "即日起图书馆开放时间调整为..."
+            _publisher: "管理员"
+            _date: "2025-01-02 09:00:00"
 
     AddAnnouncementSuccessExample:
       summary: 新增公告成功
@@ -2639,22 +3788,22 @@ components:
         data:
           res_insert:
             _aid: 1
-            _a_title: "系统维护通知"
-            _a_content: "本系统将于本周六进行维护，届时将暂停服务2小时"
-            _a_publisher: "管理员"
-            _a_date: "2025-01-01 10:00:00"
+            _title: "系统维护通知"
+            _content: "本系统将于本周六进行维护，届时将暂停服务2小时"
+            _publisher: "管理员"
+            _date: "2025-01-01 10:00:00"
 
     EditAnnouncementSuccessExample:
       summary: 编辑公告成功
       value:
         success: true
-        message: "公告编辑成功"
+        message: "公告更新成功"
         data:
           _aid: 1
-          _a_title: "系统维护通知（更新）"
-          _a_content: "本系统将于本周六进行维护，届时将暂停服务3小时"
-          _a_publisher: "管理员"
-          _a_date: "2025-01-01 10:00:00"
+          _title: "系统维护通知（更新）"
+          _content: "本系统将于本周六进行维护，届时将暂停服务3小时"
+          _publisher: "管理员"
+          _date: "2025-01-01 10:00:00"
 
     DeleteAnnouncementSuccessExample:
       summary: 删除公告成功
@@ -2663,24 +3812,23 @@ components:
         message: "公告删除成功"
         data:
           _aid: 1
-          _a_title: "系统维护通知"
-          _a_content: "本系统将于本周六进行维护"
-          _a_publisher: "管理员"
-          _a_date: "2025-01-01 10:00:00"
+          _title: "系统维护通知"
+          _content: "本系统将于本周六进行维护"
+          _publisher: "管理员"
+          _date: "2025-01-01 10:00:00"
 
-    LatestAnnouncementSuccessExample:
-      summary: 获取最新公告成功
+    AnnouncementDetailSuccessExample:
+      summary: 获取公告详情成功
       value:
         success: true
-        message: "获取公告成功"
+        message: "成功获取公告详情"
         data:
-          res_find:
-            _aid: 1
-            _a_title: "系统维护通知"
-            _a_content: "本系统将于本周六进行维护"
-            _a_publisher: "管理员"
-            _a_date: "2025-01-01 10:00:00"
-
+          _aid: 1
+          _title: "系统维护通知"
+          _content: "本系统将于本周六进行维护"
+          _publisher: "管理员"
+          _date: "2025-01-01 10:00:00"
+    
     # 分类管理模块示例
     AddCategoryExample:
       summary: 新增分类示例
@@ -2698,6 +3846,8 @@ components:
               _type_name: "文学"
             - _tid: 2
               _type_name: "科技"
+            - _tid: 3
+              _type_name: "历史"
 
     AddCategorySuccessExample:
       summary: 新增分类成功
@@ -2705,14 +3855,14 @@ components:
         success: true
         message: "添加分类成功"
         data:
-          _tid: 1
+          _tid: 4
           _type_name: "文学"
 
     EditCategorySuccessExample:
       summary: 编辑分类成功
       value:
         success: true
-        message: "分类修改成功"
+        message: "分类更新成功"
         data:
           _tid: 1
           _type_name: "文学作品"
@@ -2726,6 +3876,22 @@ components:
           _tid: 1
           _type_name: "文学"
 
+    CategoryDetailSuccessExample:
+      summary: 获取分类详情成功
+      value:
+        success: true
+        message: "成功获取分类详情"
+        data:
+          _tid: 1
+          _type_name: "文学"
+    
+    CategoryNotFoundErrorExample:
+      summary: 分类不存在
+      value:
+        success: false
+        errorCode: "CATEGORY_NOT_FOUND"
+        message: "分类不存在"
+
     # 借阅记录模块示例
     BorrowRecordsListSuccessExample:
       summary: 管理员获取借阅记录成功
@@ -2737,9 +3903,31 @@ components:
             - _hid: 1
               _bid: 1
               _uid: 2
-              _begin_date: "2025-01-01"
-              _end_date: "2025-02-01"
+              _begin_time: "2025-01-01"
+              _end_time: "2025-02-01"
+              _status: 0
+              user:
+                _uid: 2
+                _name: "张三"
+                _account: "2023013863"
+              book:
+                _bid: 1
+                _book_name: "活着"
+                _author: "余华"
+            - _hid: 2
+              _bid: 2
+              _uid: 3
+              _begin_time: "2025-01-02"
+              _end_time: "2025-02-02"
               _status: 1
+              user:
+                _uid: 3
+                _name: "李四"
+                _account: "2023013864"
+              book:
+                _bid: 2
+                _book_name: "围城"
+                _author: "钱钟书"
 
     MyBorrowRecordsSuccessExample:
       summary: 读者获取借阅记录成功
@@ -2751,6 +3939,22 @@ components:
             - _hid: 1
               _bid: 1
               _uid: 2
-              _begin_date: "2025-01-01"
-              _end_date: "2025-02-01"
-              _status: 1
+              _begin_time: "2025-01-01"
+              _end_time: "2025-02-01"
+              _status: 0
+              book:
+                _book_name: "活着"
+                _isbn: "123456789"
+                _author: "余华"
+                _cover_url: "http://example.com/cover.jpg"
+            - _hid: 3
+              _bid: 3
+              _uid: 2
+              _begin_time: "2025-01-03"
+              _end_time: "2025-02-03"
+              _status: 0
+              book:
+                _book_name: "百年孤独"
+                _isbn: "987654321"
+                _author: "加西亚·马尔克斯"
+                _cover_url: "http://example.com/cover2.jpg"

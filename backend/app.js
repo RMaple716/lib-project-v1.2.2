@@ -9,7 +9,10 @@ const { syncDatabase } = require('./models');
 const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
 const readerRoutes = require('./routes/readers');
-
+// 新增路由导入
+const announcementRoutes = require('./routes/announcement');
+const categoryRoutes = require('./routes/category');
+const borrowRecordRoutes = require('./routes/borrow-record');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +37,9 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/readers', readerRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/borrow-record', borrowRecordRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -57,11 +63,48 @@ app.get('/', (req, res) => {
       auth: {
         login: 'POST /api/auth/login',
         register: 'POST /api/auth/register',
+        resetPassword: 'PUT /api/auth/password',
+        captcha: 'GET /api/auth/captcha',
         currentUser: 'GET /api/auth/current-user'
       },
       books: {
         list: 'GET /api/books',
-        create: 'POST /api/books'
+        create: 'POST /api/books',
+        detail: 'GET /api/books/:id',
+        update: 'PUT /api/books/:id',
+        delete: 'DELETE /api/books/:id',
+        borrow: 'POST /api/books/:id/borrow',
+        return: 'PUT /api/books/:id/return',
+        renew: 'PUT /api/books/:id/renew',
+        rank: 'GET /api/books/rank'
+      },
+      readers: {
+        list: 'GET /api/readers',
+        create: 'POST /api/readers',
+        detail: 'GET /api/readers/:id',
+        update: 'PUT /api/readers/:id',
+        delete: 'DELETE /api/readers/:id',
+        borrowCount: 'GET /api/readers/:id/borrow-count',
+        rank: 'GET /api/readers/rank'
+      },
+      announcements: {
+        list: 'GET /api/announcements',
+        create: 'POST /api/announcements',
+        detail: 'GET /api/announcements/:id',
+        update: 'PUT /api/announcements/:id',
+        delete: 'DELETE /api/announcements/:id',
+        latest: 'GET /api/announcements/latest'
+      },
+      categories: {
+        list: 'GET /api/categories',
+        create: 'POST /api/categories',
+        detail: 'GET /api/categories/:id',
+        update: 'PUT /api/categories/:id',
+        delete: 'DELETE /api/categories/:id'
+      },
+      borrowRecords: {
+        list: 'GET /api/borrow-records',
+        myRecords: 'GET /api/borrow-records/my'
       }
     },
     examples: {
@@ -119,6 +162,13 @@ async function startServer() {
       console.log('   账号: admin_b');
       console.log('   密码: admin123');
       console.log('   类型: admin_b');
+      console.log('\n 可用接口:');
+      console.log('   - 认证管理: /api/auth');
+      console.log('   - 图书管理: /api/books');
+      console.log('   - 读者管理: /api/readers');
+      console.log('   - 公告管理: /api/announcements');
+      console.log('   - 分类管理: /api/categories');
+      console.log('   - 借阅记录: /api/borrow-records');
     });
 
   } catch (error) {

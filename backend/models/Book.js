@@ -53,4 +53,16 @@ const Book = sequelize.define('Book', {
   timestamps: false
 });
 
+// 添加关联方法
+Book.associate = function(models) {
+  Book.belongsTo(models.Category, {
+    foreignKey: '_tid',
+    as: 'category'
+  });
+  Book.hasMany(models.BorrowRecord, {
+    foreignKey: '_bid',
+    as: 'borrowRecords'
+  });
+};
+
 module.exports = Book;
