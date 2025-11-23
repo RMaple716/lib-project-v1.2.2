@@ -1657,7 +1657,7 @@ export default {
     async loadSearchPage() {
       try {
         const response = await axios.get("/api/books");
-        this.books = response.data.data;
+        this.books = response.data.data.booklist;
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {
