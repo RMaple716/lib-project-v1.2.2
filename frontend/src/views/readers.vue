@@ -24,6 +24,19 @@
             <a href="#" @click.prevent="changePage('feedback')">意见建议</a>
           </li>
         </ul>
+        <!-- 登录注册按钮 / 用户头像 -->
+        <div class="auth-links">
+          <template v-if="isLoggedIn">
+            <img :src="avatarUrl" alt="avatar" class="user-avatar" v-if="avatarUrl" />
+            <span class="auth-link" v-else>{{ (user && (user.name || user._name || user._account)) || '用户' }}</span>
+            <button class="auth-link" @click.prevent="logout">登出</button>
+          </template>
+          <template v-else>
+            <a href="#" class="auth-link" @click.prevent="goToAuth('login')">登录</a>
+            <span class="auth-divider">|</span>
+            <a href="#" class="auth-link" @click.prevent="goToAuth('register')">注册</a>
+          </template>
+        </div>
       </nav>
 
       <!-- 主内容区域 -->
@@ -123,6 +136,7 @@
                     :alt="book._book_name"
                     class="book-img"
                     @error="handleImgError($event, book)"
+                    referrerpolicy="no-referrer"
                   />
                   <div
                     class="cover-placeholder"
@@ -163,6 +177,7 @@
                     :alt="book._book_name"
                     class="book-img"
                     @error="handleImgError($event, book)"
+                    referrerpolicy="no-referrer"
                   />
                   <div
                     class="cover-placeholder"
@@ -203,6 +218,7 @@
                     :alt="book._book_name"
                     class="book-img"
                     @error="handleImgError($event, book)"
+                    referrerpolicy="no-referrer"
                   />
                   <div
                     class="cover-placeholder"
@@ -286,6 +302,7 @@
                     :alt="book._book_name"
                     class="book-img"
                     @error="handleImgError($event, book)"
+                    referrerpolicy="no-referrer"
                   />
                   <div
                     class="cover-placeholder"
@@ -390,6 +407,7 @@
                   :alt="currentBook?._book_name"
                   class="book-img"
                   @error="handleImgError($event, currentBook)"
+                  referrerpolicy="no-referrer"
                 />
                 <div
                   class="detail-placeholder"
@@ -1141,6 +1159,8 @@ export default {
       captchaImage: "",
       // 图片加载错误记录（按图书id标记）
       imgErrorMap: {},
+      // 当前登录用户信息（从 localStorage 读取）
+      user: null
     };
   },
   computed: {
@@ -1286,6 +1306,15 @@ export default {
         this.totalSearchResultPages
       );
     },
+    isLoggedIn() {
+      return !!(localStorage.getItem('token') || this.user);
+    },
+    avatarUrl() {
+      // 优先使用 user.avatar 或 user._avatar 或 user.avatar_url 等常见字段
+      const u = this.user || (localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null);
+      if (!u) return '';
+      return u.avatar || u._avatar || u.avatar_url || u._cover_url || '';
+    },
   },
   methods: {
     // 原有方法保持不变
@@ -1296,6 +1325,35 @@ export default {
       }
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
+    },
+
+    // 导航到登录/注册页，保留当前页面用于登录后重定向
+    goToAuth(type) {
+      const redirect = this.$route.fullPath || '/readers';
+      this.$router.push({ path: '/', query: { redirect, view: type } });
+    },
+
+    // 从 localStorage 加载用户信息
+    loadUserFromStorage() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        if (raw) {
+          this.user = JSON.parse(raw);
+        } else {
+          this.user = null;
+        }
+      } catch (e) {
+        this.user = null;
+      }
+    },
+
+    // 注销
+    logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
+      this.user = null;
+      // 重新加载当前页面的数据
+      this.loadSearchPage();
     },
 
     nextSlide() {
@@ -1521,7 +1579,7 @@ export default {
       }
     },
 
-    async renewBook(bookId) { //续借
+    async renewBook(bookId) {
       if (!bookId) return;
 
       try {
@@ -1541,7 +1599,7 @@ export default {
       }
     },
 
-    async handleFeedbackSubmit() {//处理反馈意见提交
+    async handleFeedbackSubmit() {
       this.feedbackError = "";
       if (!this.feedbackName || !this.feedbackName.trim()) {
         this.feedbackError = "请填写姓名";
@@ -1599,7 +1657,7 @@ export default {
     async loadSearchPage() {
       try {
         const response = await axios.get("/api/books");
-        this.books = response.data.data.booklist;
+        this.books = response.data.data;
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {
@@ -1799,6 +1857,8 @@ export default {
   mounted() {
     this.startCarousel();
     this.loadSearchPage();
+    // 加载本地用户信息以显示头像
+    this.loadUserFromStorage();
   },
   beforeDestroy() {
     this.stopCarousel();
@@ -2385,51 +2445,40 @@ button:hover {
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
 }
 
-/* 个人信息页面样式 */
-.personal-container {
+/* 登录注册链接容器 */
+.auth-links {
+  margin-left: auto; 
   display: flex;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  align-items: center; 
+  gap: 6px; 
+  padding-right: 20px; 
 }
-
-.personal-sidebar {
-  width: 220px;
-  background-color: #f5f7fa;
-  border-right: 1px solid #e5e9f2;
-}
-
-.sidebar-nav {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.sidebar-nav li {
-  padding: 16px 20px;
-  color: #333;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 16px;
-  border-left: 3px solid transparent;
-}
-
-.sidebar-nav li:hover {
-  background-color: #eef2f7;
-}
-
-.sidebar-nav li.active {
-  background-color: white;
-  border-left-color: #1194ae;
-  color: #1194ae;
+.auth-link {
+  color: white; 
+  text-decoration: none; 
+  font-size: 16px; 
   font-weight: 500;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  transition: color 0.2s; 
+  padding: 3px 6px; 
+}
+.auth-link:hover {
+  color: #f0f0f0; 
+  text-decoration: underline; 
+}
+.auth-divider {
+  color: rgba(255, 255, 255, 0.7); 
+  font-size: 18px;
 }
 
-.personal-content {
-  flex: 1;
-  padding: 30px;
-  min-height: 600px;
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 8px;
+  vertical-align: middle;
+  border: 2px solid rgba(255,255,255,0.9);
 }
 
 /* 账户信息样式 */
