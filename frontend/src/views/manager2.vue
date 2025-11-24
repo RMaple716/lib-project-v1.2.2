@@ -336,12 +336,10 @@
                   <span class="close-button" @click="closeAddUserModal">&times;</span>
                   <h2>{{ isEditUser ? '编辑用户' : '添加用户' }}</h2>
                   <form @submit.prevent="submitUserForm">
-                    <label for="username">用户名：</label>
-                    <input type="text" id="username" v-model="userForm.username" placeholder="请输入用户名">
+                    <label for="name">用户名：</label>
+                    <input type="text" id="name" v-model="userForm.name" placeholder="请输入用户名">
                     <label for="password">密码：</label>
                     <input type="password" id="password" v-model="userForm.password" placeholder="请输入密码">
-                    <label for="name">姓名：</label>
-                    <input type="text" id="name" v-model="userForm.name" placeholder="请输入姓名">
                     <label for="phone">手机号：</label>
                     <input type="text" id="phone" v-model="userForm.phone" placeholder="请输入手机号">
                     <label for="email">邮箱：</label>
@@ -362,7 +360,6 @@
                   <tr>
                     <th>用户ID</th>
                     <th>用户名</th>
-                    <th>姓名</th>
                     <th>手机号</th>
                     <th>邮箱</th>
                     <th>用户类型</th>
@@ -372,11 +369,10 @@
                 </thead>
                 <tbody>
                   <tr v-if="filteredUsers.length === 0">
-                    <td colspan="8">暂无用户数据</td>
+                    <td colspan="7">暂无用户数据</td>
                   </tr>
                   <tr v-for="user in currentPageUsers" :key="user._uid">
                     <td>{{ user._uid }}</td>
-                    <td>{{ user._username }}</td>
                     <td>{{ user._name }}</td>
                     <td>{{ user._phone }}</td>
                     <td>{{ user._email }}</td>
@@ -512,13 +508,13 @@
                   </tr>
                   <tr v-for="lend in currentPageLends" :key="lend._hid">
                     <td>{{ lend._hid }}</td>
-                    <td>{{ lend._book_name || lend._bid }}</td>
-                    <td>{{ lend._user_name || lend._uid }}</td>
+                    <td>{{ lend.book?._book_name || '未知图书' }}</td>
+                    <td>{{ lend.user?._name || '未知用户' }}</td>
                     <td>{{ formatDate(lend._begin_time) }}</td>
-                    <td>{{ formatDate(lend._end_date) }}</td>
-                    <td>{{ lend.status }}</td>
+                    <td>{{ formatDate(lend._end_time) }}</td>
+                    <td>{{ getLendStatusText(lend._status) }}</td>
                     <td>
-                      <button class="lend-action delay-btn" @click="delayLend(lend._hid, lend._end_date)">延期</button>
+                      <button class="lend-action delay-btn" @click="delayLend(lend._hid, lend._end_time)">延期</button>
                     </td>
                   </tr>
                 </tbody>
@@ -576,14 +572,20 @@
                   <h2>{{ isEditAnnouncement ? '编辑公告' : '发布公告' }}</h2>
                   <form @submit.prevent="submitAnnouncementForm">
                     <label for="announcementTitle">公告标题：</label>
-                    <input type="text" id="announcementTitle" v-model="announcementForm.title" placeholder="请输入公告标题">
+                    <input type="text" id="announcementTitle" v-model="announcementForm.title" placeholder="请输入公告标题" required>
+                    
                     <label for="announcementContent">公告内容：</label>
-                    <textarea id="announcementContent" v-model="announcementForm.content" placeholder="请输入公告内容" rows="6"></textarea>
+                    <textarea id="announcementContent" v-model="announcementForm.content" placeholder="请输入公告内容" rows="6" required></textarea>
+                    
+                    <label for="announcementPublisher">发布人：</label>
+                    <input type="text" id="announcementPublisher" v-model="announcementForm.publisher" placeholder="请输入发布人" required>
+                    
                     <label for="announcementStatus">公告状态：</label>
                     <select id="announcementStatus" v-model="announcementForm.status">
-                      <option value="published">已发布</option>
-                      <option value="draft">草稿</option>
+                      <option :value="1">已发布</option>
+                      <option :value="0">草稿</option>
                     </select>
+                    
                     <button type="submit" class="submit-button">提交</button>
                   </form>
                 </div>
@@ -595,34 +597,39 @@
                   <tr>
                     <th>公告ID</th>
                     <th>公告标题</th>
-                    <th>发布时间</th>
+                    <th>公告内容</th>
+                    <th>发布日期</th>
+                    <th>发布人</th>
                     <th>状态</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="announcements.length === 0">
-                    <td colspan="5">暂无公告数据</td>
+                    <td colspan="7">暂无公告数据</td>
                   </tr>
                   <tr v-for="announcement in currentPageAnnouncements" :key="announcement._aid">
                     <td>{{ announcement._aid }}</td>
                     <td>{{ announcement._title }}</td>
-                    <td>{{ formatDate(announcement._create_time) }}</td>
+                    <td class="announcement-content-cell">
+                      <div class="content-preview">{{ getContentPreview(announcement._content) }}</div>
+                    </td>
+                    <td>{{ formatDate(announcement._date) }}</td>
+                    <td>{{ announcement._publisher || '系统管理员' }}</td>
                     <td>
-                      <span :class="announcement._status === 'published' ? 'status-published' : 'status-draft'">
-                        {{ announcement._status === 'published' ? '已发布' : '草稿' }}
+                      <span :class="announcement._status === 1 ? 'status-published' : 'status-draft'">
+                        {{ announcement._status === 1 ? '已发布' : '草稿' }}
                       </span>
                     </td>
                     <td>
                       <button class="edit-button" @click="editAnnouncement(announcement)">编辑</button>
                       <button class="delete-button" @click="deleteAnnouncement(announcement._aid)">删除</button>
-                      <button v-if="announcement._status === 'draft'" class="publish-button" @click="publishAnnouncement(announcement._aid)">发布</button>
+                      <button v-if="announcement._status === 0" class="publish-button" @click="publishAnnouncement(announcement._aid)">发布</button>
                       <button v-else class="unpublish-button" @click="unpublishAnnouncement(announcement._aid)">取消发布</button>
                     </td>
                   </tr>
                 </tbody>
               </table>
-
               <!-- 分页功能 -->
               <div class="pagination">
                 <span class="total-pages">共{{ totalAnnouncementPages }}页</span>
@@ -732,9 +739,8 @@ export default {
       isEditUser: false,
       currentEditUserId: null,
       userForm: {
-        username: '',
-        password: '',
         name: '',
+        password: '',
         phone: '',
         email: '',
         userType: 'reader'
@@ -753,7 +759,8 @@ export default {
       announcementForm: {
         title: '',
         content: '',
-        status: 'published'
+        publisher: '',
+        status: 1  // 1: 已发布, 0: 草稿
       }
     };
   },
@@ -845,8 +852,8 @@ export default {
       return this.announcements.length;
     },
     activeLends() {
-      // 计算活跃借阅数量（示例逻辑）
-      return this.lends.filter(lend => lend.status === '借阅中').length;
+      // 计算活跃借阅数量
+      return this.lends.filter(lend => lend._status === 0).length;
     }
   },
   
@@ -1475,6 +1482,16 @@ export default {
     },
     
     // 借阅管理相关方法
+    // 状态映射方法
+    getLendStatusText(statusCode) {
+      const statusMap = {
+        0: '借阅中',
+        1: '已归还',
+        2: '逾期未还',
+        3: '续借中'
+      };
+      return statusMap[statusCode] || '未知状态';
+    },
     async fetchLends() {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -1501,10 +1518,10 @@ export default {
         } else {
           this.lends = []
           this.filteredLends = [];
-          this.$message.error(result.message || '没有找到历史记录')
+          this.$message.error(result.message || '没有找到借阅记录')
         }
       } catch (err) {
-        this.$message.error('无法获取历史记录，请稍后再试')
+        this.$message.error('无法获取借阅记录，请稍后再试')
         console.error(err)
       }
     },
@@ -1528,11 +1545,13 @@ export default {
           case '_bid':
             return lend._bid.toString().includes(keyword);
           case '_book_name':
-            return lend._book_name.includes(keyword);
+            return lend.book?._book_name.includes(keyword);
           case '_user_name':
-            return lend._user_name.includes(keyword);
-          case 'status':
-            return lend.status.includes(keyword);
+            return lend.user?._name.includes(keyword);
+          case 'status':{
+            const statusText = this.getLendStatusText(lend._status);
+            return statusText.includes(keyword);
+          }
           default:
             return true;
         }
@@ -1658,7 +1677,6 @@ export default {
     getUserFilterData() {
       const typeMap = {
         '_uid': '_uid',
-        '_username': '_username',
         '_name': '_name',
         '_phone': '_phone'
       };
@@ -1879,6 +1897,7 @@ export default {
       }
     },
 
+    // 修改公告搜索方法
     getAnnouncementFilterData() {
       const keyword = this.announcementSearchKeyword.trim();
       
@@ -1890,8 +1909,11 @@ export default {
             return announcement._aid.toString().includes(keyword);
           case '_title':
             return announcement._title.includes(keyword);
-          case '_status':
-            return announcement._status.includes(keyword);
+          case '_status': {
+            // 状态搜索需要转换 - 用大括号包裹这个case块
+            const statusText = announcement._status === 1 ? '已发布' : '草稿';
+            return statusText.includes(keyword);
+          }
           default:
             return true;
         }
@@ -1918,21 +1940,24 @@ export default {
       this.showAddAnnouncementModalFlag = false;
     },
 
+    // 编辑公告方法
     editAnnouncement(announcement) {
       this.isEditAnnouncement = true;
       this.currentEditAnnouncementId = announcement._aid;
       this.announcementForm = {
         title: announcement._title,
         content: announcement._content,
+        publisher: announcement._publisher,
         status: announcement._status
       };
       this.showAddAnnouncementModalFlag = true;
     },
 
+    // 提交公告表单方法
     async submitAnnouncementForm() {
-      const { title, content, status } = this.announcementForm;
+      const { title, content, publisher, status } = this.announcementForm;
       
-      if (!title || !content) {
+      if (!title || !content || !publisher) {
         this.$message.error('请填写完整的公告信息！');
         return;
       }
@@ -1940,6 +1965,7 @@ export default {
       const announcementData = {
         _title: title,
         _content: content,
+        _publisher: publisher,
         _status: status
       };
       
@@ -1956,6 +1982,7 @@ export default {
       }
     },
 
+    // 添加公告API方法
     async addAnnouncementApi(announcementData) {
       const res = await fetch('/api/announcements', {
         method: 'POST',
@@ -1972,6 +1999,7 @@ export default {
       this.$message.success(result.message || '发布公告成功');
     },
 
+    // 修改编辑公告API方法
     async editAnnouncementApi(id, announcementData) {
       const res = await fetch(`/api/announcements/${id}`, {
         method: 'PUT',
@@ -2012,9 +2040,9 @@ export default {
       }
     },
 
+    // 发布公告方法
     async publishAnnouncement(id) {
       try {
-        // 通过编辑公告状态来实现发布
         const announcement = this.announcements.find(a => a._aid === id);
         if (!announcement) {
           this.$message.error('未找到公告');
@@ -2029,25 +2057,25 @@ export default {
           },
           body: JSON.stringify({
             ...announcement,
-            _status: 'published'
+            _status: 1  // 设置为已发布
           })
         });
-        const result = await res.json()
+        const result = await res.json();
         if (res.status === 200) {
-          this.$message.success(result.message || '公告发布成功')
+          this.$message.success(result.message || '公告发布成功');
           await this.fetchAnnouncements();
         } else {
-          this.$message.error(result.message || '操作失败')
+          this.$message.error(result.message || '操作失败');
         }
       } catch (err) {
-        console.error(err)
-        this.$message.error('发布公告失败')
+        console.error(err);
+        this.$message.error('发布公告失败');
       }
     },
 
+    // 取消发布公告方法
     async unpublishAnnouncement(id) {
       try {
-        // 通过编辑公告状态来实现取消发布
         const announcement = this.announcements.find(a => a._aid === id);
         if (!announcement) {
           this.$message.error('未找到公告');
@@ -2062,19 +2090,19 @@ export default {
           },
           body: JSON.stringify({
             ...announcement,
-            _status: 'draft'
+            _status: 0  // 设置为草稿
           })
         });
-        const result = await res.json()
+        const result = await res.json();
         if (res.status === 200) {
-          this.$message.success(result.message || '公告取消发布成功')
+          this.$message.success(result.message || '公告取消发布成功');
           await this.fetchAnnouncements();
         } else {
-          this.$message.error(result.message || '操作失败')
+          this.$message.error(result.message || '操作失败');
         }
       } catch (err) {
-        console.error(err)
-        this.$message.error('取消发布公告失败')
+        console.error(err);
+        this.$message.error('取消发布公告失败');
       }
     },
     
@@ -2808,25 +2836,22 @@ button:disabled:hover {
   color: #333;
 }
 
-/* 状态样式 */
-.status-published {
-  color: #4caf50;
-  font-weight: 600;
-  padding: 4px 12px;
-  background-color: #e8f5e8;
-  border-radius: 20px;
-  font-size: 13px;
+/* 统一的状态样式 - 可用于所有页面 */
+.status-published, .status-active, .status-available {
+  color: #52c41a;
+  background: #f6ffed;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #b7eb8f;
 }
 
-.status-draft {
-  color: #ff9800;
-  font-weight: 600;
-  padding: 4px 12px;
-  background-color: #fff3e0;
-  border-radius: 20px;
-  font-size: 13px;
+.status-draft, .status-inactive, .status-unavailable {
+  color: #faad14;
+  background: #fffbe6;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #ffe58f;
 }
-
 /* 主页数据可视化样式 */
 .stats-cards {
   display: grid;
