@@ -28,6 +28,12 @@ const Announcement = sequelize.define('Announcement', {
     allowNull: false,
     defaultValue: DataTypes.NOW,
     field: '_adate'
+  },
+  _status: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1, // 1: published, 0: unpublished
+    field: '_status'
   }
 }, {
   tableName: 't_announcements',
