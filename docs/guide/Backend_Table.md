@@ -20,7 +20,7 @@
 | _max_num | int4 | 最大借书数量 |
 | lend_num | int4 | 当前借书数量 |
 | _access | int4 | 用户能否登录系统 |
-| _totle | int4 | 用户累计阅读时间 |
+
 
 ### 书籍表(t_book)
 
@@ -74,6 +74,7 @@
 | _content | text | 公告内容 |
 | _adate | date | 发布日期 |
 | _publisher | varchar(50) | 发布人 |
+| _status | int4 | 公告状态 |
 
 ### 意见反馈表(t_feedbacks)
 

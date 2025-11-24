@@ -39,7 +39,7 @@ app.use('/api/books', bookRoutes);
 app.use('/api/readers', readerRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/borrow-record', borrowRecordRoutes);
+app.use('/api/borrow-records', borrowRecordRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {

@@ -68,12 +68,13 @@ router.get('/', authenticate, async (req, res) => {
 // 新增公告
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { _title, _content } = req.body;
+    const { _title, _content,_status} = req.body;
     
     const newAnnouncement = await Announcement.create({
       _title: _title,
       _content: _content,
-      _publisher: req.user._name || '管理员'
+      _publisher: req.user.name || '终端管理员',
+      _status:_status
     });
 
     res.json({
