@@ -1686,6 +1686,7 @@ paths:
                     success: true
                     message: "获取公告列表成功"
                     data:
+                      annlist:
                       - _aid: 1
                         _title: "系统维护通知"
                         _content: "本系统将于本周六进行维护"
@@ -3769,6 +3770,7 @@ components:
         success: true
         message: "获取公告列表成功"
         data:
+          annlist:
           - _aid: 1
             _title: "系统维护通知"
             _content: "本系统将于本周六进行维护"

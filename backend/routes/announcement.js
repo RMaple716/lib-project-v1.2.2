@@ -51,7 +51,9 @@ router.get('/', authenticate, async (req, res) => {
     res.json({
       success: true,
       message: '获取公告列表成功',
-      data: announcements
+      data: {
+        annlist:announcements
+      }
     });
   } catch (error) {
     console.error(error);
