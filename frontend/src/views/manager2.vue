@@ -1322,7 +1322,7 @@ export default {
 
         const result = await res.json();
         if (res.status === 200) {
-          this.categories = result.data.CategoriesList || [];
+          this.categories = result.data.catlist || [];
           this.filteredCategories = [];
         } else {
           this.categories = [];
@@ -1496,7 +1496,7 @@ export default {
 
         const result = await res.json()
         if (res.status === 200) {
-          this.lends = result.data.BorrowRecordsList || []
+          this.lends = result.data.historylist || []
           this.filteredLends = []; // 重置搜索状态
         } else {
           this.lends = []
@@ -1858,7 +1858,7 @@ export default {
 
         const result = await res.json();
         if (res.status === 200) {
-          this.announcements = result.data.data || [];
+          this.announcements = result.data.annlist || [];
           this.filteredAnnouncements = []; 
         } else {
           this.announcements = [];
