@@ -275,12 +275,12 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="filteredBooks.length === 0">
-                    <td colspan="8">暂无图书数据</td>
+                  <tr v-if="currentPageBooks.length === 0">
+                    <td colspan="9">{{ filteredBooks.length === 0 ? '暂无图书数据' : '没有找到相关图书' }}</td>
                   </tr>
                   <tr v-for="book in currentPageBooks" :key="book._bid">
                     <td>{{ book._bid }}</td>
-                    <td>{{ book._type_name || '' }}</td>
+                    <td>{{ book._type_name}}</td>
                     <td>{{ book._book_name }}</td>
                     <td>{{ book._author }}</td>
                     <td>{{ book._isbn }}</td>
@@ -322,7 +322,6 @@
                   <option value="_uid">用户ID</option>
                   <option value="_username">用户名</option>
                   <option value="_name">姓名</option>
-                  <option value="_phone">手机号</option>
                 </select>
                 <input type="text" id="userSearchInput" class="search-input" placeholder="请输入查询内容" v-model="userSearchKeyword">
                 <button type="button" class="search-button" @click="handleUserSearch">查询</button>
@@ -340,8 +339,6 @@
                     <input type="text" id="name" v-model="userForm.name" placeholder="请输入用户名">
                     <label for="password">密码：</label>
                     <input type="password" id="password" v-model="userForm.password" placeholder="请输入密码">
-                    <label for="phone">手机号：</label>
-                    <input type="text" id="phone" v-model="userForm.phone" placeholder="请输入手机号">
                     <label for="email">邮箱：</label>
                     <input type="email" id="email" v-model="userForm.email" placeholder="请输入邮箱">
                     <label for="userType">用户类型：</label>
@@ -360,7 +357,6 @@
                   <tr>
                     <th>用户ID</th>
                     <th>用户名</th>
-                    <th>手机号</th>
                     <th>邮箱</th>
                     <th>用户类型</th>
                     <th>注册时间</th>
@@ -368,15 +364,14 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="filteredUsers.length === 0">
-                    <td colspan="7">暂无用户数据</td>
+                  <tr v-if="currentPageUsers.length === 0">
+                    <td colspan="6">{{ filteredUsers.length === 0 ? '暂无用户数据' : '没有找到相关用户' }}</td>
                   </tr>
                   <tr v-for="user in currentPageUsers" :key="user._uid">
                     <td>{{ user._uid }}</td>
                     <td>{{ user._name }}</td>
-                    <td>{{ user._phone }}</td>
                     <td>{{ user._email }}</td>
-                    <td>{{ user._type === 'admin' ? '管理员' : '读者' }}</td>
+                    <td>{{ getUserTypeText(user._type) }}</td>
                     <td>{{ formatDate(user._create_time) }}</td>
                     <td>
                       <button class="edit-button" @click="editUser(user)">编辑</button>
@@ -444,8 +439,8 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="categories.length === 0">
-                    <td colspan="3">暂无分类数据</td>
+                  <tr v-if="currentPageCategories.length === 0">
+                    <td colspan="3">{{ filteredCategories.length === 0 ? '暂无分类数据' : '没有找到相关分类' }}</td>
                   </tr>
                   <tr v-for="cat in currentPageCategories" :key="cat._tid">
                     <td>{{ cat._tid }}</td>
@@ -503,8 +498,8 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="lends.length === 0">
-                    <td colspan="7">暂无借阅记录</td>
+                  <tr v-if="currentPageLends.length === 0">
+                    <td colspan="7">{{ lends.length === 0 ? '暂无借阅记录' : '没有找到相关借阅记录' }}</td>
                   </tr>
                   <tr v-for="lend in currentPageLends" :key="lend._hid">
                     <td>{{ lend._hid }}</td>
@@ -605,8 +600,8 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="announcements.length === 0">
-                    <td colspan="7">暂无公告数据</td>
+                  <tr v-if="currentPageAnnouncements.length === 0">
+                    <td colspan="7">{{ filteredAnnouncements.length === 0 ? '暂无公告数据' : '没有找到相关公告' }}</td>
                   </tr>
                   <tr v-for="announcement in currentPageAnnouncements" :key="announcement._aid">
                     <td>{{ announcement._aid }}</td>
@@ -743,7 +738,7 @@ export default {
         password: '',
         phone: '',
         email: '',
-        userType: 'reader'
+        userType: 'student'  // student: 学生, teacher: 教师, admin_t: 终端管理员, admin_b: 图书管理员, admin_l: 借阅管理员
       },
 
       // 公告管理相关
@@ -900,11 +895,33 @@ export default {
     },
     // 重置搜索条件
     handleReset() {
-      this.searchKeyword = '';        // 清空搜索词
-      this.searchType = '_bid';       // 恢复默认搜索类型
-      this.bookCurrentPage = 1;       // 回到第一页
-      this.filteredBooks = [];        // 清空筛选结果（显示全部数据）
-      this.$message.success('搜索条件已重置');
+      // 重置所有模块的搜索条件
+      this.searchKeyword = '';           // 图书管理
+      this.searchType = '_bid';
+      this.bookCurrentPage = 1;
+      this.filteredBooks = [];
+      
+      this.userSearchKeyword = '';       // 用户管理
+      this.userSearchType = '_username';
+      this.userCurrentPage = 1;
+      this.filteredUsers = [];
+      
+      this.categorySearchKeyword = '';   // 分类管理
+      this.categorySearchType = '_type_name';
+      this.categoryCurrentPage = 1;
+      this.filteredCategories = [];
+      
+      this.lendSearchKeyword = '';       // 借阅管理
+      this.lendSearchType = '_bid';
+      this.lendCurrentPage = 1;
+      this.filteredLends = [];
+      
+      this.announcementSearchKeyword = ''; // 公告管理
+      this.announcementSearchType = '_title';
+      this.announcementCurrentPage = 1;
+      this.filteredAnnouncements = [];
+      
+      this.$message.success('所有搜索条件已重置');
     },
     // 切换管理员信息显示
     toggleUserInfo() {
@@ -1112,7 +1129,7 @@ export default {
     
     // 获取公告状态数量
     getAnnouncementStatusCounts() {
-      const publishedCount = this.announcements.filter(a => a._status === 'published').length;
+      const publishedCount = this.announcements.filter(a => a._status === 1).length;
       const draftCount = this.announcements.length - publishedCount;
       return [publishedCount, draftCount];
     },
@@ -1633,6 +1650,19 @@ export default {
     },
 
     // 用户管理相关方法
+
+    // 获取用户类型文本
+    getUserTypeText(utype) {
+      const typeMap = {
+        'student': '学生',
+        'teacher': '教师', 
+        'admin_t': '终端管理员',
+        'admin_b': '图书管理员',
+        'admin_l': '借阅管理员'
+      };
+      return typeMap[utype] || '未知类型';
+    },
+
     async fetchUsers() {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -1706,7 +1736,7 @@ export default {
         name: '',
         phone: '',
         email: '',
-        userType: 'reader'
+        userType: 'sutdent'
       };
       this.showAddUserModalFlag = true;
     },
@@ -1724,7 +1754,7 @@ export default {
         name: user._name,
         phone: user._phone,
         email: user._email,
-        userType: user._type
+        userType: user._utype
       };
       this.showAddUserModalFlag = true;
     },
@@ -2061,7 +2091,6 @@ export default {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
-            ...announcement,
             _status: 1  // 设置为已发布
           })
         });
@@ -2094,7 +2123,6 @@ export default {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
-            ...announcement,
             _status: 0  // 设置为草稿
           })
         });
