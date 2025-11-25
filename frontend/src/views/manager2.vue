@@ -1855,6 +1855,11 @@ export default {
     },
 
     // 公告管理相关方法
+    // 公告内容预览方法
+    getContentPreview(content) {
+      if (!content) return '';
+      return content.length > 50 ? content.substring(0, 50) + '...' : content;
+    },
     async fetchAnnouncements() {
       const token = localStorage.getItem('token');
       if (!token) {
