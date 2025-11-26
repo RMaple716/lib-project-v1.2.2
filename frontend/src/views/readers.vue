@@ -580,15 +580,15 @@
                 <div class="account-info">
                   <div class="info-item">
                     <label>用户名：</label>
-                    <span>{{ userInfo?.username || "加载中..." }}</span>
+                    <span>{{ userInfo?.username  }}</span>
                   </div>
                   <div class="info-item">
                     <label>联系电话：</label>
-                    <span>{{ userInfo?.phone || "加载中..." }}</span>
+                    <span>{{ userInfo?.phone }}</span>
                   </div>
                   <div class="info-item">
                     <label>邮箱：</label>
-                    <span>{{ userInfo?.email || "加载中..." }}</span>
+                    <span>{{ userInfo?.email  }}</span>
                   </div>
                   <div class="info-actions">
                     <button class="edit-btn">编辑信息</button>
@@ -2234,29 +2234,63 @@ button:hover {
 
 .back-to-top {
   position: fixed;
-  right: 20px;
-  bottom: 80px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
+  right: 24px;
+  bottom: 28px;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(17,148,174,0.12), rgba(14,138,160,0.06));
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 300;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  transition: transform 0.15s;
+  z-index: 400;
+  box-shadow: 0 10px 24px rgba(17,148,174,0.18), 0 2px 6px rgba(0,0,0,0.12);
+  border: 1px solid rgba(255,255,255,0.75);
+  backdrop-filter: blur(6px);
+  transition: transform 0.18s, box-shadow 0.18s;
 }
+
 .back-to-top:hover {
-  transform: scale(1.05);
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 18px 36px rgba(17,148,174,0.22), 0 6px 12px rgba(0,0,0,0.12);
 }
+
+.back-to-top:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(17,148,174,0.12);
+}
+
 .back-to-top img {
-  width: 100%;
-  height: 100%;
+  width: 46px;
+  height: 46px;
   object-fit: cover;
-  border-radius: 50%;
+  border-radius: 10px;
   display: block;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12) inset;
+}
+
+/* 悬停显示的提示文案（仅 CSS），使用中文文字 */
+.back-to-top::after {
+  content: "回到顶部";
+  position: absolute;
+  right: 100%;
+  bottom: 50%;
+  transform: translateY(50%) translateX(-8px);
+  background: rgba(0,0,0,0.78);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.back-to-top:hover::after {
+  opacity: 1;
+  transform: translateY(50%) translateX(-12px);
 }
 
 .personal-section {
@@ -2267,6 +2301,80 @@ button:hover {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
+/* 个人信息页面：左侧侧边栏与内容区域样式 */
+.personal-container {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.personal-sidebar {
+  width: 260px;
+  min-width: 200px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 6px 20px rgba(17,148,174,0.08);
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+}
+
+.sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-nav li {
+  padding: 12px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #2c3e50;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-nav li:hover {
+  background: #f5fbfc;
+  transform: translateX(2px);
+}
+
+.sidebar-nav li.active {
+  background: linear-gradient(90deg, #1194ae, #0e8aa0);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(17,148,174,0.16);
+}
+
+.personal-content {
+  flex: 1;
+  background: #ffffff;
+  padding: 22px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+
+/* 小屏幕下侧边栏折叠到顶部 */
+@media (max-width: 900px) {
+  .personal-container {
+    flex-direction: column;
+  }
+  .personal-sidebar {
+    width: 100%;
+    position: relative;
+    top: auto;
+    box-shadow: none;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+}
+/* 意见建议表单错误信息样式*/
 .error-message {
   color: #e74c3c;
   font-size: 12px;
