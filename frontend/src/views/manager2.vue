@@ -320,8 +320,7 @@
               <form class="search-form">
                 <select id="userSearchType" class="search-select" v-model="userSearchType">
                   <option value="_uid">用户ID</option>
-                  <option value="_username">用户名</option>
-                  <option value="_name">姓名</option>
+                  <option value="_name">用户名</option>
                 </select>
                 <input type="text" id="userSearchInput" class="search-input" placeholder="请输入查询内容" v-model="userSearchKeyword">
                 <button type="button" class="search-button" @click="handleUserSearch">查询</button>
@@ -371,7 +370,7 @@
                     <td>{{ user._uid }}</td>
                     <td>{{ user._name }}</td>
                     <td>{{ user._email }}</td>
-                    <td>{{ getUserTypeText(user._type) }}</td>
+                    <td>{{ getUserTypeText(user._utype) }}</td>
                     <td>{{ formatDate(user._create_time) }}</td>
                     <td>
                       <button class="edit-button" @click="editUser(user)">编辑</button>
@@ -475,7 +474,7 @@
               <!-- 添加搜索表单 -->
               <form class="search-form">
                 <select id="lendSearchType" class="search-select" v-model="lendSearchType">
-                  <option value="_bid">图书ID</option>
+                  <option value="_hid">借阅ID</option>
                   <option value="_book_name">图书名称</option>
                   <option value="_uid">读者姓名</option>
                   <option value="status">借阅状态</option>
@@ -852,7 +851,7 @@ export default {
     }
   },
   
-  mounted() {
+ async mounted() {
     console.log('=== 管理员页面加载开始 ===');
     // 检查所有可能的 token
     console.log('token:', localStorage.getItem('token'));
@@ -869,11 +868,13 @@ export default {
       console.log('✅ token存在，开始初始化数据');
     }
     // 先正常初始化数据
-    this.fetchBooks();
-    this.fetchCategories();
-    this.fetchLends();
-    this.fetchUsers();
-    this.fetchAnnouncements();
+      await Promise.all([
+        this.fetchBooks(),
+        this.fetchCategories(), 
+        this.fetchLends(),
+        this.fetchUsers(),
+        this.fetchAnnouncements()
+      ]);
     
     this.$nextTick(() => {
       this.initCharts();
@@ -1044,10 +1045,10 @@ export default {
         this.userTypeChart = new Chart(userTypeCtx, {
           type: 'pie',
           data: {
-            labels: ['管理员', '读者'],
+            labels: ['学生', '教师', '终端管理员', '图书管理员', '借阅管理员'],
             datasets: [{
               data: this.getUserTypeCounts(),
-              backgroundColor: ['#FF6384', '#36A2EB'],
+              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
               borderWidth: 1
             }]
           },
@@ -1122,9 +1123,13 @@ export default {
     
     // 获取用户类型数量
     getUserTypeCounts() {
-      const adminCount = this.users.filter(user => user._type === 'admin').length;
-      const readerCount = this.users.length - adminCount;
-      return [adminCount, readerCount];
+      const studentCount = this.users.filter(user => user._utype === 'student').length;
+      const teacherCount = this.users.filter(user => user._utype === 'teacher').length;
+      const admin_tCount = this.users.filter(user => user._utype === 'admin_t').length;
+      const admin_bCount = this.users.filter(user => user._utype === 'admin_b').length;
+      const admin_lCount = this.users.filter(user => user._utype === 'admin_l').length;
+      
+      return [studentCount, teacherCount, admin_tCount, admin_bCount, admin_lCount];
     },
     
     // 获取公告状态数量
@@ -1559,8 +1564,8 @@ export default {
       
       return this.lends.filter(lend => {
         switch (this.lendSearchType) {
-          case '_bid':
-            return lend._bid.toString().includes(keyword);
+          case '_hid':
+            return lend._hid.toString().includes(keyword);
           case '_book_name':
             return lend.book?._book_name.includes(keyword);
           case '_user_name':
@@ -1635,7 +1640,7 @@ export default {
         return;
       }
       
-      const res = await fetch(`/api/books/${lendRecord._bid}/renew`, {
+      const res = await fetch(`/api/books/${lendRecord._hid}/renew`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
