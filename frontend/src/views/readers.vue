@@ -837,24 +837,25 @@
 
         <!-- 公告信息页面 -->
         <div v-if="currentPage === 'aid'">
-          <div class="search-container">
-            <div class="searchbar">
-              <select v-model="searchType" class="search-select">
-                <option value="book">按图书名称查询</option>
-                <option value="author">按作者姓名查询</option>
-              </select>
-              <input
-                type="text"
-                v-model="searchQuery"
-                placeholder="请输入查询内容"
-              />
-              <button @click="gotoSearchResult">检索</button>
+            <div class="search-container">
+              <div class="searchbar">
+                <select v-model="announcementSearchType" class="search-select">
+                  <option value="title">按标题</option>
+                  <option value="content">按内容</option>
+                  <option value="date">按发布时间</option>
+                </select>
+                <input
+                  type="text"
+                  v-model="announcementSearchQuery"
+                  placeholder="请输入检索关键词（支持模糊匹配）"
+                />
+                <button @click.prevent="applyAnnouncementFilter">检索</button>
+              </div>
             </div>
-          </div>
 
           <h1>公告信息</h1>
           <ul id="announcement-list" class="announcement-list">
-            <li v-for="announcement in announcements" :key="announcement._id">
+            <li v-for="announcement in filteredAnnouncements" :key="announcement._id">
               <div class="announcement-title">{{ announcement._title }}</div>
               <div class="announcement-date">{{ announcement._date }}</div>
               <div class="announcement-content">
@@ -1212,6 +1213,9 @@ export default {
       // 验证码相关
       captchaCode: "",
       captchaImage: "",
+      // 公告检索相关
+      announcementSearchType: 'title', // 'date' | 'title' | 'content'
+      announcementSearchQuery: '',
       // 图片加载错误记录（按图书id标记）
       imgErrorMap: {},
       // 当前登录用户信息（从 localStorage 读取）
@@ -1257,6 +1261,23 @@ export default {
       }
 
       return result;
+    },
+    // 公告过滤：按发布时间(_date)、标题(_title)、内容(_content)模糊匹配
+    filteredAnnouncements() {
+      if (!Array.isArray(this.announcements)) return [];
+      const q = (this.announcementSearchQuery || '').trim().toLowerCase();
+      if (!q) return this.announcements;
+
+      if (this.announcementSearchType === 'date') {
+        return this.announcements.filter((a) => (a._date || '').toLowerCase().includes(q));
+      }
+
+      if (this.announcementSearchType === 'content') {
+        return this.announcements.filter((a) => (a._content || '').toLowerCase().includes(q));
+      }
+
+      // 默认按标题
+      return this.announcements.filter((a) => (a._title || '').toLowerCase().includes(q));
     },
 
     filteredNewBooks() {
@@ -1984,12 +2005,44 @@ export default {
     async loadAnnouncements() {
       try {
         const response = await axios.get("/api/announcements");
-        this.announcements = response.data.data;
+        const res = response && response.data ? response.data : {};
+        const payload = res.data || {};
+
+        // 后端返回格式示例: { success: true, message: '...', data: { annlist: [...] } }
+        // 兼容多种可能的返回结构，优先取 payload.annlist
+        let list = [];
+        if (Array.isArray(payload)) {
+          list = payload;
+        } else if (Array.isArray(payload.annlist)) {
+          list = payload.annlist;
+        } else if (Array.isArray(res.annlist)) {
+          list = res.annlist;
+        } else if (Array.isArray(res.data)) {
+          list = res.data;
+        }
+
+        // 归一化字段以匹配模板中使用的字段（例如模板中使用 _id、_title、_date、_content）
+        this.announcements = list.map((a) => ({
+          _id: a._aid || a._id || a.id || null,
+          _title: a._title || a.title || "",
+          _date: a._date || a.date || "",
+          _content: a._content || a.content || "",
+          _publisher: a._publisher || a.publisher || "",
+        }));
       } catch (error) {
-        alert(
-          "加载公告失败: " + (error.response?.data?.message || error.message)
-        );
+        alert("加载公告失败: " + (error.response?.data?.message || error.message));
       }
+    },
+
+    // 应用公告过滤（按钮触发）——计算属性会自动生效，此方法用于防止默认行为或做额外操作
+    applyAnnouncementFilter() {
+      // 目前不需要做额外处理，计算属性 `filteredAnnouncements` 会根据 query 实时更新
+      // 这里保留以便将来需要触发远程搜索或统计时使用
+      try {
+        // 简单聚焦到公告列表顶部以便用户看到结果
+        const el = document.getElementById('announcement-list');
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth' });
+      } catch (e) {}
     },
 
     // 获取验证码
