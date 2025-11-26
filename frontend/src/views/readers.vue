@@ -26,16 +26,31 @@
         </ul>
         <!-- 登录注册按钮 / 用户头像 -->
         <div class="auth-links">
-          <template v-if="isLoggedIn">
-            <img :src="avatarUrl" alt="avatar" class="user-avatar" v-if="avatarUrl" />
-            <span class="auth-link" v-else>{{ (user && (user.name || user._name || user._account)) || '用户' }}</span>
-            <button class="auth-link" @click.prevent="logout">登出</button>
-          </template>
-          <template v-else>
+          <div v-if="isLoggedIn" class="user-menu">
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt="avatar"
+              class="user-avatar"
+              @click.prevent="openPersonal"
+            />
+            <div
+              v-else
+              class="user-avatar-placeholder"
+              @click.prevent="openPersonal"
+            >
+              {{ (user && (user._name || user.name || user._account)) || '用户' }}
+            </div>
+
+            <div class="user-dropdown">
+              <button class="auth-link" @click.prevent="logout">登出</button>
+            </div>
+          </div>
+          <div v-else>
             <a href="#" class="auth-link" @click.prevent="goToAuth('login')">登录</a>
             <span class="auth-divider">|</span>
             <a href="#" class="auth-link" @click.prevent="goToAuth('register')">注册</a>
-          </template>
+          </div>
         </div>
       </nav>
 
@@ -483,7 +498,7 @@
             <div class="books-grid">
               <div
                 class="book-card"
-                v-for="(book, index) in filteredBooks"
+                v-for="(book, index) in currentPageItems"
                 :key="'all-' + index"
                 @click="viewBookDetail(book)"
               >
@@ -578,24 +593,54 @@
               <div v-if="personalTab === 'account'">
                 <h2>账户信息</h2>
                 <div class="account-info">
-                  <div class="info-item">
-                    <label>用户名：</label>
-                    <span>{{ userInfo?.username  }}</span>
-                  </div>
-                  <div class="info-item">
-                    <label>联系电话：</label>
-                    <span>{{ userInfo?.phone }}</span>
-                  </div>
-                  <div class="info-item">
-                    <label>邮箱：</label>
-                    <span>{{ userInfo?.email  }}</span>
-                  </div>
-                  <div class="info-actions">
-                    <button class="edit-btn">编辑信息</button>
-                    <button class="change-pwd-btn" @click="gotoResetPassword">
-                      修改密码
-                    </button>
-                  </div>
+                  <template v-if="!editMode">
+                    <div class="info-item">
+                      <label>账号：</label>
+                      <span>{{ userInfo?._account || userInfo?.account || '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                      <label>用户名：</label>
+                      <span>{{ userInfo?._name || userInfo?.name || '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                      <label>联系电话：</label>
+                      <span>{{ userInfo?._phone || userInfo?.phone || '未填写' }}</span>
+                    </div>
+                    <div class="info-item">
+                      <label>邮箱：</label>
+                      <span>{{ userInfo?._email || userInfo?.email || '未填写' }}</span>
+                    </div>
+                    <div class="info-item">
+                      <label>最大可借：</label>
+                      <span>{{ userInfo?._max_num || userInfo?.max_num || '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                      <label>当前借阅：</label>
+                      <span>{{ currentBorrowCount }}</span>
+                    </div>
+                    <div class="info-actions">
+                      <button class="edit-btn" @click="toggleEdit">编辑信息</button>
+                      <button class="change-pwd-btn" @click="gotoResetPassword">修改密码</button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="info-item">
+                      <label>账号：</label>
+                      <input type="text" v-model.trim="editUser._account" />
+                    </div>
+                    <div class="info-item">
+                      <label>用户名：</label>
+                      <input type="text" v-model.trim="editUser._name" />
+                    </div>
+                    <div class="info-item">
+                      <label>邮箱：</label>
+                      <input type="email" v-model.trim="editUser._email" />
+                    </div>
+                    <div class="info-actions">
+                      <button class="edit-btn" @click="saveEdit">保存</button>
+                      <button class="change-pwd-btn" @click="toggleEdit">取消</button>
+                    </div>
+                  </template>
                 </div>
               </div>
 
@@ -617,24 +662,18 @@
                 </div>
 
                 <div class="status-tabs">
-                  <button
-                    :class="{ active: borrowingStatus === 'all' }"
-                    @click="borrowingStatus = 'all'"
-                  >
-                    共借阅 ({{ borrowingStats?.total || 0 }})
-                  </button>
-                  <button
-                    :class="{ active: borrowingStatus === 'borrowing' }"
-                    @click="borrowingStatus = 'borrowing'"
-                  >
-                    借阅中 ({{ borrowingStats?.borrowing || 0 }})
-                  </button>
-                  <button
-                    :class="{ active: borrowingStatus === 'returned' }"
-                    @click="borrowingStatus = 'returned'"
-                  >
-                    已归还 ({{ borrowingStats?.returned || 0 }})
-                  </button>
+                    <button
+                      :class="{ active: borrowingStatus === 'borrowing' }"
+                      @click="borrowingStatus = 'borrowing'"
+                    >
+                      借阅中 ({{ borrowingStats?.borrowing || 0 }})
+                    </button>
+                    <button
+                      :class="{ active: borrowingStatus === 'returned' }"
+                      @click="borrowingStatus = 'returned'"
+                    >
+                      已归还 ({{ borrowingStats?.returned || 0 }})
+                    </button>
                 </div>
 
                 <table id="borrowing-table">
@@ -647,17 +686,18 @@
                       <th>借阅日期</th>
                       <th>截止日期</th>
                       <th>状态</th>
-                      <th>操作</th>
+                      <!-- 操作列仅在“借阅中”视图显示 -->
+                      <th v-if="borrowingStatus === 'borrowing'">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-if="borrowingList.length === 0">
-                      <td colspan="8" style="text-align: center; padding: 20px">
+                      <td :colspan="borrowingStatus === 'borrowing' ? 9 : 8" style="text-align: center; padding: 20px">
                         暂无借阅记录
                       </td>
                     </tr>
                     <tr
-                      v-for="(record, index) in borrowingList"
+                      v-for="(record, index) in filteredBorrowingList"
                       :key="record.id"
                     >
                       <td>{{ index + 1 }}</td>
@@ -697,18 +737,18 @@
                           }}
                         </span>
                       </td>
-                      <td>
+                      <td v-if="borrowingStatus === 'borrowing'">
                         <button
                           v-if="record.status === 'borrowing'"
                           class="return-btn"
-                          @click="returnBook(record.bookId)"
+                          @click="returnBook(record.id)"
                         >
                           还书
                         </button>
                         <button
                           v-if="record.status === 'borrowing'"
                           class="delay-btn"
-                          @click="renewBook(record.bookId)"
+                          @click="renewBook(record.id)"
                         >
                           续借
                         </button>
@@ -1018,6 +1058,27 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
+// 响应拦截器：统一处理 401 / token 相关错误，给出友好提示并跳转到登录
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    try {
+      const msg = error?.response?.data?.message || error?.message || '';
+      const status = error?.response?.status;
+      if (status === 401 || /token/i.test(msg)) {
+        // 使用更友好的提示替换后端原始提示
+        try { window.alert('登录状态已过期或未登录，请先登录。'); } catch (e) { /* ignore */ }
+        // 重定向到首页登录表单，并保留当前页面用于登录后跳回
+        const redirect = window.location.pathname || '/readers';
+        window.location.href = `/?redirect=${encodeURIComponent(redirect)}&view=login`;
+      }
+    } catch (e) {
+      // ignore interceptor errors
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default {
   name: "UserPortal",
   data() {
@@ -1044,23 +1105,17 @@ export default {
       carouselTimer: null,
       currentPageNum: 1,
       rowsPerPage: 10,
-      bookCategories: [
-        { label: "全部", value: "" },
-        { label: "科技", value: "科技" },
-        { label: "小说", value: "小说" },
-        { label: "金融", value: "金融" },
-        { label: "教育", value: "教育" },
-        { label: "生活", value: "生活" },
-        { label: "历史", value: "历史" },
-        { label: "童书", value: "童书" },
-        { label: "励志", value: "励志" },
-      ],
+      // 在全部图书页面使用每页 16 本（2 行 x 8 列）
+      allBooksRowsPerPage: 16,
+      bookCategories: [],
       currentCategory: "",
 
       // 个人信息页面相关数据
       personalTab: "account",
       userInfo: null,
       borrowingList: [],
+      // 用于保存未过滤的借阅记录，用作检索基准
+      allBorrowingRecords: [],
       borrowingStats: { total: 0, borrowing: 0, returned: 0 },
       collectionList: [],
       borrowingSearchType: "book",
@@ -1160,7 +1215,14 @@ export default {
       // 图片加载错误记录（按图书id标记）
       imgErrorMap: {},
       // 当前登录用户信息（从 localStorage 读取）
-      user: null
+      user: null,
+      // 编辑模式与编辑表单数据
+      editMode: false,
+      editUser: {
+        _name: '',
+        _account: '',
+        _email: ''
+      }
     };
   },
   computed: {
@@ -1187,10 +1249,11 @@ export default {
         });
       }
 
-      if (this.currentCategory) {
-        result = result.filter(
-          (book) => book._type_name === this.currentCategory
-        );
+      if (this.currentCategory !== '' && this.currentCategory !== null && this.currentCategory !== undefined) {
+        result = result.filter((book) => {
+          const bookTid = book._tid || (book.category && book.category._tid);
+          return String(bookTid) === String(this.currentCategory);
+        });
       }
 
       return result;
@@ -1198,8 +1261,9 @@ export default {
 
     filteredNewBooks() {
       return this.newBooks.filter((book) => {
-        if (this.currentCategory && book._type_name !== this.currentCategory) {
-          return false;
+        if (this.currentCategory !== '' && this.currentCategory !== null && this.currentCategory !== undefined) {
+          const bookTid = book._tid || (book.category && book.category._tid);
+          if (String(bookTid) !== String(this.currentCategory)) return false;
         }
         if (this.searchQuery) {
           const query = this.searchQuery.toLowerCase();
@@ -1215,8 +1279,9 @@ export default {
 
     filteredHotBooks() {
       return this.hotBooks.filter((book) => {
-        if (this.currentCategory && book._type_name !== this.currentCategory) {
-          return false;
+        if (this.currentCategory !== '' && this.currentCategory !== null && this.currentCategory !== undefined) {
+          const bookTid = book._tid || (book.category && book.category._tid);
+          if (String(bookTid) !== String(this.currentCategory)) return false;
         }
         if (this.searchQuery) {
           const query = this.searchQuery.toLowerCase();
@@ -1231,16 +1296,21 @@ export default {
     },
 
     totalPages() {
-      const dataSource =
-        this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
-      return Math.ceil(dataSource.length / this.rowsPerPage) || 1;
+      const dataSource = this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
+      const perPage = this.currentPage === 'allBooks' ? this.allBooksRowsPerPage : this.rowsPerPage;
+      return Math.ceil(dataSource.length / perPage) || 1;
     },
     currentPageItems() {
-      const dataSource =
-        this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
-      const start = (this.currentPageNum - 1) * this.rowsPerPage;
-      const end = start + this.rowsPerPage;
+      const dataSource = this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
+      const perPage = this.currentPage === 'allBooks' ? this.allBooksRowsPerPage : this.rowsPerPage;
+      const start = (this.currentPageNum - 1) * perPage;
+      const end = start + perPage;
       return dataSource.slice(start, end);
+    },
+    // 首页“全部图书”预览：只显示第一行 8 本
+    previewAllBooks() {
+      const dataSource = this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
+      return dataSource.slice(0, 8);
     },
     visiblePages() {
       return this.generateVisiblePages(this.currentPageNum, this.totalPages);
@@ -1279,10 +1349,11 @@ export default {
         });
       }
 
-      if (this.currentCategory) {
-        allBooks = allBooks.filter(
-          (book) => book._type_name === this.currentCategory
-        );
+      if (this.currentCategory !== '' && this.currentCategory !== null && this.currentCategory !== undefined) {
+        allBooks = allBooks.filter((book) => {
+          const bookTid = book._tid || (book.category && book.category._tid);
+          return String(bookTid) === String(this.currentCategory);
+        });
       }
 
       return allBooks;
@@ -1305,6 +1376,23 @@ export default {
         this.currentSearchResultPageNum,
         this.totalSearchResultPages
       );
+    },
+    // 我的借阅：基于当前过滤状态返回要显示的借阅记录
+    filteredBorrowingList() {
+      if (!Array.isArray(this.borrowingList)) return [];
+      if (this.borrowingStatus === 'borrowing') {
+        return this.borrowingList.filter((r) => r.status === 'borrowing');
+      }
+      if (this.borrowingStatus === 'returned') {
+        return this.borrowingList.filter((r) => r.status === 'returned');
+      }
+      // 默认返回全部
+      return this.borrowingList;
+    },
+    // 当前借阅数量（按借阅记录计数，同一本书借两本计2）
+    currentBorrowCount() {
+      if (!Array.isArray(this.allBorrowingRecords)) return 0;
+      return this.allBorrowingRecords.filter((r) => r.status === 'borrowing').length;
     },
     isLoggedIn() {
       return !!(localStorage.getItem('token') || this.user);
@@ -1338,7 +1426,9 @@ export default {
       try {
         const raw = localStorage.getItem('userInfo');
         if (raw) {
-          this.user = JSON.parse(raw);
+          const parsed = JSON.parse(raw);
+          this.user = parsed;
+          this.userInfo = parsed;
         } else {
           this.user = null;
         }
@@ -1354,6 +1444,13 @@ export default {
       this.user = null;
       // 重新加载当前页面的数据
       this.loadSearchPage();
+    },
+
+    // 点击头像打开个人信息页
+    openPersonal() {
+      // 切换到个人页并确保选中账户信息
+      this.personalTab = 'account';
+      this.changePage('personal');
     },
 
     nextSlide() {
@@ -1409,7 +1506,13 @@ export default {
           await this.loadAnnouncements();
           break;
         case "allBooks":
-          // 已加载
+          // 确保进入全部图书时已加载图书数据（可能之前未加载）
+          if (!Array.isArray(this.books) || this.books.length === 0) {
+            await this.loadSearchPage();
+          }
+          // 如果需要根据 pageType（new/hot/all）刷新筛选结果
+          this.filterNewAndHotBooks();
+          this.currentPageNum = 1;
           break;
       }
     },
@@ -1447,14 +1550,82 @@ export default {
       try {
         // 获取当前用户信息
         const response = await axios.get("/api/auth/current-user");
-        this.userInfo = response.data.data;
+        const payload = (response && response.data && (response.data.data || response.data)) || null;
+        this.userInfo = payload;
+        // 同步到本地存储，便于刷新或其他页面使用
+        if (payload) {
+          try {
+            localStorage.setItem('userInfo', JSON.stringify(payload));
+            this.user = payload;
+          } catch (e) {}
+        }
       } catch (error) {
         console.error(
           "加载个人数据失败:",
-          error.response?.data || error.message
+          (error && error.response && error.response.data) || error.message
         );
         alert("加载个人信息失败，请重新登录");
         // 可以在这里跳转到登录页
+      }
+    },
+
+    // 切换编辑模式
+    toggleEdit() {
+      this.editMode = !this.editMode;
+      if (this.editMode && this.userInfo) {
+        // 填充编辑表单
+        this.editUser = {
+          _name: this.userInfo._name || this.userInfo.name || '',
+          _account: this.userInfo._account || this.userInfo.account || '',
+          _email: this.userInfo._email || this.userInfo.email || ''
+        };
+      }
+    },
+
+    // 保存编辑信息
+    async saveEdit() {
+      if (!this.userInfo || !this.userInfo._uid) {
+        alert('无法保存：找不到用户 ID');
+        return;
+      }
+      const payload = {
+        _name: (this.editUser._name || '').trim(),
+        _account: (this.editUser._account || '').trim(),
+        _email: (this.editUser._email || '').trim()
+      };
+      try {
+        const res = await axios.put(`/api/readers/${this.userInfo._uid}`, payload);
+        if (res && res.data && res.data.success) {
+          // 更新本地数据
+          this.userInfo = Object.assign({}, this.userInfo, payload);
+          this.user = this.userInfo;
+          try { localStorage.setItem('userInfo', JSON.stringify(this.userInfo)); } catch (e) {}
+          this.editMode = false;
+          alert('保存成功');
+        } else {
+          alert((res && res.data && res.data.message) || '保存失败');
+        }
+      } catch (err) {
+        const status = err && err.response && err.response.status;
+        if (status === 403) {
+          alert('没有权限更新用户信息（服务器限制）。');
+        } else {
+          alert('更新失败，请稍后重试。');
+        }
+        console.warn('saveEdit error', err && err.response ? err.response.data : err);
+      }
+    },
+
+    // 存储事件回调：当其它窗口/标签修改 localStorage（如登录）时，同步更新
+    onStorageChange(e) {
+      if (!e) return;
+      if (e.key === 'token' || e.key === 'userInfo') {
+        this.loadUserFromStorage();
+        if (localStorage.getItem('token')) {
+          this.loadPersonalData();
+        } else {
+          this.userInfo = null;
+        }
       }
     },
 
@@ -1472,14 +1643,18 @@ export default {
           params.query = this.searchQuery;
         }
         if (this.currentCategory) {
-          // 假设类别筛选使用category参数
-          params.category = this.bookCategories.find(
-            (c) => c.label === this.currentCategory
-          )?.value;
+          // 假设类别筛选使用 category 参数，currentCategory 存储的是 category.value
+          params.category = this.currentCategory;
         }
 
         const response = await axios.get("/api/books", { params });
-        this.books = response.data.data;
+        // 兼容后端返回结构：data.booklist 或 data
+        const payload = response && response.data && response.data.data;
+        this.books = Array.isArray(payload && payload.booklist)
+          ? payload.booklist
+          : Array.isArray(payload)
+          ? payload
+          : [];
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {
@@ -1490,13 +1665,74 @@ export default {
       }
     },
 
+    // 从后端加载图书类别列表并映射为 {label,value} 格式
+    async loadBookCategories() {
+      try {
+        const res = await axios.get('/api/categories');
+        const list = (res && res.data && res.data.data && res.data.data.catlist) || [];
+        const mapped = [{ label: '全部', value: '' }].concat(
+          list.map((c) => ({ label: c._type_name || c._typeName || String(c), value: (c._tid !== undefined && c._tid !== null) ? c._tid : (c._type_name || '') }))
+        );
+        this.bookCategories = mapped;
+      } catch (e) {
+        console.warn('加载分类失败，使用默认分类列表', e && e.response ? e.response.data : e);
+        // 回退到默认静态分类，保证页面不空
+        this.bookCategories = [
+          { label: '全部', value: '' },
+          { label: '科技', value: '科技' },
+          { label: '小说', value: '小说' },
+          { label: '金融', value: '金融' },
+          { label: '教育', value: '教育' },
+          { label: '生活', value: '生活' },
+          { label: '历史', value: '历史' },
+          { label: '童书', value: '童书' },
+          { label: '励志', value: '励志' },
+        ];
+      }
+    },
+
     searchBorrowing() {
-      console.log(
-        "搜索借阅记录:",
-        this.borrowingSearchType,
-        this.borrowingSearchQuery
-      );
-      // 这里可以实现借阅记录的搜索逻辑
+      try {
+        const q = (this.borrowingSearchQuery || '').trim().toLowerCase();
+        // 如果查询为空，恢复完整列表
+        if (!q) {
+          this.borrowingList = Array.isArray(this.allBorrowingRecords) ? [...this.allBorrowingRecords] : [];
+          this.borrowingStats = {
+            total: this.borrowingList.length,
+            borrowing: this.borrowingList.filter((r) => r.status === 'borrowing').length,
+            returned: this.borrowingList.filter((r) => r.status === 'returned').length,
+          };
+          return;
+        }
+
+        let filtered = [];
+        if (this.borrowingSearchType === 'book') {
+          filtered = this.allBorrowingRecords.filter((r) => (r.bookName || '').toLowerCase().includes(q));
+        } else if (this.borrowingSearchType === 'author') {
+          filtered = this.allBorrowingRecords.filter((r) => (r.author || '').toLowerCase().includes(q));
+        } else if (this.borrowingSearchType === 'date') {
+          filtered = this.allBorrowingRecords.filter((r) => {
+            const borrowDate = (r.borrowDate || '').toLowerCase();
+            const dueDate = (r.dueDate || '').toLowerCase();
+            return borrowDate.includes(q) || dueDate.includes(q);
+          });
+        } else {
+          // 全字段模糊匹配
+          filtered = this.allBorrowingRecords.filter((r) => {
+            const hay = `${r.bookName || ''} ${r.author || ''} ${r.borrowDate || ''} ${r.dueDate || ''}`.toLowerCase();
+            return hay.includes(q);
+          });
+        }
+
+        this.borrowingList = filtered;
+        this.borrowingStats = {
+          total: this.borrowingList.length,
+          borrowing: this.borrowingList.filter((r) => r.status === 'borrowing').length,
+          returned: this.borrowingList.filter((r) => r.status === 'returned').length,
+        };
+      } catch (e) {
+        console.warn('searchBorrowing error', e);
+      }
     },
 
     searchCollection() {
@@ -1532,7 +1768,7 @@ export default {
 
       try {
         const response = await axios.post(`/api/books/${bookId}/borrow`);
-        if (response.data.code === 200) {
+        if (response && response.data && response.data.success) {
           alert("借阅成功");
           await this.loadSearchPage();
           // 更新当前图书详情页的图书信息
@@ -1558,44 +1794,36 @@ export default {
       }
     },
 
-    async returnBook(bookId) {
-      if (!bookId) return;
-
+    async returnBook(hid) {
+      if (!hid) return;
       try {
-        const response = await axios.put(`/api/books/${bookId}/return`);
-        if (response.data.code === 200) {
-          alert("还书成功");
-          await Promise.all([
-            this.loadBorrowingInfo(),
-            this.loadBorrowingHistory(),
-          ]);
+        const response = await axios.put(`/api/books/${hid}/return`);
+        if (response && response.data && response.data.success) {
+          alert('还书成功');
+          await Promise.all([this.loadBorrowingInfo(), this.loadBorrowingHistory()]);
           await this.loadSearchPage();
         } else {
-          alert("还书失败: " + response.data.message);
+          alert('还书失败: ' + ((response && response.data && response.data.message) || ''));
         }
       } catch (error) {
-        console.error("还书失败:", error.response?.data || error.message);
-        alert("还书失败: " + (error.response?.data?.message || error.message));
+        console.error('还书失败:', error.response?.data || error.message);
+        alert('还书失败: ' + (error.response?.data?.message || error.message));
       }
     },
 
-    async renewBook(bookId) {
-      if (!bookId) return;
-
+    async renewBook(hid) {
+      if (!hid) return;
       try {
-        const response = await axios.put(`/api/books/${bookId}/renew`);
-        if (response.data.code === 200) {
-          alert("续借成功");
-          await Promise.all([
-            this.loadBorrowingInfo(),
-            this.loadBorrowingHistory(),
-          ]);
+        const response = await axios.put(`/api/books/${hid}/renew`);
+        if (response && response.data && response.data.success) {
+          alert('续借成功');
+          await Promise.all([this.loadBorrowingInfo(), this.loadBorrowingHistory()]);
         } else {
-          alert("续借失败: " + response.data.message);
+          alert('续借失败: ' + ((response && response.data && response.data.message) || ''));
         }
       } catch (error) {
-        console.error("续借失败:", error.response?.data || error.message);
-        alert("续借失败: " + (error.response?.data?.message || error.message));
+        console.error('续借失败:', error.response?.data || error.message);
+        alert('续借失败: ' + (error.response?.data?.message || error.message));
       }
     },
 
@@ -1670,25 +1898,29 @@ export default {
     async loadBorrowingInfo() {
       try {
         // 获取我的借阅记录
-        const response = await axios.get("/api/records/my");
-        const records = response.data.data;
+        const response = await axios.get('/api/borrow-records/my');
+        const records = (response && response.data && response.data.data && response.data.data.ownlist) || [];
 
         this.borrowingList = records.map((record) => ({
           id: record._hid,
           bookId: record._bid,
-          bookName: record._book_name,
-          coverUrl: record._cover_url || "",
-          author: record._author,
-          borrowDate: new Date(record._begin_time).toISOString().split("T")[0],
-          dueDate: new Date(record._end_date).toISOString().split("T")[0],
-          status: record.status ? "returned" : "borrowing",
+          bookName: (record.book && (record.book._book_name || record.book._name)) || record._book_name || '',
+          coverUrl: (record.book && record.book._cover_url) || record._cover_url || '',
+          author: (record.book && record.book._author) || record._author || '',
+          borrowDate: record._begin_time ? new Date(record._begin_time).toISOString().split('T')[0] : '',
+          dueDate: record._end_date ? new Date(record._end_date).toISOString().split('T')[0] : '',
+          // _status: 0 -> borrowing, 1 -> returned
+          status: record._status === 1 ? 'returned' : 'borrowing'
         }));
 
-        // 统计借阅状态
+        // 保存完整副本以供检索使用
+        this.allBorrowingRecords = Array.isArray(this.borrowingList) ? [...this.borrowingList] : [];
+
+        // 统计借阅状态（基于已映射的 borrowingList）
         this.borrowingStats = {
-          total: records.length,
-          borrowing: records.filter((r) => !r.status).length,
-          returned: records.filter((r) => r.status).length,
+          total: this.borrowingList.length,
+          borrowing: this.borrowingList.filter((r) => r.status === 'borrowing').length,
+          returned: this.borrowingList.filter((r) => r.status === 'returned').length,
         };
       } catch (error) {
         alert(
@@ -1730,18 +1962,16 @@ export default {
     async loadBorrowingHistory() {
       try {
         // 获取我的借阅记录（全部，包括已归还）
-        const response = await axios.get("/api/records/my");
-        const records = response.data.data;
+        const response = await axios.get('/api/borrow-records/my');
+        const records = (response && response.data && response.data.data && response.data.data.ownlist) || [];
 
         this.borrowingHistory = records.map((record) => ({
           _hid: record._hid,
           bookId: record._bid,
-          bookName: record._book_name,
-          borrowDate: new Date(record._begin_time).toISOString().split("T")[0],
-          returnDate: record.status
-            ? new Date(record._end_date).toISOString().split("T")[0]
-            : "",
-          status: record.status ? "已还" : "借阅中",
+          bookName: (record.book && (record.book._book_name || record.book._name)) || record._book_name || '',
+          borrowDate: record._begin_time ? new Date(record._begin_time).toISOString().split('T')[0] : '',
+          returnDate: record._status === 1 ? (record._end_date ? new Date(record._end_date).toISOString().split('T')[0] : '') : '',
+          status: record._status === 1 ? '已还' : '借阅中'
         }));
       } catch (error) {
         alert(
@@ -1854,14 +2084,27 @@ export default {
       this.currentFeedbackPage = page;
     },
   },
-  mounted() {
+  async mounted() {
     this.startCarousel();
-    this.loadSearchPage();
+    // 先加载分类以便筛选控件显示正确
+    await this.loadBookCategories();
+    await this.loadSearchPage();
     // 加载本地用户信息以显示头像
     this.loadUserFromStorage();
+    // 如果已登录，尝试从后端拉取最新个人信息
+    if (localStorage.getItem('token')) {
+      this.loadPersonalData();
+    }
+    // 监听 storage 事件以在其它标签/窗口登录时同步
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('storage', this.onStorageChange);
+    }
   },
   beforeDestroy() {
     this.stopCarousel();
+    if (typeof window !== 'undefined' && window.removeEventListener) {
+      window.removeEventListener('storage', this.onStorageChange);
+    }
   },
 };
 </script>
@@ -2394,8 +2637,8 @@ button:hover {
 .pagination button {
   margin: 0 3px;
   padding: 8px 16px;
-  border: 1px solid #ddd;
-  background-color: white;
+  border: 1px solid #181616;
+  background-color: #82b7ec;
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
@@ -2404,7 +2647,7 @@ button:hover {
 }
 
 .pagination button:hover:not(:disabled) {
-  background-color: #f5f5f5;
+  background-color: #1976d2;
   border-color: #1976d2;
 }
 
@@ -2589,6 +2832,51 @@ button:hover {
   border: 2px solid rgba(255,255,255,0.9);
 }
 
+.user-avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #fff;
+  color: #333;
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  min-width: 100px;
+  z-index: 300;
+}
+
+.user-menu:hover .user-dropdown {
+  display: block;
+}
+
+.user-dropdown .auth-link {
+  color: #333;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
 /* 账户信息样式 */
 .account-info {
   margin-top: 20px;
@@ -2674,13 +2962,57 @@ button:hover {
 }
 
 .table-cover {
-  width: 60px;
-  height: 80px;
+  /* 表格中图书封面容器，固定为书籍封面常见比例并居中裁剪 */
+  width: 64px;
+  height: 88px;
   margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
 }
 
 .table-cover .cover-placeholder {
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #777;
+}
+
+/* 针对借阅表格的覆盖规则，确保图片铺满容器并裁切 */
+#borrowing-table .table-cover {
+  width: 64px;
+  height: 88px;
+}
+
+#borrowing-table .book-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+#borrowing-table .cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7f9;
+}
+
+@media (max-width: 700px) {
+  /* 移动端表格列更窄时，缩小封面 */
+  .table-cover {
+    width: 48px;
+    height: 66px;
+  }
+  #borrowing-table .table-cover {
+    width: 48px;
+    height: 66px;
+  }
 }
 
 .status-tag {
