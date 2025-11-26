@@ -342,8 +342,11 @@
                     <input type="email" id="email" v-model="userForm.email" placeholder="请输入邮箱">
                     <label for="userType">用户类型：</label>
                     <select id="userType" v-model="userForm.userType">
-                      <option value="reader">读者</option>
-                      <option value="admin">管理员</option>
+                      <option value="student">学生</option>
+                      <option value="teacher">教师</option>
+                      <option value="admin_t">终端管理员</option>
+                      <option value="admin_b">图书管理员</option>
+                      <option value="admin_l">借阅管理员</option>
                     </select>
                     <button type="submit" class="submit-button">提交</button>
                   </form>
@@ -403,7 +406,6 @@
               <!-- 添加搜索表单 -->
               <form class="search-form">
                 <select id="categorySearchType" class="search-select" v-model="categorySearchType">
-                  <option value="_tid">分类ID</option>
                   <option value="_type_name">分类名称</option>
                </select>
                <input type="text" id="categorySearchInput" class="search-input" placeholder="请输入查询内容" v-model="categorySearchKeyword">
@@ -551,6 +553,7 @@
                <select id="announcementSearchType" class="search-select" v-model="announcementSearchType">
                   <option value="_aid">公告ID</option>
                   <option value="_title">公告标题</option>
+                  <option value="_content">公告内容</option>
                   <option value="_status">公告状态</option>
                 </select>
                 <input type="text" id="announcementSearchInput" class="search-input" placeholder="请输入查询内容" v-model="announcementSearchKeyword">
@@ -1373,19 +1376,13 @@ export default {
     },
 
     getCategoryFilterData() {
-      const typeMap = {
-        '_tid': '_tid',
-        '_type_name': '_type_name'
-      };
-      
-      const actualField = typeMap[this.categorySearchType] || '_type_name';
       const keyword = this.categorySearchKeyword.trim();
       
       if (!keyword) return this.categories;
       
       return this.categories.filter(category => {
-        const fieldValue = category[actualField] ? category[actualField].toString() : '';
-        return fieldValue.includes(keyword);
+        const categoryName = category._type_name ? category._type_name.toString() : '';
+        return categoryName.includes(keyword);
       });
     },
 
@@ -1949,6 +1946,8 @@ export default {
             return announcement._aid.toString().includes(keyword);
           case '_title':
             return announcement._title.includes(keyword);
+          case '_content':
+            return announcement._content.includes(keyword);
           case '_status': {
             // 状态搜索需要转换 - 用大括号包裹这个case块
             const statusText = announcement._status === 1 ? '已发布' : '草稿';
