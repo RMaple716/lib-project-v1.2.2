@@ -69,11 +69,11 @@
                 required
               >
               <label for="registerAccount">账号</label>
-              <button type="button" class="reset-btn" @click="resetUserInfo">
+              <button type="button" class="reset-btn" @click="resetAccount">
                 <i class="fas fa-redo"></i> 重置
               </button>
             </div>
-            <small class="field-hint">6位随机数字</small>
+            <small class="field-hint">10位随机数字</small>
           </div>
 
           <!-- 姓名字段组 -->
@@ -87,7 +87,7 @@
                 required
               >
               <label for="registerName">姓名</label>
-              <button type="button" class="reset-btn" @click="resetUserInfo">
+              <button type="button" class="reset-btn" @click="resetName">
                 <i class="fas fa-redo"></i> 重置
               </button>
             </div>
@@ -207,17 +207,32 @@ export default {
     }
   },
   methods: {
-    // 生成基础数字
+    // 生成基础数字 - 10位
     generateBaseId() {
+      return Math.random().toString().slice(2, 12); // 生成10位随机数字
+    },
+
+    // 生成6位随机数字
+    generateSixDigitId() {
       return Math.random().toString().slice(2, 8); // 生成6位随机数字
     },
 
-    // 重置用户信息
-    resetUserInfo() {
-      const baseId = this.generateBaseId();
-      this.registerForm.account = baseId;          // 纯数字
-      this.registerForm.name = `用户${baseId}`;    // 用户+相同数字
+    // 重置账号信息
+    resetAccount() {
+      this.registerForm.account = this.generateBaseId(); // 只重置账号
     },
+
+    // 重置姓名信息
+    resetName() {
+      this.registerForm.name = `用户${this.generateSixDigitId()}`; // 只重置姓名
+    },
+
+    // 重置全部用户信息（如果需要的话）
+    resetUserInfo() {
+      this.resetAccount();
+      this.resetName();
+    },
+
     // 显示消息的辅助方法
     showMessage(content, type = 'info', duration = 3000) {
       this.$refs.globalMessage.addMessage(content, type, duration);
