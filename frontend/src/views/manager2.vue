@@ -1124,7 +1124,35 @@ export default {
       });
     },
     
-    // 获取最近7天日期
+    // 获取借阅趋势数据（基于真实数据）
+    getLendTrendData() {
+      // 获取最近7天的日期范围
+      const last7Days = this.getLast7DaysDates(); // 需要新增这个方法
+      
+      // 统计每天借阅数量
+      return last7Days.map(date => {
+        return this.lends.filter(lend => {
+          const lendDate = this.formatDate(lend._begin_time);
+          return lendDate === date;
+        }).length;
+      });
+    },
+
+    // 新增方法：获取最近7天的日期字符串数组（YYYY-MM-DD格式）
+    getLast7DaysDates() {
+      const dates = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        dates.push(`${year}-${month}-${day}`);
+      }
+      return dates;
+    },
+
+    // 同时修改 getLast7Days 方法，确保日期格式一致
     getLast7Days() {
       const days = [];
       for (let i = 6; i >= 0; i--) {
@@ -1134,13 +1162,7 @@ export default {
       }
       return days;
     },
-    
-    // 获取借阅趋势数据（示例数据）
-    getLendTrendData() {
-      // 这里应该是实际的数据，这里使用示例数据
-      return [2, 5, 3, 7, 4, 6, 8];
-    },
-    
+        
     // 获取用户类型数量
     getUserTypeCounts() {
       const studentCount = this.users.filter(user => user._utype === 'student').length;
