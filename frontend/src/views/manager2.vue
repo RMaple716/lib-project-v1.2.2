@@ -320,6 +320,7 @@
               <form class="search-form">
                 <select id="userSearchType" class="search-select" v-model="userSearchType">
                   <option value="_uid">用户ID</option>
+                  <option value="_account">账号</option> 
                   <option value="_name">用户名</option>
                 </select>
                 <input type="text" id="userSearchInput" class="search-input" placeholder="请输入查询内容" v-model="userSearchKeyword">
@@ -334,10 +335,27 @@
                   <span class="close-button" @click="closeAddUserModal">&times;</span>
                   <h2>{{ isEditUser ? '编辑用户' : '添加用户' }}</h2>
                   <form @submit.prevent="submitUserForm">
+                    <label for="account">账号：</label>
+                    <div class="username-input-group">
+                      <input type="text" id="account" v-model="userForm.account" placeholder="系统自动生成" disabled>
+                      <button type="button" class="refresh-username-btn" @click="refreshAccount" v-if="!isEditUser">
+                        <i class="fas fa-redo"></i>
+                      </button>
+                    </div>
+                    <small>注：账号由系统自动生成，用于登录</small>
+
                     <label for="name">用户名：</label>
-                    <input type="text" id="name" v-model="userForm.name" placeholder="请输入用户名">
+                    <div class="username-input-group">
+                      <input type="text" id="name" v-model="userForm.name" placeholder="系统自动生成" disabled>
+                      <button type="button" class="refresh-username-btn" @click="refreshUsername" v-if="!isEditUser">
+                        <i class="fas fa-redo"></i>
+                      </button>
+                    </div>
+                    <small>注：用户名由系统自动生成，用户可后续自行修改</small>
+
                     <label for="password">密码：</label>
-                    <input type="password" id="password" v-model="userForm.password" placeholder="请输入密码">
+                    <input type="password" id="password" v-model="userForm.password" :placeholder="isEditUser ? '留空则不修改密码' : '请输入密码'" required>
+
                     <label for="email">邮箱：</label>
                     <input type="email" id="email" v-model="userForm.email" placeholder="请输入邮箱">
                     <label for="userType">用户类型：</label>
@@ -358,6 +376,7 @@
                 <thead>
                   <tr>
                     <th>用户ID</th>
+                    <th>账号</th> 
                     <th>用户名</th>
                     <th>邮箱</th>
                     <th>用户类型</th>
@@ -367,10 +386,11 @@
                 </thead>
                 <tbody>
                   <tr v-if="currentPageUsers.length === 0">
-                    <td colspan="6">{{ filteredUsers.length === 0 ? '暂无用户数据' : '没有找到相关用户' }}</td>
+                    <td colspan="7">{{ filteredUsers.length === 0 ? '暂无用户数据' : '没有找到相关用户' }}</td>
                   </tr>
                   <tr v-for="user in currentPageUsers" :key="user._uid">
                     <td>{{ user._uid }}</td>
+                    <td>{{ user._account || '-' }}</td>
                     <td>{{ user._name }}</td>
                     <td>{{ user._email }}</td>
                     <td>{{ getUserTypeText(user._utype) }}</td>
@@ -419,9 +439,7 @@
                   <span class="close-button" @click="closeAddCategoryModal">&times;</span>
                   <h2 id="modalTitle">{{ isEditCategory ? '修改分类' : '添加分类' }}</h2>
                   <form id="categoryForm" @submit.prevent="submitCategoryForm">
-                    <label for="categoryId">分类ID:</label>
-                    <input type="text" id="categoryId" v-model="categoryForm.categoryId" required>
-                    
+
                     <label for="categoryName">分类名称:</label>
                     <input type="text" id="categoryName" v-model="categoryForm.categoryName" required>
                     
@@ -738,7 +756,6 @@ export default {
       userForm: {
         name: '',
         password: '',
-        phone: '',
         email: '',
         userType: 'student'  // student: 学生, teacher: 教师, admin_t: 终端管理员, admin_b: 图书管理员, admin_l: 借阅管理员
       },
@@ -1395,7 +1412,6 @@ export default {
       this.isEditCategory = false;
       this.currentEditCategoryId = null;
       this.categoryForm = {
-        categoryId: '',
         categoryName: ''
       };
       this.showAddCategoryModalFlag = true;
@@ -1409,29 +1425,26 @@ export default {
       this.isEditCategory = true;
       this.currentEditCategoryId = cat._tid;
       this.categoryForm = {
-        categoryId: cat._tid,
         categoryName: cat._type_name
       };
       this.showAddCategoryModalFlag = true;
     },
     
     async submitCategoryForm() {
-      const { categoryId, categoryName } = this.categoryForm;
+      const {categoryName } = this.categoryForm;
       
-      if (!categoryId || !categoryName) {
-        this.$message.error('请输入分类名称和分类ID！');
+      if (!categoryName) {
+        this.$message.error('请输入分类名称！');
         return;
       }
       
       try {
         if (this.isEditCategory) {
           await this.editCategoryApi(this.currentEditCategoryId, {
-            _tid: categoryId,
             _type_name: categoryName
           });
         } else {
           await this.addCategoryApi({
-            _tid: categoryId,
             _type_name: categoryName
           });
         }
@@ -1709,11 +1722,11 @@ export default {
     getUserFilterData() {
       const typeMap = {
         '_uid': '_uid',
+        '_account': '_account',
         '_name': '_name',
-        '_phone': '_phone'
       };
       
-      const actualField = typeMap[this.userSearchType] || '_username';
+      const actualField = typeMap[this.userSearchType] || '_name';
       const keyword = this.userSearchKeyword.trim();
       
       if (!keyword) return this.users;
@@ -1729,16 +1742,44 @@ export default {
       this.userCurrentPage = page;
     },
 
+    // 生成随机账号（10位数字）
+    generateAccount() {
+      const timestamp = Date.now().toString().slice(-6); // 取时间戳后6位
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0'); // 4位随机数
+      return timestamp + random; // 总共10位数字
+    },
+    
+    // 生成随机用户名（用户+8位数字）
+    generateUsername() {
+      const random = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+      return `用户${random}`;
+    },
+
+    // 重新生成账号
+    refreshAccount() {
+      if (!this.isEditUser) {
+        this.userForm.account = this.generateAccount();
+        this.$message.success('已重新生成账号');
+      }
+    },
+    
+    // 重新生成用户名
+    refreshUsername() {
+      if (!this.isEditUser) {
+        this.userForm.name = this.generateUsername();
+        this.$message.success('已重新生成用户名');
+      }
+    },
+
     showAddUserModal() {
       this.isEditUser = false;
       this.currentEditUserId = null;
       this.userForm = {
-        username: '',
+        account: this.generateAccount(), // 账号自动生成
+        name: this.generateUsername(), // 用户名自动生成
         password: '',
-        name: '',
-        phone: '',
         email: '',
-        userType: 'sutdent'
+        userType: 'student'
       };
       this.showAddUserModalFlag = true;
     },
@@ -1751,10 +1792,9 @@ export default {
       this.isEditUser = true;
       this.currentEditUserId = user._uid;
       this.userForm = {
-        username: user._username,
-        password: '',
-        name: user._name,
-        phone: user._phone,
+        account: user._account || '', // 显示原有账号
+        name: user._name, // 编辑时显示原有用户名
+        password: '', // 编辑时不显示密码
         email: user._email,
         userType: user._utype
       };
@@ -1762,9 +1802,9 @@ export default {
     },
 
     async submitUserForm() {
-      const { username, password, name, phone, email, userType } = this.userForm;
+      const { account, name, password,email, userType } = this.userForm;
       
-      if (!username || !name || !phone || !email || !userType) {
+      if (!account || !name || !email || !userType) {
         this.$message.error('请填写完整的用户信息！');
         return;
       }
@@ -1775,9 +1815,8 @@ export default {
       }
       
       const userData = {
-        _account: username,
+        _account: account,
         _name: name,
-        _phone: phone,
         _email: email,
         _utype: userType
       };
@@ -2374,6 +2413,54 @@ html, body {
   color: #333;
   margin-bottom: 5px;
   font-size: 14px;
+}
+
+/* 用户名输入框组样式 */
+.username-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.username-input-group input {
+  flex: 1;
+}
+
+.refresh-username-btn {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.3s;
+  font-size: 14px;
+}
+
+.refresh-username-btn:hover {
+  background: #e0e0e0;
+  color: #333;
+  border-color: #999;
+}
+
+.refresh-username-btn:active {
+  transform: translateY(1px);
+}
+
+input:disabled {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+  border: 1px solid #ddd;
+}
+
+small {
+  color: #666;
+  font-size: 12px;
+  display: block;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  font-style: italic;
 }
 
 .modal-content input,
