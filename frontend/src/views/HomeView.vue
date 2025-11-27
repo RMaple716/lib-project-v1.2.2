@@ -58,25 +58,40 @@
           @submit.prevent="handleRegister"
         >
           <h2><i class="fas fa-user-plus"></i> 用户注册</h2>
+          <!-- 账号字段组 -->
           <div class="form-group">
-            <input 
-              type="text" 
-              id="registerAccount" 
-              v-model="registerForm.account"
-              placeholder=" " 
-              required
-            >
-            <label for="registerAccount">账号</label>
+            <div class="input-with-reset">
+              <input 
+                type="text" 
+                id="registerAccount" 
+                v-model="registerForm.account"
+                placeholder=" " 
+                required
+              >
+              <label for="registerAccount">账号</label>
+              <button type="button" class="reset-btn" @click="resetUserInfo">
+                <i class="fas fa-redo"></i> 重置
+              </button>
+            </div>
+            <small class="field-hint">6位随机数字</small>
           </div>
+
+          <!-- 姓名字段组 -->
           <div class="form-group">
-            <input 
-              type="text" 
-              id="registerName" 
-              v-model="registerForm.name"
-              placeholder=" " 
-              required
-            >
-            <label for="registerName">姓名</label>
+            <div class="input-with-reset">
+              <input 
+                type="text" 
+                id="registerName" 
+                v-model="registerForm.name"
+                placeholder=" " 
+                required
+              >
+              <label for="registerName">姓名</label>
+              <button type="button" class="reset-btn" @click="resetUserInfo">
+                <i class="fas fa-redo"></i> 重置
+              </button>
+            </div>
+            <small class="field-hint">格式：用户+6位数字</small>
           </div>
           <div class="form-group">
             <input 
@@ -163,8 +178,8 @@ export default {
         userType: 'student'
       },
       registerForm: {
-        account: '',
-        name: '',
+        account: '', // 初始为空
+        name: '',    // 初始为空
         email: '',
         userType: 'student',
         password: '',
@@ -186,8 +201,23 @@ export default {
       this.loginForm.userType = userType;
       this.rememberMe = true;
     }
+    // 确保注册表单数据初始化
+    if (!this.registerForm.account || !this.registerForm.name) {
+      this.resetUserInfo();
+    }
   },
   methods: {
+    // 生成基础数字
+    generateBaseId() {
+      return Math.random().toString().slice(2, 8); // 生成6位随机数字
+    },
+
+    // 重置用户信息
+    resetUserInfo() {
+      const baseId = this.generateBaseId();
+      this.registerForm.account = baseId;          // 纯数字
+      this.registerForm.name = `用户${baseId}`;    // 用户+相同数字
+    },
     // 显示消息的辅助方法
     showMessage(content, type = 'info', duration = 3000) {
       this.$refs.globalMessage.addMessage(content, type, duration);
@@ -612,6 +642,53 @@ button:active {
   font-weight: 500;
 }
 
+/* 添加重置按钮相关样式 */
+.input-with-reset {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reset-btn {
+  padding: 1px 1px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  white-space: nowrap;
+  color: #666;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  height: fit-content;
+  width: 10px;           /* 直接设置固定宽度 */
+}
+
+.reset-btn:hover {
+  background: #e9ecef;
+  border-color: #20B2AA;
+  color: #20B2AA;
+}
+
+.reset-btn i {
+  margin-right: 2px;
+  font-size: 5px;
+}
+
+.field-hint {
+  color: #666;
+  font-size: 8px;
+  margin-top: 4px;
+  display: block;
+}
+
+/* 调整有重置按钮的表单组样式 */
+.form-group .input-with-reset input {
+  flex: 1;
+  margin-bottom: 0;
+  padding: 1.2rem;
+}
 /* 响应式设计 */
 @media (max-width: 480px) {
   .container {
