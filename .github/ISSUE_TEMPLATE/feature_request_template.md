@@ -1,3 +1,8 @@
+---
+name: "Feature Request"
+about: "请求扩展一个新功能"
+labels: ["feature"]
+---
 **类型：** 功能
 **优先级：** 中
 
