@@ -47,6 +47,12 @@ const Book = sequelize.define('Book', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
     field: '_times'
+  },
+  _create_time: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    field: '_create_time',
+    defaultValue: DataTypes.NOW
   }
 }, {
   tableName: 't_book',

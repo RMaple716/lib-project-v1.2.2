@@ -49,6 +49,12 @@ const User = sequelize.define('User', {
     type: DataTypes.INTEGER,
     defaultValue: 1,
     field: '_access'
+  },
+  _create_time: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    field: '_create_time',
+    defaultValue: DataTypes.NOW
   }
   }, {
   tableName: 't_user',
