@@ -1,3 +1,8 @@
+---
+name: "Bug Report"
+about: "报告一个错误以帮助我们改进"
+labels: ["bug"]
+---
 **类型：** Bug
 **优先级：** 高
 
