@@ -1,3 +1,8 @@
+---
+name: "Enhancement Request"
+about: "在原有功能基础上的功能升级"
+labels: ["enhancement"]
+---
 **类型：** 功能升级 
 **优先级：** 中
 
