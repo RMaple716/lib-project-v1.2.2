@@ -4,6 +4,37 @@ const router = express.Router();
 const { Book, BorrowRecord, User, Category } = require('../models');
 const { authenticate } = require('../middleware/auth');
 
+// 图书借阅排名
+router.get('/rank', authenticate, async (req, res) => {
+  try {
+    const topBooks = await Book.findAll({
+      order: [['_times', 'DESC']],
+      limit: 10,
+      include: [{
+        model: Category,
+        as: 'category',
+        attributes: ['_type_name']
+      }]
+    });
+
+    res.json({
+      success: true,
+      message: '获取图书排名成功',
+      data: {
+        res_rank: topBooks
+      }
+    });
+
+  } catch (error) {
+    console.error('获取图书排名错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
 // 获取图书列表（需要认证）
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -38,12 +69,22 @@ router.get('/', authenticate, async (req, res) => {
       }],
       limit: 50
     });
+    
+    const formattedBooks = books.map(book => {
+    const bookData = book.toJSON();
+      return {
+        ...bookData,
+        _type_name: bookData.category ? bookData.category._type_name : null,
+        category: undefined // 删除category对象
+      };
+    });
+
 
     res.json({
       success: true,
       message: '获取图书列表成功',
       data: {
-        booklist: books
+        booklist: formattedBooks
       }
     });
 
@@ -62,6 +103,7 @@ router.post('/', authenticate, async (req, res) => {
   try {
     // 检查用户权限
     if (!req.user._utype.includes('admin')) {
+      console.log('没有权限添加图书', req.user._utype);
       return res.status(403).json({
         success: false,
         errorCode: 'PERMISSION_DENIED',
@@ -482,34 +524,6 @@ router.put('/:hid/renew', authenticate, async (req, res) => {
   }
 });
 
-// 图书借阅排名
-router.get('/rank', authenticate, async (req, res) => {
-  try {
-    const topBooks = await Book.findAll({
-      order: [['_times', 'DESC']],
-      limit: 10,
-      include: [{
-        model: Category,
-        attributes: ['_type_name']
-      }]
-    });
 
-    res.json({
-      success: true,
-      message: '获取图书排名成功',
-      data: {
-        res_rank: topBooks
-      }
-    });
-
-  } catch (error) {
-    console.error('获取图书排名错误:', error);
-    res.status(500).json({
-      success: false,
-      errorCode: 'SERVER_ERROR',
-      message: '服务器内部错误'
-    });
-  }
-});
 
 module.exports = router;

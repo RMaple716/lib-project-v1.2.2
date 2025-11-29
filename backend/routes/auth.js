@@ -56,7 +56,7 @@ router.post('/login', async (req, res) => {
       _account: user._account
     });
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: '登录成功',
       data: {
@@ -126,10 +126,11 @@ router.post('/register', async (req, res) => {
       _name: name,
       _email: email,
       _utype: usertype,
-      _password: password
+      _password: password,
+      _create_time: new Date()
     });
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: '注册成功',
       data: {
@@ -208,7 +209,7 @@ router.put('/password', async (req, res) => {
     // 清除已使用的验证码
     captchaStore.delete(_uid);
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: '重置密码成功',
       data: {
@@ -259,7 +260,7 @@ router.get('/captcha', async (req, res) => {
     }, 5 * 60 * 1000);
 
     res.type('svg');
-    res.json({
+    res.status(200).json({
       success: true,
       message: '验证码生成成功',
       data: captcha.data
@@ -311,7 +312,7 @@ router.get('/current-user', async (req, res) => {
       });
     }
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: '获取用户信息成功',
       data: user

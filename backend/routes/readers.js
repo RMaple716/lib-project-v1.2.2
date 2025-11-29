@@ -12,7 +12,6 @@ router.get('/', authenticate, async (req, res) => {
     console.log('查询读者:', { query, user: req.user });
 
     let whereCondition = {
-      // 只显示普通读者，不显示管理员
       _utype: {
         [Op.notIn]: []
       }
@@ -35,7 +34,7 @@ router.get('/', authenticate, async (req, res) => {
       limit: 50,
     });
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: '获取读者列表成功',
       data: {
@@ -188,7 +187,7 @@ router.get('/:id', authenticate, async (req, res) => {
 router.put('/:id', authenticate, async (req, res) => {
   try {
     // 检查用户权限（只有管理员可以更新读者信息）
-    if (!req.user._utype.includes('admin')) {
+    if (!req.user._utype.includes('admin_t')&&req.user._utype.includes('admin')) {
       return res.status(403).json({
         success: false,
         errorCode: 'PERMISSION_DENIED',

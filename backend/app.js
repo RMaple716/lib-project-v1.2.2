@@ -112,9 +112,9 @@ app.get('/', (req, res) => {
         method: 'POST',
         url: '/api/auth/login',
         body: {
-          account: 'admin_b',
+          account: 'admin_t',
           password: 'admin123',
-          usertype: 'admin_b'
+          usertype: 'admin_t'
         }
       }
     }
@@ -159,9 +159,9 @@ async function startServer() {
       console.log(` API文档: http://localhost:${PORT}/`);
       console.log(` 健康检查: http://localhost:${PORT}/health`);
       console.log('\n 默认管理员账户:');
-      console.log('   账号: admin_b');
+      console.log('   账号: admin_t');
       console.log('   密码: admin123');
-      console.log('   类型: admin_b');
+      console.log('   类型: admin_t');
       console.log('\n 可用接口:');
       console.log('   - 认证管理: /api/auth');
       console.log('   - 图书管理: /api/books');

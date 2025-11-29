@@ -44,7 +44,7 @@ const { authenticate } = require('../middleware/auth');
 router.get('/', authenticate, async (req, res) => {
   try {
     const announcements = await Announcement.findAll({
-      attributes: ['_aid', '_title', '_content', '_publisher', '_date'],
+      attributes: ['_aid', '_title', '_content', '_publisher', '_date','_status'],
       order: [['_date', 'DESC']],
       limit: 50,
     });
@@ -127,8 +127,8 @@ router.get('/:id', authenticate, async (req, res) => {
 router.put('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { _title, _content } = req.body;
-
+    const { _title, _content , _status} = req.body;
+    console.log("哇，开始改公告了吗？这么强？")
     const announcement = await Announcement.findByPk(id);
     if (!announcement) {
       return res.status(404).json({
@@ -140,7 +140,8 @@ router.put('/:id', authenticate, async (req, res) => {
 
     await announcement.update({
       _title: _title,
-      _content: _content
+      _content: _content,
+      _status: _status
     });
 
     res.json({

@@ -70,18 +70,20 @@ const syncDatabase = async () => {
 const createDefaultAdmin = async () => {
   try {
     const existingAdmin = await User.findOne({ 
-      where: { _account: 'admin_b' } 
+      where: { _account: 'admin_t' } 
     });
     
     if (!existingAdmin) {
       await User.create({
-        _utype: 'admin_b',
-        _account: 'admin_b',
-        _name: '图书管理员',
+        _utype: 'admin_t',
+        _account: 'admin_t',
+        _name: '终端管理员',
         _password: 'admin123',
         _email: 'admin@library.com',
         _max_num: 100,
-        lend_num: 0
+        lend_num: 0,
+        access: 1,
+        _create_time: new Date()
       });
       console.log(' 默认管理员账户创建成功 (账号: admin_b, 密码: admin123)');
     }
