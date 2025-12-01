@@ -4,6 +4,53 @@ const router = express.Router();
 const { Book, BorrowRecord, User, Category } = require('../models');
 const { authenticate } = require('../middleware/auth');
 
+/**
+ * @swagger
+ * tags:
+ *   name: Books
+ *   description: 图书管理
+ */
+
+/**
+ * @swagger
+ * /api/books/rank:
+ *   get:
+ *     summary: 获取图书借阅排名
+ *     description: 获取借阅次数最多的前10本图书
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取图书排名成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/BookRankResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BookRankSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
 // 图书借阅排名
 router.get('/rank', authenticate, async (req, res) => {
   try {
@@ -34,6 +81,71 @@ router.get('/rank', authenticate, async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /api/books:
+ *   get:
+ *     summary: 获取图书列表
+ *     description: 获取图书列表，支持按关键词搜索和按分类筛选
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         description: 搜索关键词（图书名称、作者、出版社）
+ *         example: "JavaScript"
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: integer
+ *         description: 分类ID
+ *         example: 1
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *         example: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *         example: 20
+ *     responses:
+ *       200:
+ *         description: 获取图书列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/BookListResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BookListSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 
 // 获取图书列表（需要认证）
 router.get('/', authenticate, async (req, res) => {
@@ -98,6 +210,72 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/books:
+ *   post:
+ *     summary: 新增图书
+ *     description: 添加新图书，需要管理员权限
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateBookRequest'
+ *           examples:
+ *             computerBook:
+ *               summary: 计算机图书
+ *               value:
+ *                 _book_name: "JavaScript高级程序设计"
+ *                 _isbn: "9787115275790"
+ *                 _num: 10
+ *                 _author: "Nicholas C. Zakas"
+ *                 _press: "人民邮电出版社"
+ *                 _tid: 1
+ *                 _cover_url: "https://example.com/cover.jpg"
+ *             literatureBook:
+ *               summary: 文学图书
+ *               value:
+ *                 _book_name: "三体"
+ *                 _isbn: "9787536692930"
+ *                 _num: 5
+ *                 _author: "刘慈欣"
+ *                 _press: "重庆出版社"
+ *                 _tid: 2
+ *                 _cover_url: "https://example.com/cover2.jpg"
+ *     responses:
+ *       200:
+ *         description: 图书添加成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/CreateBookSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 新增图书（管理员功能）
 router.post('/', authenticate, async (req, res) => {
   try {
@@ -148,6 +326,54 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/books/{id}:
+ *   get:
+ *     summary: 获取图书详情
+ *     description: 根据图书ID获取图书的详细信息
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 图书ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 获取图书详情成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BookDetailSuccess'
+ *       404:
+ *         description: 图书不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookNotFound:
+ *                 $ref: '#/components/examples/BookNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 获取图书详情
 router.get('/:id', authenticate, async (req, res) => {
   try {
@@ -185,6 +411,78 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/books/{id}:
+ *   put:
+ *     summary: 更新图书信息
+ *     description: 根据图书ID更新图书信息，需要管理员权限
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 图书ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateBookRequest'
+ *           examples:
+ *             updateExample:
+ *               summary: 更新图书信息
+ *               value:
+ *                 _book_name: "更新后的图书名称"
+ *                 _isbn: "9787115275790"
+ *                 _num: 8
+ *                 _author: "Nicholas C. Zakas"
+ *                 _press: "人民邮电出版社"
+ *                 _tid: 1
+ *                 _cover_url: "https://example.com/updated-cover.jpg"
+ *     responses:
+ *       200:
+ *         description: 图书信息更新成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/UpdateBookSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       404:
+ *         description: 图书不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookNotFound:
+ *                 $ref: '#/components/examples/BookNotFoundError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 更新图书信息
 router.put('/:id', authenticate, async (req, res) => {
   try {
@@ -245,6 +543,61 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/books/{id}:
+ *   delete:
+ *     summary: 删除图书
+ *     description: 根据图书ID删除图书，需要管理员权限。如果图书有未归还的借阅记录，则无法删除。
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 图书ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 图书删除成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/DeleteBookSuccess'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       404:
+ *         description: 图书不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookNotFound:
+ *                 $ref: '#/components/examples/BookNotFoundError'
+ *       400:
+ *         description: 图书有未归还的借阅记录
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookHasBorrowRecords:
+ *                 $ref: '#/components/examples/BookHasBorrowRecordsError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 删除图书
 router.delete('/:id', authenticate, async (req, res) => {
   try {
@@ -303,6 +656,72 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/books/{id}/borrow:
+ *   post:
+ *     summary: 借阅图书
+ *     description: 借阅指定图书，会检查库存、用户借阅限制等条件
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 图书ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 借书成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/BorrowBookResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BorrowBookSuccess'
+ *       404:
+ *         description: 图书不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookNotFound:
+ *                 $ref: '#/components/examples/BookNotFoundError'
+ *       400:
+ *         description: 借阅条件不满足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               outOfStock:
+ *                 $ref: '#/components/examples/BookOutOfStockError'
+ *               maxLimit:
+ *                 $ref: '#/components/examples/MaxBorrowLimitError'
+ *               alreadyBorrowed:
+ *                 $ref: '#/components/examples/AlreadyBorrowedError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 借阅图书
 router.post('/:id/borrow', authenticate, async (req, res) => {
   try {
@@ -405,6 +824,61 @@ router.post('/:id/borrow', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/books/{hid}/return:
+ *   put:
+ *     summary: 归还图书
+ *     description: 归还借阅的图书
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: hid
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 借阅记录ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 还书成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ReturnBookResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/ReturnBookSuccess'
+ *       404:
+ *         description: 借阅记录不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               borrowRecordNotFound:
+ *                 $ref: '#/components/examples/BorrowRecordNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 归还图书
 router.put('/:hid/return', authenticate, async (req, res) => {
   try {
@@ -469,6 +943,61 @@ router.put('/:hid/return', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/books/{hid}/renew:
+ *   put:
+ *     summary: 续借图书
+ *     description: 续借已借阅的图书，延长归还日期30天
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: hid
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 借阅记录ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 续借成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/RenewBookResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/RenewBookSuccess'
+ *       404:
+ *         description: 借阅记录不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               borrowRecordNotFoundError:
+ *                 $ref: '#/components/examples/BorrowRecordNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               serverError:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 续借图书
 router.put('/:hid/renew', authenticate, async (req, res) => {
   try {

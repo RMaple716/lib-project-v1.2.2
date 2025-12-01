@@ -4,6 +4,59 @@ const router = express.Router();
 const { User, BorrowRecord, Book } = require('../models');
 const { authenticate } = require('../middleware/auth');
 
+/**
+ * @swagger
+ * tags:
+ *   name: Readers
+ *   description: 读者管理
+ */
+
+/**
+ * @swagger
+ * /api/readers:
+ *   get:
+ *     summary: 获取读者列表
+ *     description: 获取读者列表，支持按关键词搜索
+ *     tags: [Readers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         description: 搜索关键词（读者ID、账号、姓名）
+ *         example: "张三"
+ *     responses:
+ *       200:
+ *         description: 获取读者列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ReaderListResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/ReaderListSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 获取读者列表
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -52,6 +105,81 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/readers:
+ *   post:
+ *     summary: 新增读者
+ *     description: 创建新读者，需要管理员权限
+ *     tags: [Readers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateReaderRequest'
+ *           examples:
+ *             studentReader:
+ *               summary: 学生读者
+ *               value:
+ *                 _account: "student001"
+ *                 _name: "张三"
+ *                 _password: "Student123!"
+ *                 _utype: "student"
+ *                 _email: "zhangsan@example.com"
+ *             teacherReader:
+ *               summary: 教师读者
+ *               value:
+ *                 _account: "teacher001"
+ *                 _name: "李老师"
+ *                 _password: "Teacher123!"
+ *                 _utype: "teacher"
+ *                 _email: "li@example.com"
+ *     responses:
+ *       200:
+ *         description: 读者添加成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/CreateReaderSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *               invalidUserType:
+ *                 $ref: '#/components/examples/InvalidUserTypeError'
+ *               userExists:
+ *                 $ref: '#/components/examples/UserExistsError'
+ *               passwordSimple:
+ *                 $ref: '#/components/examples/PasswordSimpleError'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 新增读者
 router.post('/', authenticate, async (req, res) => {
   try {
@@ -141,6 +269,54 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/readers/{id}:
+ *   get:
+ *     summary: 获取读者详情
+ *     description: 根据读者ID获取读者的详细信息
+ *     tags: [Readers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 读者ID
+ *         example: 1001
+ *     responses:
+ *       200:
+ *         description: 成功获取读者详情
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/ReaderDetailSuccess'
+ *       404:
+ *         description: 读者不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               readerNotFound:
+ *                 $ref: '#/components/examples/ReaderNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 获取读者详情
 router.get('/:id', authenticate, async (req, res) => {
   try {
@@ -183,6 +359,83 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/readers/{id}:
+ *   put:
+ *     summary: 更新读者信息
+ *     description: 根据读者ID更新读者信息，需要管理员权限
+ *     tags: [Readers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 读者ID
+ *         example: 1001
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateReaderRequest'
+ *           examples:
+ *             updateExample:
+ *               summary: 更新读者信息
+ *               value:
+ *                 _account: "student001"
+ *                 _name: "张三（已更新）"
+ *                 _email: "zhangsan_updated@example.com"
+ *     responses:
+ *       200:
+ *         description: 读者信息更新成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/UpdateReaderSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *               accountExists:
+ *                 $ref: '#/components/examples/AccountAlreadyExistsError'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       404:
+ *         description: 读者不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               readerNotFound:
+ *                 $ref: '#/components/examples/ReaderNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 更新读者信息
 router.put('/:id', authenticate, async (req, res) => {
   try {
@@ -264,6 +517,68 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/readers/{id}:
+ *   delete:
+ *     summary: 删除读者
+ *     description: 根据读者ID删除读者，需要管理员权限。如果读者有未归还的图书，则无法删除。
+ *     tags: [Readers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 读者ID
+ *         example: 1001
+ *     responses:
+ *       200:
+ *         description: 读者删除成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/DeleteReaderSuccess'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       404:
+ *         description: 读者不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               readerNotFound:
+ *                 $ref: '#/components/examples/ReaderNotFoundError'
+ *       400:
+ *         description: 读者有未归还的图书
+ *         content:
+ *           application/json:
+ *             examples:
+ *               readerHasActiveBorrows:
+ *                 $ref: '#/components/examples/ReaderHasActiveBorrowsError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 删除读者
 router.delete('/:id', authenticate, async (req, res) => {
   try {
@@ -331,6 +646,61 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/readers/{id}/borrow-count:
+ *   get:
+ *     summary: 查询读者借阅数量
+ *     description: 查询指定读者的当前借阅数量
+ *     tags: [Readers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 读者ID
+ *         example: 1001
+ *     responses:
+ *       200:
+ *         description: 查询成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ReaderBorrowCountResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/ReaderBorrowCountSuccess'
+ *       404:
+ *         description: 读者不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               readerNotFound:
+ *                 $ref: '#/components/examples/ReaderNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 查询读者借阅数量
 router.get('/:id/borrow-count', authenticate, async (req, res) => {
   try {
@@ -376,6 +746,45 @@ router.get('/:id/borrow-count', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/readers/rank:
+ *   get:
+ *     summary: 读者借阅排名
+ *     description: 获取借阅数量最多的前10名读者
+ *     tags: [Readers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取读者排名成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ReaderRankResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/ReaderRankSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 读者借阅排名
 router.get('/rank', authenticate, async (req, res) => {
   try {

@@ -7,6 +7,75 @@ const svgCaptcha = require('svg-captcha');
 // 存储验证码的临时存储（生产环境建议使用Redis）
 const captchaStore = new Map();
 
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: 用户登录
+ *     description: 用户登录系统，获取访问令牌
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *           examples:
+ *             adminExample:
+ *               summary: 管理员登录
+ *               value:
+ *                 account: "admin_t"
+ *                 password: "admin123"
+ *                 usertype: "admin_t"
+ *             studentExample:
+ *               summary: 学生登录
+ *               value:
+ *                 account: "student001"
+ *                 password: "Student123!"
+ *                 usertype: "student"
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         token:
+ *                           type: string
+ *                         usertype:
+ *                           type: string
+ *                         userInfo:
+ *                           $ref: '#/components/schemas/User'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/LoginSuccess'
+ *       400:
+ *         description: 请求参数错误或用户不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *               userNotFound:
+ *                 $ref: '#/components/examples/UserNotFoundError'
+ *               passwordError:
+ *                 $ref: '#/components/examples/PasswordError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
+
 // 用户登录
 router.post('/login', async (req, res) => {
   try {
@@ -81,6 +150,64 @@ router.post('/login', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: 用户注册
+ *     description: 注册新用户账号
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RegisterRequest'
+ *           examples:
+ *             studentExample:
+ *               summary: 学生注册
+ *               value:
+ *                 account: "student001"
+ *                 name: "张三"
+ *                 email: "zhangsan@example.com"
+ *                 usertype: "student"
+ *                 password: "Student123!"
+ *             teacherExample:
+ *               summary: 教师注册
+ *               value:
+ *                 account: "teacher001"
+ *                 name: "李老师"
+ *                 email: "lilaoshi@example.com"
+ *                 usertype: "teacher"
+ *                 password: "Teacher123!"
+ *     responses:
+ *       200:
+ *         description: 注册成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/RegisterSuccess'
+ *       400:
+ *         description: 请求参数错误或用户已存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *               userExists:
+ *                 $ref: '#/components/examples/UserExistsError'
+ *               passwordSimple:
+ *                 $ref: '#/components/examples/PasswordSimpleError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
 // 用户注册
 router.post('/register', async (req, res) => {
   try {
@@ -150,6 +277,97 @@ router.post('/register', async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /api/auth/password:
+ *   put:
+ *     summary: 重置密码
+ *     description: 通过验证码重置用户密码
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - _uid
+ *               - _password
+ *               - _captcha
+ *             properties:
+ *               _uid:
+ *                 type: integer
+ *                 description: 用户ID
+ *                 example: 1
+ *               _password:
+ *                 type: string
+ *                 description: 新密码
+ *                 example: "NewPassword123!"
+ *               _captcha:
+ *                 type: string
+ *                 description: 验证码
+ *                 example: "ABCD"
+ *               _usertype:
+ *                 type: string
+ *                 description: 用户类型（可选）
+ *                 example: "student"
+ *           examples:
+ *             resetExample:
+ *               summary: 重置密码请求
+ *               value:
+ *                 _uid: 1
+ *                 _password: "NewPassword123!"
+ *                 _captcha: "ABCD"
+ *                 _usertype: "student"
+ *     responses:
+ *       200:
+ *         description: 密码重置成功
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "重置密码成功"
+ *               data:
+ *                 _uid: 1
+ *                 _utype: "student"
+ *                 _account: "student001"
+ *                 _name: "张三"
+ *                 _email: "zhangsan@example.com"
+ *       400:
+ *         description: 请求参数错误或验证码错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 summary: 缺少必填字段
+ *                 value:
+ *                   success: false
+ *                   errorCode: "MISSING_FIELDS"
+ *                   message: "请提供用户ID、新密码和验证码"
+ *               captchaError:
+ *                 summary: 验证码错误
+ *                 value:
+ *                   success: false
+ *                   errorCode: "CAPTCHA_INCORRECT"
+ *                   message: "验证码错误"
+ *               passwordSimple:
+ *                 $ref: '#/components/examples/PasswordSimpleError'
+ *               userNotFound:
+ *                 summary: 用户不存在
+ *                 value:
+ *                   success: false
+ *                   errorCode: "USER_NOT_EXIST"
+ *                   message: "用户不存在"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
 
 // 重置密码
 router.put('/password', async (req, res) => {
@@ -231,6 +449,61 @@ router.put('/password', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/captcha:
+ *   get:
+ *     summary: 获取验证码
+ *     description: 获取图形验证码，返回包含SVG数据的JSON响应
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 验证码生成成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: string
+ *                       description: SVG格式的验证码图像数据
+ *             examples:
+ *               success:
+ *                 summary: 验证码生成成功
+ *                 value:
+ *                   success: true
+ *                   message: "验证码生成成功"
+ *                   data: "<svg width='150' height='50' viewBox='0 0 150 50' xmlns='http://www.w3.org/2000/svg'><!-- SVG内容 --></svg>"
+ *       400:
+ *         description: 缺少用户ID参数
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingUserId:
+ *                 summary: 缺少用户ID
+ *                 value:
+ *                   success: false
+ *                   errorCode: "MISSING_USER_ID"
+ *                   message: "请提供用户ID"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
 // 获取验证码
 router.get('/captcha', async (req, res) => {
   try {
@@ -275,6 +548,93 @@ router.get('/captcha', async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /api/auth/current-user:
+ *   get:
+ *     summary: 获取当前用户信息
+ *     description: 通过JWT令牌获取当前登录用户信息
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取用户信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *             examples:
+ *               adminUser:
+ *                 summary: 管理员用户信息
+ *                 value:
+ *                   success: true
+ *                   message: "获取用户信息成功"
+ *                   data:
+ *                     _uid: 1
+ *                     _utype: "admin_t"
+ *                     _account: "admin_t"
+ *                     _name: "系统管理员"
+ *                     _email: "admin@library.com"
+ *                     _max_num: 50
+ *                     lend_num: 0
+ *                     _access: 1
+ *                     _create_time: "2024-01-01T00:00:00.000Z"
+ *               studentUser:
+ *                 summary: 学生用户信息
+ *                 value:
+ *                   success: true
+ *                   message: "获取用户信息成功"
+ *                   data:
+ *                     _uid: 1001
+ *                     _utype: "student"
+ *                     _account: "student001"
+ *                     _name: "张三"
+ *                     _email: "zhangsan@example.com"
+ *                     _max_num: 10
+ *                     lend_num: 2
+ *                     _access: 1
+ *                     _create_time: "2024-01-15T10:30:00.000Z"
+ *       401:
+ *         description: 未授权或Token无效
+ *         content:
+ *           application/json:
+ *             examples:
+ *               notLoggedIn:
+ *                 summary: 用户未登录
+ *                 value:
+ *                   success: false
+ *                   errorCode: "NOT_LOGGED_IN"
+ *                   message: "用户未登录"
+ *               invalidToken:
+ *                 summary: Token无效
+ *                 value:
+ *                   success: false
+ *                   errorCode: "INVALID_TOKEN"
+ *                   message: "Token无效"
+ *       404:
+ *         description: 用户不存在
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               errorCode: "USER_NOT_FOUND"
+ *               message: "用户不存在"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ *             
+ */
 
 // 获取当前用户信息
 router.get('/current-user', async (req, res) => {

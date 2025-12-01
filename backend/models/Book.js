@@ -1,6 +1,27 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
+/**
+ * 图书数据模型
+ * @typedef {Object} BookAttributes
+ * @property {number} _bid - 图书ID
+ * @property {string} _book_name - 图书名称
+ * @property {string} _isbn - ISBN号
+ * @property {number} _num - 库存数量
+ * @property {string} _author - 作者
+ * @property {string} _press - 出版社
+ * @property {string} _cover_url - 封面图片URL
+ * @property {number} _tid - 分类ID
+ * @property {number} _times - 借阅次数
+ * @property {Date} _create_time - 创建时间
+ */
+
+/**
+ * 图书模型定义
+ * @class Book
+ * @extends Model
+ */
+
 const Book = sequelize.define('Book', {
   _bid: {
     type: DataTypes.INTEGER,
@@ -59,12 +80,23 @@ const Book = sequelize.define('Book', {
   timestamps: false
 });
 
+/**
+ * 模型关联方法
+ * @param {Object} models - 所有模型对象
+ */
+
 // 添加关联方法
 Book.associate = function(models) {
+   /**
+   * 图书属于一个分类
+   */
   Book.belongsTo(models.Category, {
     foreignKey: '_tid',
     as: 'category'
   });
+  /**
+   * 一本书可以有多个借阅记录
+   */
   Book.hasMany(models.BorrowRecord, {
     foreignKey: '_bid',
     as: 'borrowRecords'
