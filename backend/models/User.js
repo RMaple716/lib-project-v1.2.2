@@ -2,6 +2,21 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
+/**
+ * 用户数据模型
+ * @typedef {Object} UserAttributes
+ * @property {number} _uid - 用户ID
+ * @property {string} _utype - 用户类型
+ * @property {string} _account - 账号
+ * @property {string} _name - 姓名
+ * @property {string} _password - 密码哈希
+ * @property {string} _email - 邮箱
+ * @property {number} _max_num - 最大借书数量
+ * @property {number} lend_num - 当前借书数量
+ * @property {number} _access - 访问权限
+ * @property {Date} _create_time - 创建时间
+ */
+
 const User = sequelize.define('User', {
   _uid: {
     type: DataTypes.INTEGER,
@@ -67,6 +82,13 @@ const User = sequelize.define('User', {
     }
   }
 });
+
+/**
+ * 验证密码
+ * @param {string} password - 明文密码
+ * @returns {Promise<boolean>} 密码是否匹配
+ */
+
 
 // 实例方法：验证密码
 User.prototype.validatePassword = async function(password) {

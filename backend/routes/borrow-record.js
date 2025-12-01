@@ -3,6 +3,59 @@ const router = express.Router();
 const { BorrowRecord, Book, User } = require('../models');
 const { authenticate } = require('../middleware/auth');
 
+/**
+ * @swagger
+ * tags:
+ *   name: BorrowRecords
+ *   description: 借阅记录管理
+ */
+
+/**
+ * @swagger
+ * /api/borrow-records:
+ *   get:
+ *     summary: 获取借阅记录列表（管理员）
+ *     description: 获取所有借阅记录，包含用户和图书信息，需要管理员权限
+ *     tags: [BorrowRecords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取借阅记录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/BorrowRecordListResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BorrowRecordListSuccess'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 获取借阅记录列表（管理员）
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -40,6 +93,45 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/borrow-records/my:
+ *   get:
+ *     summary: 获取我的借阅记录
+ *     description: 获取当前登录用户的借阅记录，包含图书详细信息
+ *     tags: [BorrowRecords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取借阅记录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/MyBorrowRecordListResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/MyBorrowRecordListSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 获取我的借阅记录
 router.get('/my', authenticate, async (req, res) => {
   try {

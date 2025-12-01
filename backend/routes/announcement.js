@@ -6,39 +6,52 @@ const { authenticate } = require('../middleware/auth');
 
 
 
+/**
+ * @swagger
+ * tags:
+ *   name: Announcements
+ *   description: 公告管理
+ */
 
-// 获取最新公告
-/*router.get('/latest', authenticate, async (req, res) => {
-  try {
-    const latestAnnouncement = await Announcement.findOne({
-      order: [['_date', 'DESC']]
-    });
-
-    if (!latestAnnouncement) {
-      return res.status(404).json({
-        success: false,
-        errorCode: 'NO_ANNOUNCEMENTS',
-        message: '暂无公告'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: '成功获取最新公告',
-      data: {
-        res_find: latestAnnouncement
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      success: false,
-      errorCode: 'SERVER_ERROR',
-      message: '服务器内部错误'
-    });
-  }
-});*/
-
+/**
+ * @swagger
+ * /api/announcements:
+ *   get:
+ *     summary: 获取公告列表
+ *     description: 获取公告列表，按发布日期倒序排列
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取公告列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/AnnouncementListResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/AnnouncementListSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 
 // 获取公告列表
 router.get('/', authenticate, async (req, res) => {
@@ -65,6 +78,64 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/announcements:
+ *   post:
+ *     summary: 新增公告
+ *     description: 创建新公告，需要认证
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateAnnouncementRequest'
+ *           examples:
+ *             normalAnnouncement:
+ *               summary: 普通公告
+ *               value:
+ *                 _title: "系统维护通知"
+ *                 _content: "系统将于本周六进行维护"
+ *                 _status: 1
+ *             importantAnnouncement:
+ *               summary: 重要公告
+ *               value:
+ *                 _title: "重要通知"
+ *                 _content: "请各位用户注意系统使用规范"
+ *                 _status: 1
+ *     responses:
+ *       200:
+ *         description: 添加公告成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/CreateAnnouncementSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 新增公告
 router.post('/', authenticate, async (req, res) => {
   try {
@@ -94,6 +165,54 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/announcements/{id}:
+ *   get:
+ *     summary: 获取公告详情
+ *     description: 根据公告ID获取公告的详细信息
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 公告ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 成功获取公告详情
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/AnnouncementDetailSuccess'
+ *       404:
+ *         description: 公告不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               announcementNotFound:
+ *                 $ref: '#/components/examples/AnnouncementNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 获取公告详情
 router.get('/:id', authenticate, async (req, res) => {
   try {
@@ -123,6 +242,67 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/announcements/{id}:
+ *   put:
+ *     summary: 更新公告
+ *     description: 根据公告ID更新公告信息
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 公告ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateAnnouncementRequest'
+ *           examples:
+ *             updateExample:
+ *               summary: 更新公告信息
+ *               value:
+ *                 _title: "更新后的公告标题"
+ *                 _content: "更新后的公告内容"
+ *                 _status: 1
+ *     responses:
+ *       200:
+ *         description: 公告更新成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/UpdateAnnouncementSuccess'
+ *       404:
+ *         description: 公告不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               announcementNotFound:
+ *                 $ref: '#/components/examples/AnnouncementNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 更新公告
 router.put('/:id', authenticate, async (req, res) => {
   try {
@@ -159,6 +339,54 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/announcements/{id}:
+ *   delete:
+ *     summary: 删除公告
+ *     description: 根据公告ID删除公告
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 公告ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 公告删除成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/DeleteAnnouncementSuccess'
+ *       404:
+ *         description: 公告不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               announcementNotFound:
+ *                 $ref: '#/components/examples/AnnouncementNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
 // 删除公告
 router.delete('/:id', authenticate, async (req, res) => {
   try {
@@ -189,7 +417,5 @@ router.delete('/:id', authenticate, async (req, res) => {
     });
   }
 });
-
-
 
 module.exports = router;

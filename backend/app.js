@@ -1,10 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-
+const swaggerUi = require('swagger-ui-express');
 const { testConnection } = require('./config/database');
 const { syncDatabase } = require('./models');
-
+const swaggerSpecs = require('./config/swagger'); // 新增
 // 路由导入
 const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
@@ -22,6 +22,13 @@ app.use(cors({
   origin: 'http://localhost:8081', // 允许的前端源
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // 允许的 HTTP 方法
   allowedHeaders: ['Content-Type', 'Authorization'] // 允许的请求头
+}));
+
+// Swagger API文档 - 新增
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: '图书管理系统 API文档'
 }));
 
 app.use(express.json());
@@ -53,71 +60,17 @@ app.get('/health', async (req, res) => {
     environment: process.env.NODE_ENV
   });
 });
-
-// API文档端点
+// 在app.js中添加验证路由
+app.get('/api-docs-json', (req, res) => {
+  res.json(swaggerSpecs);
+});
+// API文档端点 - 简化，因为现在有Swagger UI了
 app.get('/', (req, res) => {
   res.json({
     message: '图书管理系统 API',
     version: '1.0.0',
-    endpoints: {
-      auth: {
-        login: 'POST /api/auth/login',
-        register: 'POST /api/auth/register',
-        resetPassword: 'PUT /api/auth/password',
-        captcha: 'GET /api/auth/captcha',
-        currentUser: 'GET /api/auth/current-user'
-      },
-      books: {
-        list: 'GET /api/books',
-        create: 'POST /api/books',
-        detail: 'GET /api/books/:id',
-        update: 'PUT /api/books/:id',
-        delete: 'DELETE /api/books/:id',
-        borrow: 'POST /api/books/:id/borrow',
-        return: 'PUT /api/books/:id/return',
-        renew: 'PUT /api/books/:id/renew',
-        rank: 'GET /api/books/rank'
-      },
-      readers: {
-        list: 'GET /api/readers',
-        create: 'POST /api/readers',
-        detail: 'GET /api/readers/:id',
-        update: 'PUT /api/readers/:id',
-        delete: 'DELETE /api/readers/:id',
-        borrowCount: 'GET /api/readers/:id/borrow-count',
-        rank: 'GET /api/readers/rank'
-      },
-      announcements: {
-        list: 'GET /api/announcements',
-        create: 'POST /api/announcements',
-        detail: 'GET /api/announcements/:id',
-        update: 'PUT /api/announcements/:id',
-        delete: 'DELETE /api/announcements/:id',
-        latest: 'GET /api/announcements/latest'
-      },
-      categories: {
-        list: 'GET /api/categories',
-        create: 'POST /api/categories',
-        detail: 'GET /api/categories/:id',
-        update: 'PUT /api/categories/:id',
-        delete: 'DELETE /api/categories/:id'
-      },
-      borrowRecords: {
-        list: 'GET /api/borrow-records',
-        myRecords: 'GET /api/borrow-records/my'
-      }
-    },
-    examples: {
-      login: {
-        method: 'POST',
-        url: '/api/auth/login',
-        body: {
-          account: 'admin_t',
-          password: 'admin123',
-          usertype: 'admin_t'
-        }
-      }
-    }
+    documentation: '请访问 /api-docs 查看完整的API文档',
+    health_check: '/health'
   });
 });
 
@@ -156,7 +109,7 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log('\n 服务器启动成功!');
       console.log(` 本地访问: http://localhost:${PORT}`);
-      console.log(` API文档: http://localhost:${PORT}/`);
+      console.log(` API文档: http://localhost:${PORT}/api-docs`); // 更新为正确的文档地址
       console.log(` 健康检查: http://localhost:${PORT}/health`);
       console.log('\n 默认管理员账户:');
       console.log('   账号: admin_t');
