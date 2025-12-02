@@ -1,8 +1,54 @@
+const { parseFile, validateBooks, generateCSVTemplate, cleanupTempFile } = require('../utils/fileParser');
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { Op } = require('sequelize');
+const { Sequelize } = require('sequelize');
 const router = express.Router();
-const { Book, BorrowRecord, User, Category } = require('../models');
+const { Book, BorrowRecord, User, Category, sequelize } = require('../models');
 const { authenticate } = require('../middleware/auth');
+
+// 配置multer（在路由定义之前添加）
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../uploads/temp');
+    // 确保上传目录存在
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniqueSuffix + ext);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // 允许的文件类型
+  const allowedTypes = [
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('只支持CSV和Excel文件'), false);
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
 
 /**
  * @swagger
@@ -10,6 +56,354 @@ const { authenticate } = require('../middleware/auth');
  *   name: Books
  *   description: 图书管理
  */
+
+/**
+ * @swagger
+ * /api/books/bulk-upload:
+ *   post:
+ *     summary: 批量上传图书
+ *     description: |
+ *       通过CSV或Excel文件批量上传图书，需要管理员权限。
+ *       
+ *       **支持的文件格式：**
+ *       - CSV文件 (.csv)
+ *       - Excel文件 (.xlsx, .xls)
+ *       
+ *       **文件大小限制：** 10MB
+ *       
+ *       **模板格式：**
+ *       ```
+ *       图书名称,ISBN,库存数量,作者,出版社,分类ID,封面URL
+ *       JavaScript高级程序设计,9787115275790,10,Nicholas C. Zakas,人民邮电出版社,1,https://example.com/cover.jpg
+ *       ```
+ *       
+ *       **数据验证规则：**
+ *       - 图书名称、ISBN、作者、出版社为必填字段
+ *       - 库存数量必须为非负整数
+ *       - 分类ID必须为有效正整数
+ *       - ISBN不能重复
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             $ref: '#/components/schemas/BulkUploadTemplateRequest'
+ *           examples:
+ *             csvExample:
+ *               summary: CSV文件示例
+ *               description: 包含正确格式的CSV文件
+ *               value:
+ *                 file: "@/uploads/test.csv"
+ *             excelExample:
+ *               summary: Excel文件示例
+ *               description: 包含正确格式的Excel文件
+ *               value:
+ *                 file: "@/uploads/test.xlsx"
+ *     responses:
+ *       200:
+ *         description: 批量上传成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/BulkUploadResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BulkUploadSuccess'
+ *               partialSuccess:
+ *                 $ref: '#/components/examples/BulkUploadPartialSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFile:
+ *                 $ref: '#/components/examples/MissingFileError'
+ *               invalidFileType:
+ *                 $ref: '#/components/examples/InvalidFileTypeError'
+ *               validationFailed:
+ *                 $ref: '#/components/examples/BulkUploadValidationFailed'
+ *               emptyFile:
+ *                 $ref: '#/components/examples/BulkUploadEmptyFile'
+ *               duplicateISBN:
+ *                 $ref: '#/components/examples/BulkUploadDuplicateISBN'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       413:
+ *         description: 文件大小超过限制
+ *         content:
+ *           application/json:
+ *             examples:
+ *               fileTooLarge:
+ *                 $ref: '#/components/examples/FileTooLargeError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               fileParseError:
+ *                 $ref: '#/components/examples/FileParseError'
+ *               databaseError:
+ *                 $ref: '#/components/examples/BulkUploadDatabaseError'
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
+
+// 批量上传图书 - 添加在现有路由之后
+router.post('/bulk-upload', authenticate, upload.single('file'), async (req, res) => {
+  console.log('开始处理批量上传');
+  try {
+    // 检查用户权限
+    if (!req.user._utype.includes('admin')) {
+      console.log('没有权限批量上传图书', req.user._utype);
+      return res.status(403).json({
+        success: false,
+        errorCode: 'PERMISSION_DENIED',
+        message: '没有权限执行此操作'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_FILE',
+        message: '请选择上传文件'
+      });
+    }
+
+        // 解析文件
+    const fileExt = path.extname(req.file.originalname).toLowerCase().substring(1);
+    console.log('解析文件:', req.file.path);
+    const booksData = await parseFile(req.file.path, fileExt);
+    console.log('解析后的数据:', booksData);
+
+    // 验证数据
+    console.log('开始验证图书数据');
+    const validationResult = await validateBooks(booksData,sequelize);
+    console.log('验证结果:', validationResult);
+    console.log("验证属实吗？",validationResult.valid);
+    if (!validationResult.valid) {
+      console.log('数据验证失败:', validationResult.errors);
+      cleanupTempFile(req.file.path);
+      return res.status(400).json({
+        success: false,
+        errorCode: 'DATA_VALIDATION_FAILED',
+        message: '数据验证失败',
+        errors: validationResult.errors,
+        validCount: validationResult.validCount,
+        invalidCount: validationResult.invalidCount
+      });
+    }
+    
+    // 批量插入（保留原来的bulkInsertBooks函数）
+    console.log('开始批量插入图书');
+    const insertResult = await bulkInsertBooks(validationResult.validBooks);
+    console.log('插入结果:', insertResult);
+
+    cleanupTempFile(req.file.path);
+    
+    res.json({
+      success: true,
+      message: '批量上传完成',
+      data: {
+        total: booksData.length,
+        inserted: insertResult.insertedCount,
+        updated: insertResult.updatedCount,
+        skipped: insertResult.skippedCount,
+        errors: insertResult.errors,
+        newCategories: insertResult.newCategories || []
+      }
+    });
+  } catch (error) {
+    console.error('批量上传错误:', error);
+    
+    // 确保删除上传的文件
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/books/bulk-upload/template:
+ *   get:
+ *     summary: 下载批量上传模板
+ *     description: 下载CSV格式的图书批量上传模板文件，包含标准字段格式和示例数据
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: CSV模板文件
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *               example: |
+ *                 图书名称,ISBN,库存数量,作者,出版社,分类ID,封面URL
+ *                 JavaScript高级程序设计,9787115275790,10,Nicholas C. Zakas,人民邮电出版社,1,https://example.com/cover.jpg
+ *             examples:
+ *               template:
+ *                 $ref: '#/components/examples/TemplateDownloadSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
+
+// 下载模板 - 添加在现有路由之后
+router.get('/bulk-upload/template', authenticate, async (req, res) => {
+  try {
+    // 检查用户权限
+    if (!req.user._utype.includes('admin')) {
+      return res.status(403).json({
+        success: false,
+        errorCode: 'PERMISSION_DENIED',
+        message: '没有权限执行此操作'
+      });
+    }
+
+    const templateContent = generateCSVTemplate();
+    const fileName = '图书批量上传模板.csv';
+    const encodedFileName = encodeURIComponent(fileName);
+
+    // 设置响应头
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    // 使用 RFC 5987 标准格式编码文件名
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFileName}`);
+    
+    // 添加BOM以支持Excel正确打开CSV文件
+    const BOM = '\uFEFF';
+    res.send(BOM + templateContent);
+  } catch (error) {
+    console.error('下载模板错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+
+// 批量插入图书的辅助函数
+// 在 bulkInsertBooks 函数中添加更多日志
+async function bulkInsertBooks(booksData) {
+  console.log('开始批量插入图书，输入数据:', booksData);
+  
+  try {
+    const transaction = await sequelize.transaction();
+    let results = [];
+    let errors = [];
+
+    for (const bookData of booksData) {
+      try {
+        console.log('\n处理图书数据:', bookData);
+        
+        // 检查图书是否已存在
+        const existingBook = await Book.findOne({
+          where: { _isbn: bookData._isbn },
+          transaction
+        });
+        
+        console.log('查找现有图书结果:', existingBook);
+        
+        if (existingBook) {
+          console.log('更新已存在的图书:', existingBook._book_name);
+          const updatedBook = await existingBook.update(bookData, { transaction });
+          results.push({
+            ...updatedBook.toJSON(),
+            action: 'updated'
+          });
+        } else {
+          console.log('创建新图书:', bookData._book_name);
+          const newBook = await Book.create(bookData, { transaction });
+          results.push({
+            ...newBook.toJSON(),
+            action: 'inserted'
+          });
+        }
+      } catch (error) {
+        console.error('处理图书失败:', error);
+        errors.push({
+          isbn: bookData._isbn,
+          title: bookData._book_name,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log('\n准备提交事务，处理结果:', results);
+    await transaction.commit();
+    
+    const result = {
+      success: errors.length === 0,
+      message: errors.length === 0 ? "批量上传成功" : "批量上传完成，但部分记录处理失败",
+      data: {
+        total: booksData.length,
+        inserted: results.filter(r => r.action === 'inserted').length,
+        updated: results.filter(r => r.action === 'updated').length,
+        skipped: booksData.length - results.length,
+        processed: results.length,
+        errors: errors,
+        results: results.map(r => ({
+          _bid: r._bid,
+          _book_name: r._book_name,
+          _isbn: r._isbn,
+          action: r.action
+        }))
+      }
+    };
+    
+    console.log('\n批量插入最终结果:', result);
+    return result;
+  } catch (error) {
+    console.error('批量插入失败:', error);
+    throw error;
+  }
+}
+
+
+
 
 /**
  * @swagger

@@ -721,6 +721,126 @@ const options = {
               }
             }
           }
+        },
+        // 批量上传相关模型（添加到现有 schemas 对象中）
+        BulkUploadResponse: {
+          type: "object",
+          properties: {
+            total: {
+              type: "integer",
+              description: "总记录数",
+              example: 5
+            },
+            inserted: {
+              type: "integer",
+              description: "成功插入记录数",
+              example: 4
+            },
+            updated: {
+              type: "integer",
+              description: "成功更新记录数",
+              example: 0
+            },
+            skipped: {
+              type: "integer",
+              description: "跳过记录数",
+              example: 1
+            },
+            errors: {
+              type: "array",
+              description: "错误详情",
+              items: {
+                type: "object",
+                properties: {
+                  index: {
+                    type: "integer",
+                    description: "记录索引",
+                    example: 3
+                  },
+                  isbn: {
+                    type: "string",
+                    description: "ISBN号",
+                    example: "9787301234567"
+                  },
+                  title: {
+                    type: "string",
+                    description: "图书名称",
+                    example: "测试图书"
+                  },
+                  error: {
+                    type: "string",
+                    description: "错误信息",
+                    example: "ISBN已存在"
+                  }
+                }
+              }
+            }
+          }
+        },
+        BulkUploadErrorDetail: {
+          type: "object",
+          properties: {
+            line: {
+              type: "integer",
+              description: "文件行号",
+              example: 1
+            },
+            isbn: {
+              type: "string",
+              description: "ISBN号",
+              example: "9787301234567"
+            },
+            title: {
+              type: "string",
+              description: "图书名称",
+              example: "测试图书"
+            },
+            errors: {
+              type: "array",
+              items: {
+                type: "string"
+              },
+              description: "错误列表",
+              example: ["图书名称不能为空", "库存数量必须是非负整数"]
+            }
+          }
+        },
+        BulkUploadValidationResponse: {
+          type: "object",
+          properties: {
+            success: {
+              type: "boolean",
+              description: "验证是否成功"
+            },
+            total: {
+              type: "integer",
+              description: "总记录数"
+            },
+            valid: {
+              type: "integer",
+              description: "有效记录数"
+            },
+            invalid: {
+              type: "integer",
+              description: "无效记录数"
+            },
+            errors: {
+              type: "array",
+              items: {
+                $ref: "#/components/schemas/BulkUploadErrorDetail"
+              }
+            }
+          }
+        },
+        BulkUploadTemplateRequest: {
+          type: "object",
+          properties: {
+            file: {
+              type: "string",
+              format: "binary",
+              description: "CSV或Excel文件"
+            }
+          }
         }
       }, 
       examples: {
@@ -1548,7 +1668,167 @@ const options = {
             errorCode: "MISSING_USER_ID",
             message: "请提供用户ID"
           }
+        },
+        // 批量上传相关示例
+        BulkUploadSuccess: {
+          summary: "批量上传成功",
+          value: {
+            success: true,
+            message: "批量上传完成",
+            data: {
+              total: 5,
+              inserted: 4,
+              updated: 0,
+              skipped: 1,
+              errors: [
+                {
+                  index: 3,
+                  isbn: "9787301234567",
+                  title: "测试图书",
+                  error: "ISBN已存在，跳过此记录"
+                }
+              ]
+            }
+          }
+        },
+        BulkUploadValidationSuccess: {
+          summary: "文件验证成功",
+          value: {
+            success: true,
+            message: "文件验证通过",
+            data: {
+              total: 10,
+              valid: 10,
+              invalid: 0,
+              errors: []
+            }
+          }
+        },
+        BulkUploadValidationFailed: {
+          summary: "文件验证失败",
+          value: {
+            success: false,
+            errorCode: "DATA_VALIDATION_FAILED",
+            message: "数据验证失败",
+            errors: [
+              {
+                line: 1,
+                isbn: "9787301111111",
+                title: "",
+                errors: ["图书名称不能为空", "作者不能为空"]
+              },
+              {
+                line: 3,
+                isbn: "9787301111113",
+                title: "测试图书3",
+                errors: ["库存数量必须是非负整数"]
+              }
+            ],
+            validCount: 8,
+            invalidCount: 2
+          }
+        },
+        MissingFileError: {
+          summary: "缺少上传文件",
+          value: {
+            success: false,
+            errorCode: "MISSING_FILE",
+    message: "请选择上传文件"
+  }
+},
+InvalidFileTypeError: {
+  summary: "无效的文件类型",
+  value: {
+    success: false,
+    errorCode: "INVALID_FILE_TYPE",
+    message: "只支持CSV和Excel文件"
+  }
+},
+FileParseError: {
+  summary: "文件解析失败",
+  value: {
+    success: false,
+    errorCode: "FILE_PARSE_ERROR",
+    message: "文件解析失败",
+    details: "Excel文件格式不正确"
+  }
+},
+TemplateDownloadSuccess: {
+  summary: "模板下载成功",
+  value: "图书名称,ISBN,库存数量,作者,出版社,分类ID,封面URL\nJavaScript高级程序设计,9787115275790,10,Nicholas C. Zakas,人民邮电出版社,1,"
+},
+FileTooLargeError: {
+  summary: "文件大小超过限制",
+  value: {
+    success: false,
+    errorCode: "FILE_TOO_LARGE",
+    message: "文件大小不能超过10MB"
+  }
+},
+BulkUploadPartialSuccess: {
+  summary: "部分成功",
+  value: {
+    success: true,
+    message: "批量上传完成，部分记录处理失败",
+    data: {
+      total: 100,
+      inserted: 85,
+      updated: 5,
+      skipped: 10,
+      errors: [
+        {
+          index: 12,
+          isbn: "9787301234567",
+          title: "重复图书1",
+          error: "ISBN已存在"
+        },
+        {
+          index: 45,
+          isbn: "9787301234578",
+          title: "数据错误图书",
+          error: "数据库插入失败: 字段长度超限"
+        },
+        {
+          index: 78,
+          isbn: "9787301234590",
+          title: "测试图书78",
+          error: "分类ID不存在"
         }
+      ]
+    }
+  }
+},
+BulkUploadDatabaseError: {
+  summary: "数据库错误",
+  value: {
+    success: false,
+    errorCode: "DATABASE_ERROR",
+    message: "数据库操作失败",
+    details: "数据库连接超时，请稍后重试"
+  }
+},
+BulkUploadEmptyFile: {
+  summary: "空文件",
+  value: {
+    success: false,
+    errorCode: "EMPTY_FILE",
+    message: "上传的文件为空"
+  }
+},
+BulkUploadDuplicateISBN: {
+  summary: "文件内重复ISBN",
+  value: {
+    success: false,
+    errorCode: "DUPLICATE_ISBN_IN_FILE",
+    message: "文件中存在重复的ISBN",
+    duplicates: [
+      {
+        isbn: "9787301234567",
+        lines: [3, 15, 22]
+      }
+    ]
+  }
+}
       }
     },
     security: [

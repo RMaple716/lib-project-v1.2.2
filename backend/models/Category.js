@@ -23,11 +23,18 @@ const Category = sequelize.define('Category', {
   _type_name: {
     type: DataTypes.STRING(100),
     allowNull: false,
+    unique: true,
     field: '_type_name'
   }
 }, {
   tableName: 't_type',
-  timestamps: false
+  timestamps: false,
+  indexes: [
+    {
+      unique: true,
+      fields: ['_type_name']
+    }
+  ]
 });
 /**
  * 模型关联方法

@@ -2,29 +2,46 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const swaggerUi = require('swagger-ui-express');
+const winston = require('winston');
 const { testConnection } = require('./config/database');
 const { syncDatabase } = require('./models');
-const swaggerSpecs = require('./config/swagger'); // 新增
+const swaggerSpecs = require('./config/swagger');
+
 // 路由导入
 const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
 const readerRoutes = require('./routes/readers');
-// 新增路由导入
 const announcementRoutes = require('./routes/announcement');
 const categoryRoutes = require('./routes/category');
 const borrowRecordRoutes = require('./routes/borrow-record');
 
+// 创建统一的日志记录器
+const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.Console()
+  ]
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.options('*', cors());
+
 // 中间件
 app.use(cors({
-  origin: 'http://localhost:8081', // 允许的前端源
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // 允许的 HTTP 方法
-  allowedHeaders: ['Content-Type', 'Authorization'] // 允许的请求头
+  origin: ['http://localhost:8081', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Swagger API文档 - 新增
+// Swagger API文档
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   explorer: true,
   customCss: '.swagger-ui .topbar { display: none }',
@@ -36,7 +53,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // 请求日志中间件
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  logger.info(`${req.method} ${req.path}`);
   next();
 });
 
@@ -51,7 +68,6 @@ app.use('/api/borrow-records', borrowRecordRoutes);
 // 健康检查端点
 app.get('/health', async (req, res) => {
   const dbStatus = await testConnection();
-  
   res.json({
     success: true,
     message: '服务运行正常',
@@ -60,11 +76,12 @@ app.get('/health', async (req, res) => {
     environment: process.env.NODE_ENV
   });
 });
-// 在app.js中添加验证路由
+
+// API文档端点
 app.get('/api-docs-json', (req, res) => {
   res.json(swaggerSpecs);
 });
-// API文档端点 - 简化，因为现在有Swagger UI了
+
 app.get('/', (req, res) => {
   res.json({
     message: '图书管理系统 API',
@@ -85,7 +102,7 @@ app.use('*', (req, res) => {
 
 // 错误处理中间件
 app.use((error, req, res, next) => {
-  console.error('未处理的错误:', error);
+  logger.error(`未处理的错误: ${error.message}`);
   res.status(500).json({
     success: false,
     errorCode: 'SERVER_ERROR',
@@ -99,7 +116,7 @@ async function startServer() {
     // 测试数据库连接
     const dbConnected = await testConnection();
     if (!dbConnected) {
-      console.log(' 无法启动服务器：数据库连接失败');
+      logger.error('无法启动服务器：数据库连接失败');
       process.exit(1);
     }
 
@@ -107,35 +124,40 @@ async function startServer() {
     await syncDatabase();
 
     app.listen(PORT, () => {
-      console.log('\n 服务器启动成功!');
-      console.log(` 本地访问: http://localhost:${PORT}`);
-      console.log(` API文档: http://localhost:${PORT}/api-docs`); // 更新为正确的文档地址
-      console.log(` 健康检查: http://localhost:${PORT}/health`);
-      console.log('\n 默认管理员账户:');
-      console.log('   账号: admin_t');
-      console.log('   密码: admin123');
-      console.log('   类型: admin_t');
-      console.log('\n 可用接口:');
-      console.log('   - 认证管理: /api/auth');
-      console.log('   - 图书管理: /api/books');
-      console.log('   - 读者管理: /api/readers');
-      console.log('   - 公告管理: /api/announcements');
-      console.log('   - 分类管理: /api/categories');
-      console.log('   - 借阅记录: /api/borrow-records');
+      logger.info('服务器启动成功', {
+        port: PORT,
+        localUrl: `http://localhost:${PORT}`,
+        apiDocs: `http://localhost:${PORT}/api-docs`,
+        healthCheck: `http://localhost:${PORT}/health`,
+        defaultAdmin: {
+          account: 'admin_t',
+          password: 'admin123',
+          type: 'admin_t'
+        },
+        availableRoutes: {
+          auth: '/api/auth',
+          books: '/api/books',
+          readers: '/api/readers',
+          announcements: '/api/announcements',
+          categories: '/api/categories',
+          borrowRecords: '/api/borrow-records'
+        }
+      });
     });
 
   } catch (error) {
-    console.error(' 启动服务器失败 =< :', error);
+    logger.error(`启动服务器失败: ${error.message}`);
     process.exit(1);
   }
 }
 
 // 优雅关闭
 process.on('SIGINT', async () => {
-  console.log('\n正在关闭服务器...');
+  logger.info('正在关闭服务器...');
   process.exit(0);
 });
 
+// 启动服务器
 startServer();
 
 module.exports = app;
