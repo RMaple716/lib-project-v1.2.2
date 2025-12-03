@@ -1,7 +1,7 @@
 const emailService = require('../utils/email');
 
 emailService.sendEmail(
-  '3653762083@qq.com',
+  process.env.TEST_EMAIL,
   '测试邮件',
   '<h1>这是一封测试邮件</h1><p>邮件内容</p>'
 ).then(result => {
