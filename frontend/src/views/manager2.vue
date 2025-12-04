@@ -1,4 +1,4 @@
-<template>
+<template> 
   <div id="app">
     <div id="viewport">
       <!-- 顶部导航栏 -->
@@ -96,6 +96,12 @@
               <a href="#" @click.prevent="changePage('announcement_admin')">
                 <i class="fas fa-bullhorn"></i>
                 <span>公告管理</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" @click.prevent="changePage('feedback_admin')">
+                <i class="fas fa-comments"></i>
+                <span>意见建议回馈</span>
               </a>
             </li>
             <li class="logout-item">
@@ -336,22 +342,10 @@
                   <h2>{{ isEditUser ? '编辑用户' : '添加用户' }}</h2>
                   <form @submit.prevent="submitUserForm">
                     <label for="account">账号：</label>
-                    <div class="username-input-group">
-                      <input type="text" id="account" v-model="userForm.account" placeholder="系统自动生成" disabled>
-                      <button type="button" class="refresh-username-btn" @click="refreshAccount" v-if="!isEditUser">
-                        <i class="fas fa-redo"></i>
-                      </button>
-                    </div>
-                    <small>注：账号由系统自动生成，用于登录</small>
+                    <input type="text" id="account" v-model="userForm.account" :placeholder="isEditUser ? '请输入账号' : '请输入账号'" required>
 
                     <label for="name">用户名：</label>
-                    <div class="username-input-group">
-                      <input type="text" id="name" v-model="userForm.name" placeholder="系统自动生成" disabled>
-                      <button type="button" class="refresh-username-btn" @click="refreshUsername" v-if="!isEditUser">
-                        <i class="fas fa-redo"></i>
-                      </button>
-                    </div>
-                    <small>注：用户名由系统自动生成，用户可后续自行修改</small>
+                    <input type="text" id="name" v-model="userForm.name" :placeholder="isEditUser ? '请输入用户名' : '请输入用户名'" required>
 
                     <label for="password">密码：</label>
                     <input type="password" id="password" v-model="userForm.password" :placeholder="isEditUser ? '留空则不修改密码' : '请输入密码'" required>
@@ -509,6 +503,7 @@
                   <tr>
                     <th>ID</th>
                     <th>图书名称</th>
+                    <th>ISBN</th>
                     <th>读者姓名</th>
                     <th>借阅日期</th>
                     <th>归还日期</th>
@@ -518,17 +513,24 @@
                 </thead>
                 <tbody>
                   <tr v-if="currentPageLends.length === 0">
-                    <td colspan="7">{{ lends.length === 0 ? '暂无借阅记录' : '没有找到相关借阅记录' }}</td>
+                    <td colspan="8">{{ lends.length === 0 ? '暂无借阅记录' : '没有找到相关借阅记录' }}</td>
                   </tr>
                   <tr v-for="lend in currentPageLends" :key="lend._hid">
                     <td>{{ lend._hid }}</td>
                     <td>{{ lend.book?._book_name || '未知图书' }}</td>
+                    <td>{{ lend.book?._isbn || '-' }}</td>
                     <td>{{ lend.user?._name || '未知用户' }}</td>
                     <td>{{ formatDate(lend._begin_time) }}</td>
                     <td>{{ formatDate(lend._end_time) }}</td>
                     <td>{{ getLendStatusText(lend._status) }}</td>
                     <td>
-                      <button class="lend-action delay-btn" @click="delayLend(lend._hid, lend._end_time)">延期</button>
+                      <button 
+                        class="lend-action delay-btn" 
+                        @click="delayLend(lend._hid, lend._end_time)"
+                        :disabled="lend._status !== 0 && lend._status !== 3"
+                      >
+                        延期
+                      </button>
                     </td>
                   </tr>
                 </tbody>
@@ -540,9 +542,11 @@
                   <span class="close-button" @click="closeDelayModal">&times;</span>
                   <h2>延期归还</h2>
                   <form @submit.prevent="submitDelay">
-                    <label for="newReturnDate">新的归还日期：</label>
-                    <input type="date" id="newReturnDate" v-model="newReturnDate">
-                    <button type="submit" class="submit-button">提交</button>
+                    <p>确认要为此借阅记录办理续借手续吗？系统将在原归还日期基础上自动延长30天。</p>
+                    <div class="modal-buttons">
+                      <button type="button" class="cancel-button" @click="closeDelayModal">取消</button>
+                      <button type="submit" class="submit-button">确认续借</button>
+                    </div>
                   </form>
                 </div>
               </div>
@@ -662,6 +666,155 @@
               </div>
             </div>
           </div>
+
+          <!-- 意见建议回馈 -->
+          <div v-show="currentPage === 'feedback_admin'" class="page">
+            <h2 class="page-title">读者意见建议回馈</h2>
+
+            <!-- 搜索表单 -->
+            <form class="search-form">
+              <select id="feedbackSearchType" class="search-select" v-model="feedbackSearchType">
+                <option value="_fid">反馈ID</option>
+                <option value="_uid">用户ID</option>
+                <option value="_email">读者邮箱</option>
+                <option value="_title">反馈标题</option>
+                <option value="_status">处理状态</option>
+              </select>
+              <input type="text" id="feedbackSearchInput" class="search-input" placeholder="请输入查询内容" v-model="feedbackSearchKeyword">
+              <button type="button" class="search-button" @click="handleFeedbackSearch">查询</button>
+              <button type="button" class="reset-button" @click="handleFeedbackReset">重置</button>
+            </form>
+
+            <!-- 意见建议表格 -->
+            <table class="feedback_table">
+              <thead>
+                <tr>
+                  <th>反馈ID</th>
+                  <th>用户ID</th>
+                  <th>读者邮箱</th>
+                  <th>反馈标题</th>
+                  <th>反馈内容</th>
+                  <th>提交时间</th>
+                  <th>处理状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="currentPageFeedbacks.length === 0">
+                  <td colspan="8">{{ filteredFeedbacks.length === 0 ? '暂无意见建议' : '没有找到相关反馈' }}</td>
+                </tr>
+                <tr v-for="feedback in currentPageFeedbacks" :key="feedback._fid">
+                  <td>{{ feedback._fid }}</td>
+                  <td>{{ feedback._uid }}</td>
+                  <td>{{ feedback._email }}</td>
+                  <td>{{ feedback._title }}</td>
+                  <td class="feedback-content-cell">
+                    <div class="content-preview">{{ getContentPreview(feedback._content) }}</div>
+                  </td>
+                  <td>{{ formatDate(feedback._create_time) }}</td>
+                  <td>
+                    <span :class="feedback._status === 1 ? 'status-published' : 'status-draft'">
+                      {{ feedback._status === 1 ? '已处理' : '待处理' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="view-details" @click="viewFeedbackDetail(feedback)">查看详情</button>
+                    <button class="edit-button" @click="replyFeedback(feedback)">回复</button>
+                    <button v-if="feedback._status === 0" class="publish-button" @click="markAsProcessed(feedback._fid)">标记已处理</button>
+                    <button class="delete-button" @click="deleteFeedback(feedback._fid)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- 分页功能 -->
+            <div class="pagination">
+              <span class="total-pages">共{{ totalFeedbackPages }}页</span>
+              <span class="page-numbers">
+                <button @click="changeFeedbackPage(1)" :disabled="feedbackCurrentPage === 1">首页</button>
+                <button @click="changeFeedbackPage(feedbackCurrentPage - 1)" :disabled="feedbackCurrentPage === 1">上一页</button>
+                <button v-for="page in visibleFeedbackPages" :key="page" 
+                  @click="changeFeedbackPage(page)" 
+                  :class="{ 'active': feedbackCurrentPage === page }">
+                  {{ page }}
+                </button>
+                <button @click="changeFeedbackPage(feedbackCurrentPage + 1)" :disabled="feedbackCurrentPage === totalFeedbackPages">下一页</button>
+                <button @click="changeFeedbackPage(totalFeedbackPages)" :disabled="feedbackCurrentPage === totalFeedbackPages">末页</button>
+              </span>
+            </div>
+          </div>
+
+          <!-- 查看反馈详情弹窗 -->
+          <div id="feedbackDetailModal" class="modal" v-if="showFeedbackDetailModal">
+            <div class="modal-content">
+              <span class="close-button" @click="closeFeedbackDetailModal">&times;</span>
+              <h2>反馈详情</h2>
+              <div class="feedback-detail">
+                <div class="detail-item">
+                  <label>反馈ID：</label>
+                  <span>{{ currentFeedback._fid }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>用户ID：</label>
+                  <span>{{ currentFeedback._uid }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>读者邮箱：</label>
+                  <span>{{ currentFeedback._email }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>反馈标题：</label>
+                  <span>{{ currentFeedback._title }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>反馈内容：</label>
+                  <div class="feedback-content">{{ currentFeedback._content }}</div>
+                </div>
+                <div class="detail-item">
+                  <label>提交时间：</label>
+                  <span>{{ formatDate(currentFeedback._create_time) }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>处理状态：</label>
+                  <span :class="currentFeedback._status === 1 ? 'status-published' : 'status-draft'">
+                    {{ currentFeedback._status === 1 ? '已处理' : '待处理' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 回复反馈弹窗 -->
+          <div id="replyFeedbackModal" class="modal" v-if="showReplyFeedbackModal">
+            <div class="modal-content">
+              <span class="close-button" @click="closeReplyFeedbackModal">&times;</span>
+              <h2>回复读者反馈</h2>
+              <form @submit.prevent="submitReply">
+                <div class="reply-info">
+                  <div class="info-item">
+                    <label>读者邮箱：</label>
+                    <span>{{ currentFeedback._email }}</span>
+                  </div>
+                  <div class="info-item">
+                    <label>原反馈标题：</label>
+                    <span>{{ currentFeedback._title }}</span>
+                  </div>
+                </div>
+                
+                <label for="replySubject">回复主题：</label>
+                <input type="text" id="replySubject" v-model="replyForm.subject" placeholder="请输入回复主题" required>
+                
+                <label for="replyContent">回复内容：</label>
+                <textarea id="replyContent" v-model="replyForm.content" placeholder="请输入回复内容" rows="8" required></textarea>
+                
+                <div class="modal-buttons">
+                  <button type="button" class="cancel-button" @click="closeReplyFeedbackModal">取消</button>
+                  <button type="submit" class="submit-button">发送回复</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -754,6 +907,7 @@ export default {
       isEditUser: false,
       currentEditUserId: null,
       userForm: {
+        account: '',
         name: '',
         password: '',
         email: '',
@@ -775,6 +929,20 @@ export default {
         content: '',
         publisher: '',
         status: 1  // 1: 已发布, 0: 草稿
+      },
+      // 意见建议相关数据
+      feedbackSearchType: '_email',
+      feedbackSearchKeyword: '',
+      feedbacks: [],
+      filteredFeedbacks: [],
+      feedbackCurrentPage: 1,
+      feedbackPageSize: 10,
+      showFeedbackDetailModal: false,
+      showReplyFeedbackModal: false,
+      currentFeedback: {},
+      replyForm: {
+        subject: '',
+        content: ''
       }
     };
   },
@@ -853,6 +1021,20 @@ export default {
     },
     visibleAnnouncementPages() { 
       return this.generateVisiblePages(this.announcementCurrentPage, this.totalAnnouncementPages);
+    },
+    // 意见建议分页计算
+    totalFeedbackPages() {
+      const dataSource = this.filteredFeedbacks.length > 0 ? this.filteredFeedbacks : this.feedbacks;
+      return Math.ceil(dataSource.length / this.feedbackPageSize) || 1;
+    },
+    currentPageFeedbacks() {
+      const dataSource = this.filteredFeedbacks.length > 0 ? this.filteredFeedbacks : this.feedbacks;
+      const start = (this.feedbackCurrentPage - 1) * this.feedbackPageSize;
+      const end = start + this.feedbackPageSize;
+      return dataSource.slice(start, end);
+    },
+    visibleFeedbackPages() {
+      return this.generateVisiblePages(this.feedbackCurrentPage, this.totalFeedbackPages);
     },
     
     // 统计数据 - 新增activeLends计算属性
@@ -1653,16 +1835,20 @@ export default {
     },
     
     async submitDelay() {
-      if (!this.currentDelayHid || !this.newReturnDate) return
+      if (!this.currentDelayHid) {
+        this.$message.error('未找到借阅记录');
+        return;
+      }
       
       try {
-        await this.delayLendApi(this.currentDelayHid)
-        this.closeDelayModal()
-        await this.fetchLends()
+        await this.delayLendApi(this.currentDelayHid);
+        this.closeDelayModal();
+        await this.fetchLends();
       } catch (err) {
-        console.error(err)
+        console.error(err);
+        this.$message.error(err.message || '延期失败');
       }
-    },  
+    }, 
     async delayLendApi(hid) {
       // 注意：根据API文档，续借是通过图书ID而不是借阅记录ID
       // 这里需要先获取借阅记录对应的图书ID
@@ -1672,18 +1858,20 @@ export default {
         return;
       }
       
-      const res = await fetch(`/api/books/${lendRecord._hid}/renew`, {
+      const res = await fetch(`/api/books/${hid}/renew`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-      })
-      const result = await res.json()
+      });
+      
+      const result = await res.json();
       if (res.status !== 200) {
-        throw new Error(result.message || '延期失败')
+        throw new Error(result.message || '延期失败');
       }
-      this.$message.success(result.message || '图书续借成功')
+      
+      this.$message.success(result.message || '图书续借成功');
     },
 
     // 用户管理相关方法
@@ -1764,41 +1952,12 @@ export default {
       this.userCurrentPage = page;
     },
 
-    // 生成随机账号（10位数字）
-    generateAccount() {
-      const timestamp = Date.now().toString().slice(-6); // 取时间戳后6位
-      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0'); // 4位随机数
-      return timestamp + random; // 总共10位数字
-    },
-    
-    // 生成随机用户名（用户+8位数字）
-    generateUsername() {
-      const random = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
-      return `用户${random}`;
-    },
-
-    // 重新生成账号
-    refreshAccount() {
-      if (!this.isEditUser) {
-        this.userForm.account = this.generateAccount();
-        this.$message.success('已重新生成账号');
-      }
-    },
-    
-    // 重新生成用户名
-    refreshUsername() {
-      if (!this.isEditUser) {
-        this.userForm.name = this.generateUsername();
-        this.$message.success('已重新生成用户名');
-      }
-    },
-
     showAddUserModal() {
       this.isEditUser = false;
       this.currentEditUserId = null;
       this.userForm = {
-        account: this.generateAccount(), // 账号自动生成
-        name: this.generateUsername(), // 用户名自动生成
+        account: '',
+        name: '',
         password: '',
         email: '',
         userType: 'student'
@@ -2203,7 +2362,81 @@ export default {
         this.$message.error('取消发布公告失败');
       }
     },
-    
+    // 意见建议搜索 
+      handleFeedbackSearch() {
+        if (this.feedbackSearchKeyword.trim() === '') {
+          this.filteredFeedbacks = this.feedbacks;
+        } else {
+          this.filteredFeedbacks = this.feedbacks.filter(feedback => {
+            const value = feedback[this.feedbackSearchType];
+            return value && value.toString().toLowerCase().includes(this.feedbackSearchKeyword.toLowerCase());
+          });
+        }
+        this.feedbackCurrentPage = 1; // 只需要重置页码，computed会自动更新
+      },
+
+      // 意见建议重置 
+      handleFeedbackReset() {
+        this.feedbackSearchType = '_email';
+        this.feedbackSearchKeyword = '';
+        this.filteredFeedbacks = this.feedbacks;
+        this.feedbackCurrentPage = 1; // 只需要重置页码
+      },
+
+      // 标记为已处理 
+      async markAsProcessed(feedbackId) {
+        try {
+          const response = await this.$http.put(`/api/feedback/${feedbackId}/process`);
+          if (response.data.success) {
+            // 更新本地数据 - computed会自动更新分页
+            const index = this.feedbacks.findIndex(f => f._fid === feedbackId);
+            if (index !== -1) {
+              this.feedbacks[index]._status = 1;
+              this.filteredFeedbacks = [...this.feedbacks]; // 更新过滤数据
+            }
+            alert('已标记为已处理');
+          }
+        } catch (error) {
+          console.error('标记处理状态失败:', error);
+          alert('操作失败，请重试');
+        }
+      },
+
+      // 删除反馈 
+      async deleteFeedback(feedbackId) {
+        if (confirm('确定要删除这条反馈吗？')) {
+          try {
+            const response = await this.$http.delete(`/api/feedback/${feedbackId}`);
+            if (response.data.success) {
+              // 从本地数据中移除 - computed会自动更新分页
+              this.feedbacks = this.feedbacks.filter(f => f._fid !== feedbackId);
+              this.filteredFeedbacks = this.filteredFeedbacks.filter(f => f._fid !== feedbackId);
+              alert('删除成功');
+            }
+          } catch (error) {
+            console.error('删除反馈失败:', error);
+            alert('删除失败，请重试');
+          }
+        }
+      },
+
+      // 初始化意见建议数据
+      async loadFeedbacks() {
+        try {
+          const response = await this.$http.get('/api/feedbacks');
+          this.feedbacks = response.data;
+          this.filteredFeedbacks = this.feedbacks;
+          this.feedbackCurrentPage = 1; // 重置到第一页
+        } catch (error) {
+          console.error('加载意见建议数据失败:', error);
+        }
+      },
+
+      // 意见建议分页切换 
+      changeFeedbackPage(page) {
+        if (page < 1 || page > this.totalFeedbackPages) return;
+        this.feedbackCurrentPage = page;
+      },
     // 调用退出API再跳转
     async performLogout() {
       try {
@@ -3137,6 +3370,113 @@ button:disabled:hover {
 .action-btn i {
   font-size: 24px;
   margin-bottom: 8px;
+}
+
+/* 意见建议页面样式 */
+.page-title {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 24px;
+  text-align: center;
+}
+
+.feedback_table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.feedback_table th,
+.feedback_table td {
+  padding: 12px 10px;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+  font-size: 13px;
+}
+
+.feedback_table th {
+  background-color: #eef2f4;
+  color: black;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 16px 12px;
+}
+
+.feedback-content-cell {
+  max-width: 200px;
+}
+
+.content-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+/* 反馈详情样式 */
+.feedback-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item label {
+  font-weight: 600;
+  color: #333;
+  min-width: 100px;
+  margin-right: 10px;
+}
+
+.feedback-content {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 回复信息样式 */
+.reply-info {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.reply-info .info-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.reply-info .info-item:last-child {
+  margin-bottom: 0;
+}
+
+.reply-info label {
+  font-weight: 600;
+  color: #333;
+  min-width: 120px;
+  margin-right: 10px;
+}
+
+.reply-info span {
+  color: #666;
 }
 
 /* 响应式调整 */

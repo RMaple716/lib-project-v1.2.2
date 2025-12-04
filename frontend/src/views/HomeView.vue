@@ -45,12 +45,13 @@
             <label for="remember">记住我</label>
           </div>
           <button type="submit">登录</button>
-          <p class="toggle-form">没有账号？ 
-            <a href="#" @click.prevent="switchForm('register')">立即注册</a>
+          <p class="toggle-form">忘记密码？ 
+            <a href="#" @click.prevent="showForgotPassword">找回密码</a>
           </p>
         </form>
 
-        <!-- 注册表单 -->
+                <!-- 注册表单 -->
+        <!--
         <form 
           id="registerForm" 
           class="form" 
@@ -58,9 +59,7 @@
           @submit.prevent="handleRegister"
         >
           <h2><i class="fas fa-user-plus"></i> 用户注册</h2>
-          <!-- 账号字段组 -->
           <div class="form-group">
-            <div class="input-with-reset">
               <input 
                 type="text" 
                 id="registerAccount" 
@@ -69,16 +68,9 @@
                 required
               >
               <label for="registerAccount">账号</label>
-              <button type="button" class="reset-btn" @click="resetAccount">
-                <i class="fas fa-redo"></i> 重置
-              </button>
-            </div>
-            <small class="field-hint">10位随机数字</small>
           </div>
 
-          <!-- 姓名字段组 -->
           <div class="form-group">
-            <div class="input-with-reset">
               <input 
                 type="text" 
                 id="registerName" 
@@ -87,11 +79,6 @@
                 required
               >
               <label for="registerName">姓名</label>
-              <button type="button" class="reset-btn" @click="resetName">
-                <i class="fas fa-redo"></i> 重置
-              </button>
-            </div>
-            <small class="field-hint">格式：用户+6位数字</small>
           </div>
           <div class="form-group">
             <input 
@@ -156,6 +143,37 @@
             <a href="#" @click.prevent="switchForm('login')">立即登录</a>
           </p>
         </form>
+        -->
+      </div>    
+      <!-- 忘记密码模态框 -->
+      <div v-if="showForgotPasswordForm" class="modal-overlay">
+        <div class="modal-content forgot-password-modal">
+          <span class="close-button" @click="hideForgotPassword">&times;</span>
+          <h2><i class="fas fa-key"></i> 找回密码</h2>
+          <form @submit.prevent="handleForgotPassword">
+            <div class="form-group">
+              <input 
+                type="text" 
+                id="forgotAccount" 
+                v-model="forgotPasswordForm.account"
+                placeholder=" "
+                required
+              >
+              <label for="forgotAccount">账号</label>
+            </div>
+            <div class="form-group">
+              <input 
+                type="email" 
+                id="forgotEmail" 
+                v-model="forgotPasswordForm.email"
+                placeholder=" "
+                required
+              >
+              <label for="forgotEmail">邮箱</label>
+            </div>
+            <button type="submit">发送重置链接</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -172,11 +190,17 @@ export default {
     return {
       activeForm: 'login',
       rememberMe: false,
+      showForgotPasswordForm: false,
       loginForm: {
         account: '',
         password: '',
         userType: 'student'
       },
+      forgotPasswordForm: {
+        account: '',
+        email: ''
+      }
+      /*
       registerForm: {
         account: '', // 初始为空
         name: '',    // 初始为空
@@ -190,6 +214,7 @@ export default {
         bars: ['#eee', '#eee', '#eee'],
         text: ''
       }
+      */
     };
   },
   mounted() {
@@ -201,38 +226,8 @@ export default {
       this.loginForm.userType = userType;
       this.rememberMe = true;
     }
-    // 确保注册表单数据初始化
-    if (!this.registerForm.account || !this.registerForm.name) {
-      this.resetUserInfo();
-    }
   },
   methods: {
-    // 生成基础数字 - 10位
-    generateBaseId() {
-      return Math.random().toString().slice(2, 12); // 生成10位随机数字
-    },
-
-    // 生成6位随机数字
-    generateSixDigitId() {
-      return Math.random().toString().slice(2, 8); // 生成6位随机数字
-    },
-
-    // 重置账号信息
-    resetAccount() {
-      this.registerForm.account = this.generateBaseId(); // 只重置账号
-    },
-
-    // 重置姓名信息
-    resetName() {
-      this.registerForm.name = `用户${this.generateSixDigitId()}`; // 只重置姓名
-    },
-
-    // 重置全部用户信息（如果需要的话）
-    resetUserInfo() {
-      this.resetAccount();
-      this.resetName();
-    },
-
     // 显示消息的辅助方法
     showMessage(content, type = 'info', duration = 3000) {
       this.$refs.globalMessage.addMessage(content, type, duration);
@@ -248,10 +243,10 @@ export default {
       return descriptions[role] || '';
     },
 
-    switchForm(formType) {
+        switchForm(formType) {
       this.activeForm = formType;
     },
-    
+    /*
     checkPasswordMatch() {
       if (this.registerForm.password !== this.registerForm.confirmPassword) {
         this.passwordError = '两次输入的密码不一致';
@@ -291,6 +286,7 @@ export default {
         emailInput.setCustomValidity('');
       }
     },
+    */
     
     async handleLogin() {
       // 记住我功能
@@ -365,6 +361,7 @@ export default {
       }
     },
     
+        /*
     async handleRegister() {
       // 确认密码一致性
       if (this.registerForm.password !== this.registerForm.confirmPassword) {
@@ -428,6 +425,51 @@ export default {
           console.log("错误堆栈：", err.stack);
         }
         this.showMessage('网络错误，请稍后再试', 'error', 5000);
+      }
+    }
+    */
+    showForgotPassword() {
+      this.showForgotPasswordForm = true;
+    },
+    
+    hideForgotPassword() {
+      this.showForgotPasswordForm = false;
+      this.forgotPasswordForm = {
+        account: '',
+        email: ''
+      };
+    },
+    
+    async handleForgotPassword() {
+      // 验证输入
+      if (!this.forgotPasswordForm.account || !this.forgotPasswordForm.email) {
+        this.showMessage('请填写完整的账号和邮箱信息', 'warning', 3000);
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/auth/password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            account: this.forgotPasswordForm.account,
+            email: this.forgotPasswordForm.email
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          this.showMessage('密码重置邮件已发送，请检查您的邮箱', 'success', 5000);
+          this.hideForgotPassword();
+        } else {
+          this.showMessage(data.message || '找回密码失败，请稍后重试', 'error', 5000);
+        }
+      } catch (error) {
+        console.error('找回密码错误:', error);
+        this.showMessage('网络错误，请稍后重试', 'error', 5000);
       }
     }
   }
@@ -656,54 +698,6 @@ button:active {
   display: block;
   font-weight: 500;
 }
-
-/* 添加重置按钮相关样式 */
-.input-with-reset {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.reset-btn {
-  padding: 1px 1px;
-  background: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 10px;
-  white-space: nowrap;
-  color: #666;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
-  height: fit-content;
-  width: 10px;           /* 直接设置固定宽度 */
-}
-
-.reset-btn:hover {
-  background: #e9ecef;
-  border-color: #20B2AA;
-  color: #20B2AA;
-}
-
-.reset-btn i {
-  margin-right: 2px;
-  font-size: 5px;
-}
-
-.field-hint {
-  color: #666;
-  font-size: 8px;
-  margin-top: 4px;
-  display: block;
-}
-
-/* 调整有重置按钮的表单组样式 */
-.form-group .input-with-reset input {
-  flex: 1;
-  margin-bottom: 0;
-  padding: 1.2rem;
-}
 /* 响应式设计 */
 @media (max-width: 480px) {
   .container {
@@ -719,5 +713,48 @@ button:active {
   input, select {
     padding: 1rem;
   }
+}
+/* 忘记密码模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.forgot-password-modal {
+  background: rgba(240, 255, 255, 0.95);
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  width: 400px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+}
+
+.forgot-password-modal h2 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.close-button {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 28px;
+  font-weight: bold;
+  color: #666;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  color: #333;
 }
 </style>
