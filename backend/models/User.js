@@ -25,7 +25,7 @@ const User = sequelize.define('User', {
     field: '_uid'
   },
   _utype: {
-    type: DataTypes.ENUM('student', 'teacher', 'admin_t', 'admin_b', 'admin_l'),
+    type: DataTypes.ENUM('student', 'teacher', 'tempworker', 'admin_t', 'admin_b', 'admin_l'),
     allowNull: false,
     field: '_utype'
   },
@@ -70,6 +70,24 @@ const User = sequelize.define('User', {
     allowNull: false,
     field: '_create_time',
     defaultValue: DataTypes.NOW
+  },
+  // 学生相关字段
+  class_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'class_id'
+  },
+  // 教师相关字段
+  department_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'department_id'
+  },
+  // 临时工相关字段
+  work_department_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'work_department_id'
   }
   }, {
   tableName: 't_user',
@@ -97,6 +115,23 @@ User.prototype.validatePassword = async function(password) {
 
 // 添加关联方法
 User.associate = function(models) {
+  // 学生与班级的关联
+  User.belongsTo(models.Class, {
+    foreignKey: 'class_id',
+    as: 'class'
+  });
+
+  // 教师与院系的关联
+  User.belongsTo(models.Department, {
+    foreignKey: 'department_id',
+    as: 'department'
+  });
+
+  // 临时工与工作部门的关联
+  User.belongsTo(models.WorkDepartment, {
+    foreignKey: 'work_department_id',
+    as: 'workDepartment'
+  });
   User.hasMany(models.BorrowRecord, {
     foreignKey: '_uid',
     as: 'borrowRecords'

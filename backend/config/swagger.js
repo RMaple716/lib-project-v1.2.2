@@ -100,6 +100,91 @@ const options = {
               format: 'date-time',
               description: '创建时间',
               example: "2024-01-15T10:30:00.000Z"
+            },
+            department: {
+              type: 'object',
+              description: '院系信息（教师）',
+              nullable: true,
+              properties: {
+                id: {
+                  type: 'integer',
+                  description: '院系ID',
+                  example: 1
+                },
+                name: {
+                  type: 'string',
+                  description: '院系名称',
+                  example: '计算机学院'
+                }
+              }
+            },
+            major: {
+              type: 'object',
+              description: '专业信息',
+              nullable: true,
+              properties: {
+                id: {
+                  type: 'integer',
+                  description: '专业ID',
+                  example: 1
+                },
+                name: {
+                  type: 'string',
+                  description: '专业名称',
+                  example: '计算机科学与技术'
+                },
+                department: {
+                  type: 'object',
+                  description: '专业所属院系',
+                  nullable: true,
+                  properties: {
+                    id: {
+                      type: 'integer',
+                      description: '院系ID',
+                      example: 1
+                    },
+                    name: {
+                      type: 'string',
+                      description: '院系名称',
+                      example: '计算机学院'
+                    }
+                  }
+                }
+              }
+            },
+            class: {
+              type: 'object',
+              description: '班级信息（学生）',
+              nullable: true,
+              properties: {
+                id: {
+                  type: 'integer',
+                  description: '班级ID',
+                  example: 1
+                },
+                name: {
+                  type: 'string',
+                  description: '班级名称',
+                  example: '计算机科学与技术1班'
+                }
+              }
+            },
+            workDepartment: {
+              type: 'object',
+              description: '工作部门信息（临时工）',
+              nullable: true,
+              properties: {
+                id: {
+                  type: 'integer',
+                  description: '工作部门ID',
+                  example: 1
+                },
+                name: {
+                  type: 'string',
+                  description: '工作部门名称',
+                  example: '校图书馆'
+                }
+              }
             }
           }
         },
@@ -255,6 +340,23 @@ const options = {
               type: "string",
               description: "分类名称",
               example: "计算机科学"
+            },
+            category: {
+              type: "object",
+              description: "分类信息",
+              nullable: true,
+              properties: {
+                _tid: {
+                  type: "integer",
+                  description: "分类ID",
+                  example: 1
+                },
+                _type_name: {
+                  type: "string",
+                  description: "分类名称",
+                  example: "计算机科学"
+                }
+              }
             }
           }
         },

@@ -573,7 +573,6 @@ router.get('/', authenticate, async (req, res) => {
         as: 'category',
         attributes: ['_type_name']
       }],
-      limit: 50
     });
     
     const formattedBooks = books.map(book => {
