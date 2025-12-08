@@ -64,6 +64,44 @@ function authenticate(req, res, next) {
   }
 }
 
+/**
+ * 检查是否为终端管理员
+ * @param {Object} req - Express 请求对象
+ * @param {Object} res - Express 响应对象
+ * @param {Function} next - Express 下一个中间件函数
+ * @returns {void}
+ */
+function requireTerminalAdmin(req, res, next) {
+  if (!req.user || !req.user._utype.includes('admin_terminal')) {
+    return res.status(403).json({
+      success: false,
+      errorCode: 'PERMISSION_DENIED',
+      message: '需要终端管理员权限'
+    });
+  }
+  next();
+}
+
+/**
+ * 检查是否为管理员（终端管理员或普通管理员）
+ * @param {Object} req - Express 请求对象
+ * @param {Object} res - Express 响应对象
+ * @param {Function} next - Express 下一个中间件函数
+ * @returns {void}
+ */
+function requireAdmin(req, res, next) {
+  if (!req.user || (!req.user._utype.includes('admin_terminal') && !req.user._utype.includes('admin_general'))) {
+    return res.status(403).json({
+      success: false,
+      errorCode: 'PERMISSION_DENIED',
+      message: '需要管理员权限'
+    });
+  }
+  next();
+}
+
 module.exports = {
-  authenticate
+  authenticate,
+  requireTerminalAdmin,
+  requireAdmin
 };

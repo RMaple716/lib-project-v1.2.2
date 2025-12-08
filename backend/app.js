@@ -20,6 +20,10 @@ const majorRoutes = require('./routes/majors');
 const classRoutes = require('./routes/classes');
 const workDepartmentRoutes = require('./routes/workDepartments');
 const structureImportRoutes = require('./routes/structureImport');
+const adminAuthRoutes = require('./routes/adminAuth');
+const permissionRoutes = require('./routes/permissions');
+const roleRoutes = require('./routes/roles');
+const userRoleRoutes = require('./routes/userRoles');
 
 // 创建统一的日志记录器
 const logger = winston.createLogger({
@@ -76,6 +80,10 @@ app.use('/api/majors', majorRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/work-departments', workDepartmentRoutes);
 app.use('/api/structure', structureImportRoutes);
+app.use('/api/admin-auth', adminAuthRoutes);
+app.use('/api/permissions', permissionRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/user-roles', userRoleRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {

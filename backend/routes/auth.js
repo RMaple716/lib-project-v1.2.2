@@ -3,6 +3,7 @@ const router = express.Router();
 const { User } = require('../models');
 const { generateToken, verifyToken } = require('../utils/jwt');
 const svgCaptcha = require('svg-captcha');
+const emailService = require('../utils/email');
 
 // 存储验证码的临时存储（生产环境建议使用Redis）
 const captchaStore = new Map();
@@ -680,6 +681,157 @@ router.get('/current-user', async (req, res) => {
 
   } catch (error) {
     console.error('获取用户信息错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/password:
+ *   post:
+ *     summary: 忘记密码
+ *     description: 用户忘记密码时，通过账号和邮箱验证后发送重置密码指引
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - account
+ *               - email
+ *             properties:
+ *               account:
+ *                 type: string
+ *                 description: 用户账号
+ *                 example: "student001"
+ *               email:
+ *                 type: string
+ *                 description: 用户邮箱
+ *                 example: "user@example.com"
+ *           examples:
+ *             forgotPasswordExample:
+ *               summary: 忘记密码请求
+ *               value:
+ *                 account: "student001"
+ *                 email: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: 请求成功
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: "验证信息已发送至您的邮箱"
+ *       400:
+ *         description: 请求参数错误或用户不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 summary: 缺少必填字段
+ *                 value:
+ *                   success: false
+ *                   errorCode: "MISSING_FIELDS"
+ *                   message: "请提供账号和邮箱"
+ *               userNotFound:
+ *                 summary: 用户不存在
+ *                 value:
+ *                   success: false
+ *                   errorCode: "USER_NOT_EXISTS"
+ *                   message: "用户不存在或邮箱不匹配"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+// 忘记密码
+router.post('/password', async (req, res) => {
+  try {
+    const { account, email } = req.body;
+
+    console.log('忘记密码请求:', { account, email });
+
+    // 输入验证
+    if (!account || !email) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_FIELDS',
+        message: '请提供账号和邮箱'
+      });
+    }
+    
+    // 查找用户
+    const user = await User.findOne({
+      where: { 
+        _account: account,
+        _email: email
+      }
+    });
+    
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'USER_NOT_EXISTS',
+        message: '用户不存在或邮箱不匹配'
+      });
+    }
+    
+    // 生成重置密码的验证码
+    const resetCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    // 存储验证码（10分钟有效期）
+    captchaStore.set(user._uid.toString(), resetCode);
+    setTimeout(() => {
+      captchaStore.delete(user._uid.toString());
+    }, 10 * 60 * 1000);
+    
+    // 发送邮件
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
+        <h2 style="color: #333; text-align: center;">图书管理系统 - 密码重置</h2>
+        <p>尊敬的 ${user._name}，</p>
+        <p>您请求重置密码。您的验证码是：</p>
+        <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 3px; margin: 20px 0;">
+          ${resetCode}
+        </div>
+        <p>验证码有效期为10分钟。如果您没有请求重置密码，请忽略此邮件。</p>
+        <p style="margin-top: 30px; font-size: 12px; color: #888;">图书管理系统</p>
+      </div>
+    `;
+    
+    try {
+      const result = await emailService.sendEmail(
+        user._email,
+        '图书管理系统 - 密码重置',
+        emailContent
+      );
+      
+      if (result.success) {
+        console.log(`已向用户 ${user._name} (${user._email}) 发送密码重置邮件`);
+      } else {
+        console.error(`邮件发送失败: ${result.error}`);
+      }
+    } catch (emailError) {
+      console.error('发送邮件过程中发生错误:', emailError);
+      // 即使邮件发送失败，也返回成功，避免暴露系统信息
+      // 在生产环境中，可能需要添加重试机制或记录日志
+    }
+
+    res.status(200).json({
+      success: true,
+      message: '验证信息已发送至您的邮箱'
+    });
+  } catch (error) {
+    console.error('忘记密码错误:', error);
     res.status(500).json({
       success: false,
       errorCode: 'SERVER_ERROR',
