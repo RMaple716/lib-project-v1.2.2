@@ -173,7 +173,16 @@
                   
                   <!-- 借阅趋势 -->
                   <div class="chart-card">
-                    <h3>近7天借阅趋势</h3>
+                    <div class="chart-header">
+                      <h3>借阅趋势</h3>
+                      <div class="date-filter">
+                        <label for="startDate">开始日期：</label>
+                        <input type="date" id="startDate" v-model="lendTrendStartDate">
+                        <label for="endDate">结束日期：</label>
+                        <input type="date" id="endDate" v-model="lendTrendEndDate">
+                        <button @click="updateLendTrendChart" class="refresh-button">刷新</button>
+                      </div>
+                    </div>
                     <div class="chart-wrapper">
                       <canvas id="lendTrendChart"></canvas>
                     </div>
@@ -189,11 +198,14 @@
                     </div>
                   </div>
                   
-                  <!-- 公告状态 -->
+                  <!-- 类别/图书借阅统计 -->
                   <div class="chart-card">
-                    <h3>公告状态</h3>
+                    <div class="chart-tabs">
+                      <button :class="{ active: borrowStatsTab === 'category' }" @click="switchBorrowStatsTab('category')">类别借阅</button>
+                      <button :class="{ active: borrowStatsTab === 'book' }" @click="switchBorrowStatsTab('book')">单本借阅</button>
+                    </div>
                     <div class="chart-wrapper">
-                      <canvas id="announcementStatusChart"></canvas>
+                      <canvas id="borrowStatsChart"></canvas>
                     </div>
                   </div>
                 </div>
@@ -383,18 +395,37 @@
                     <input type="text" id="name" v-model="userForm.name" :placeholder="isEditUser ? '请输入用户名' : '请输入用户名'" required>
 
                     <label for="password">密码：</label>
-                    <input type="password" id="password" v-model="userForm.password" :placeholder="isEditUser ? '留空则不修改密码' : '请输入密码'" required>
+                    <input type="password" id="password" v-model="userForm.password" :placeholder="isEditUser ? '留空则不修改密码' : '请输入密码'" :required="!isEditUser">
 
                     <label for="email">邮箱：</label>
-                    <input type="email" id="email" v-model="userForm.email" placeholder="请输入邮箱">
+                    <input type="email" id="email" v-model="userForm.email" placeholder="请输入邮箱" required>
+                    
                     <label for="userType">用户类型：</label>
-                    <select id="userType" v-model="userForm.userType">
+                    <select id="userType" v-model="userForm.userType" @change="onUserTypeChange">
                       <option value="student">学生</option>
                       <option value="teacher">教师</option>
+                      <option value="tempworker">临时工</option>
                       <option value="admin_t">终端管理员</option>
                       <option value="admin_b">图书管理员</option>
                       <option value="admin_l">借阅管理员</option>
                     </select>
+                    
+                    <!-- 根据用户类型动态显示不同字段 -->
+                    <div v-if="userForm.userType === 'student'">
+                      <label for="class">班级：</label>
+                      <input type="text" id="class" v-model="userForm.class" placeholder="请输入班级名称">
+                    </div>
+                    
+                    <div v-else-if="userForm.userType === 'teacher'">
+                      <label for="department">院系：</label>
+                      <input type="text" id="department" v-model="userForm.department" placeholder="请输入院系名称">
+                    </div>
+                    
+                    <div v-else-if="userForm.userType === 'tempworker'">
+                      <label for="workDepartment">工作部门：</label>
+                      <input type="text" id="workDepartment" v-model="userForm.workDepartment" placeholder="请输入工作部门名称">
+                    </div>
+
                     <button type="submit" class="submit-button">提交</button>
                   </form>
                 </div>
@@ -409,13 +440,15 @@
                     <th>用户名</th>
                     <th>邮箱</th>
                     <th>用户类型</th>
+                    <th>院系/部门</th>
+                    <th>专业/班级</th>
                     <th>注册时间</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="currentPageUsers.length === 0">
-                    <td colspan="7">{{ filteredUsers.length === 0 ? '暂无用户数据' : '没有找到相关用户' }}</td>
+                    <td colspan="9">{{ filteredUsers.length === 0 ? '暂无用户数据' : '没有找到相关用户' }}</td>
                   </tr>
                   <tr v-for="user in currentPageUsers" :key="user._uid">
                     <td>{{ user._uid }}</td>
@@ -423,11 +456,21 @@
                     <td>{{ user._name }}</td>
                     <td>{{ user._email }}</td>
                     <td>{{ getUserTypeText(user._utype) }}</td>
+                    <td>
+                      <span v-if="user.department && user.department.name">{{ user.department.name }}</span>
+                      <span v-else-if="user.workDepartment && user.workDepartment.name">{{ user.workDepartment.name }}</span>
+                      <span v-else>-</span>
+                    </td>
+                    <td>
+                      <span v-if="user.major && user.major.name">{{ user.major.name }}</span>
+                      <span v-else-if="user.class && user.class.name">{{ user.class.name }}</span>
+                      <span v-else>-</span>
+                    </td>
                     <td>{{ formatDate(user._create_time) }}</td>
                     <td>
-                      <button class="edit-button" @click="editUser(user)">编辑</button>
-                      <button class="delete-button" @click="deleteUser(user._uid)">删除</button>
-                      <button class="reset-password" @click="resetPassword(user._uid)">重置密码</button>
+                      <button @click="editUser(user)" class="edit-user">编辑</button>
+                      <button @click="deleteUser(user._uid)" class="delete-user">删除</button>
+                      <button @click="resetPassword(user._uid)" class="reset-password">重置密码</button>
                     </td>
                   </tr>
                 </tbody>
@@ -860,6 +903,13 @@
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 export default {
+  // 添加用户类型变化处理函数
+  onUserTypeChange() {
+    // 清除之前可能填写的特定字段
+    this.userForm.class = '';
+    this.userForm.department = '';
+    this.userForm.workDepartment = '';
+  },
   name: 'BooksView',
   data() {
     return {
@@ -879,11 +929,18 @@ export default {
       // 页面状态
       currentPage: 'home',
 
+      // 借阅趋势时间筛选
+      lendTrendStartDate: '',
+      lendTrendEndDate: '',
+      
+      // 借阅统计标签页
+      borrowStatsTab: 'category', 
+
       // 图表实例
       bookCategoryChart: null,
       lendTrendChart: null,
       userTypeChart: null,
-      announcementStatusChart: null,
+      borrowStatsChart: null, // 借阅统计图表
       
       // 图书管理相关
       books: [],
@@ -949,7 +1006,10 @@ export default {
         name: '',
         password: '',
         email: '',
-        userType: 'student'  // student: 学生, teacher: 教师, admin_t: 终端管理员, admin_b: 图书管理员, admin_l: 借阅管理员
+        userType: 'student',// student: 学生, teacher: 教师, admin_t: 终端管理员, admin_b: 图书管理员, admin_l: 借阅管理员
+        class: '',        // 学生班级
+        department: '',   // 教师院系
+        workDepartment: '' // 临时工工作部门
       },
 
       // 公告管理相关
@@ -1092,22 +1152,18 @@ export default {
   },
   
  async mounted() {
+    console.log('组件挂载开始');
     console.log('=== 管理员页面加载开始 ===');
-    // 检查所有可能的 token
-    console.log('token:', localStorage.getItem('token'));
-    console.log('jwt_token:', localStorage.getItem('jwt_token'));
-    console.log('所有localStorage:', localStorage);
     
     const token = localStorage.getItem('token');
     if (!token) {
       console.log('❌ 没有找到token，请先登录');
-      // 临时：设置测试token用于调试
-      localStorage.setItem('token', 'test-admin-token-for-debug');
-      console.log('⚠️ 已设置测试token');
+      return;
     } else {
       console.log('✅ token存在，开始初始化数据');
     }
-    // 先正常初始化数据
+    
+    try {
       await Promise.all([
         this.fetchBooks(),
         this.fetchCategories(), 
@@ -1115,10 +1171,72 @@ export default {
         this.fetchUsers(),
         this.fetchAnnouncements()
       ]);
+      
+      this.$nextTick(() => {
+        this.initCharts();
+        
+        // 初始化日期范围（如果还没有设置）
+        if (!this.lendTrendStartDate || !this.lendTrendEndDate) {
+          this.initDateRange();
+        } else {
+          // 如果日期已设置，直接更新图表
+          this.updateLendTrendChart();
+        }
+      });
+    } catch (error) {
+      console.error('初始化数据失败:', error);
+    }
     
-    this.$nextTick(() => {
-      this.initCharts();
+    // 监听窗口大小变化，调整图表大小
+    window.addEventListener('resize', () => {
+      if (this.bookCategoryChart) this.bookCategoryChart.resize();
+      if (this.lendTrendChart) this.lendTrendChart.resize();
+      if (this.userTypeChart) this.userTypeChart.resize();
+      if (this.borrowStatsChart) this.borrowStatsChart.resize();
     });
+  },
+  // 验证并修正日期范围
+  validateAndFixDateRange() {
+    if (!this.lendTrendStartDate || !this.lendTrendEndDate) {
+      return false;
+    }
+    
+    const startDate = new Date(this.lendTrendStartDate);
+    const endDate = new Date(this.lendTrendEndDate);
+    
+    // 确保开始日期不晚于结束日期
+    if (startDate > endDate) {
+      // 自动交换日期
+      const temp = this.lendTrendStartDate;
+      this.lendTrendStartDate = this.lendTrendEndDate;
+      this.lendTrendEndDate = temp;
+      this.$message.info('已自动调整日期范围');
+      return true;
+    }
+    
+    return true;
+  },
+ // 日期监听器
+  watch: {
+    // 监听日期变化，自动更新图表
+    lendTrendStartDate: function(newVal, oldVal) {
+      console.log('开始日期变化:', oldVal, '->', newVal);
+      // 确保两个日期都已设置再更新图表
+      if (newVal && this.lendTrendEndDate) {
+        this.$nextTick(() => {
+          this.updateLendTrendChart();
+        });
+      }
+    },
+    lendTrendEndDate: function(newVal, oldVal) {
+      console.log('结束日期变化:', oldVal, '->', newVal);
+      // 确保两个日期都已设置再更新图表
+      if (newVal && this.lendTrendStartDate) {
+        this.$nextTick(() => {
+          this.updateLendTrendChart();
+        });
+      }
+    }
   },
   
   methods: {
@@ -1210,14 +1328,294 @@ export default {
       }
       return pages;
     },
+
+    // 切换借阅统计标签页
+    switchBorrowStatsTab(tab) {
+      this.borrowStatsTab = tab;
+      this.updateBorrowStatsChart();
+    },
     
+    // 更新借阅统计图表
+    async updateBorrowStatsChart() {
+      if (this.borrowStatsTab === 'category') {
+        await this.updateCategoryBorrowChart();
+      } else {
+        await this.updateBookBorrowChart();
+      }
+    },
+    
+    // 更新类别借阅统计图表
+    async updateCategoryBorrowChart() {
+      try {
+        const res = await fetch('/api/categories/stats', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (res.ok) {
+          const result = await res.json();
+          const categories = result.data || [];
+          
+          const labels = categories.map(item => item._type_name);
+          const data = categories.map(item => item.count);
+          
+          if (this.borrowStatsChart) {
+            this.borrowStatsChart.data.labels = labels;
+            this.borrowStatsChart.data.datasets[0].data = data;
+            this.borrowStatsChart.data.datasets[0].label = '借阅数量';
+            this.borrowStatsChart.update();
+          }
+        }
+      } catch (error) {
+        console.error('获取类别借阅统计失败:', error);
+      }
+    },
+    
+    // 更新单本图书借阅统计图表
+    async updateBookBorrowChart() {
+      try {
+        const res = await fetch('/api/books/rank?limit=10', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (res.ok) {
+          const result = await res.json();
+          const books = result.data.res_rank || [];
+          
+          const labels = books.map(book => book._book_name);
+          const data = books.map(book => book._times);
+          
+          if (this.borrowStatsChart) {
+            this.borrowStatsChart.data.labels = labels;
+            this.borrowStatsChart.data.datasets[0].data = data;
+            this.borrowStatsChart.data.datasets[0].label = '借阅次数';
+            this.borrowStatsChart.update();
+          }
+        }
+      } catch (error) {
+        console.error('获取图书借阅排行失败:', error);
+      }
+    },
+    
+    // 初始化日期范围（最近30天）
+    initDateRange() {
+      const today = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+      
+      // 确保格式为 YYYY-MM-DD
+      this.lendTrendStartDate = this.formatDateForInput(thirtyDaysAgo);
+      this.lendTrendEndDate = this.formatDateForInput(today);
+      console.log('初始化日期范围:', this.lendTrendStartDate, '到', this.lendTrendEndDate);
+      
+      // 初始化后立即更新图表
+      this.$nextTick(() => {
+        this.updateLendTrendChart();
+      });
+    },
+    
+    // 格式化日期为input[type="date"]需要的格式(YYYY-MM-DD)
+    formatDateForInput(date) {
+      const d = new Date(date);
+      let month = '' + (d.getMonth() + 1);
+      let day = '' + d.getDate();
+      const year = d.getFullYear();
+
+      if (month.length < 2) 
+        month = '0' + month;
+      if (day.length < 2) 
+        day = '0' + day;
+
+      return [year, month, day].join('-');
+    },
+    
+    // 获取日期范围内的借阅数据
+    async getLendDataInRange(startDate, endDate) {
+      try {
+        const response = await fetch(`/api/borrow-records/stats?start=${startDate}&end=${endDate}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return data.data;
+        }
+        return [];
+      } catch (error) {
+        console.error('获取借阅数据失败:', error);
+        return [];
+      }
+    },
+     // 验证日期范围
+    validateDateRange() {
+      if (!this.lendTrendStartDate || !this.lendTrendEndDate) {
+        return true; // 如果日期未完全设置，则暂时认为有效
+      }
+      
+      const startDate = new Date(this.lendTrendStartDate);
+      const endDate = new Date(this.lendTrendEndDate);
+      
+      if (startDate >= endDate) {
+        // 显示错误消息给用户
+        this.$message.error('开始日期必须早于结束日期');
+        return false;
+      }
+      
+      return true;
+    },
+    // 更新借阅趋势图表
+    async updateLendTrendChart() {
+      console.log('更新借阅趋势图表，开始日期:', this.lendTrendStartDate, '结束日期:', this.lendTrendEndDate);
+      
+      // 检查日期有效性
+      if (!this.lendTrendStartDate || !this.lendTrendEndDate) {
+        console.log('日期未设置完整');
+        return;
+      }
+      
+      // 验证开始日期必须早于结束日期
+      const startDateObj = new Date(this.lendTrendStartDate);
+      const endDateObj = new Date(this.lendTrendEndDate);
+      
+      if (startDateObj >= endDateObj) {
+        console.log('开始日期必须早于结束日期');
+        // 显示错误提示给用户
+        this.$message.warning('开始日期必须早于结束日期');
+        
+        // 清空图表数据
+        if (this.lendTrendChart) {
+          this.lendTrendChart.data.labels = [];
+          this.lendTrendChart.data.datasets[0].data = [];
+          this.lendTrendChart.update();
+        }
+        return;
+      }
+      
+      try {
+        // 调用API获取指定日期范围的数据
+        const url = `/api/borrow-records/stats?start=${this.lendTrendStartDate}&end=${this.lendTrendEndDate}`;
+        console.log('请求URL:', url);
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        console.log('API响应状态:', response.status);
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('API返回数据:', result);
+          
+          // 正确处理新的API响应格式
+          const lendData = result.data || [];
+          console.log('原始数据:', lendData);
+          
+          // 提取日期和数量
+          const dates = lendData.map(item => {
+            // 格式化日期显示，只显示月日
+            const date = new Date(item.date);
+            return `${date.getMonth() + 1}-${date.getDate()}`;
+          });
+          const counts = lendData.map(item => item.count);
+          
+          console.log('处理后的数据 - 日期:', dates, '数量:', counts);
+          console.log('日期数量:', dates.length, '数据点数量:', counts.length);
+          
+          // 更新图表
+          if (this.lendTrendChart) {
+            this.lendTrendChart.data.labels = dates;
+            this.lendTrendChart.data.datasets[0].data = counts;
+            this.lendTrendChart.update();
+            console.log('图表已更新');
+            
+            // 如果没有数据，显示提示信息
+            if (dates.length === 0) {
+              this.$message.info('选定日期范围内暂无借阅数据');
+            }
+          } else {
+            console.log('图表实例不存在');
+          }
+        } else if (response.status === 400) {
+          // 处理400错误（通常是日期范围错误）
+          const errorResult = await response.json();
+          console.error('API请求失败:', errorResult.message);
+          this.$message.error(errorResult.message || '日期范围无效');
+          
+          // 清空图表数据
+          if (this.lendTrendChart) {
+            this.lendTrendChart.data.labels = [];
+            this.lendTrendChart.data.datasets[0].data = [];
+            this.lendTrendChart.update();
+          }
+        } else {
+          console.error('API请求失败，状态码:', response.status);
+          this.$message.error('获取数据失败，请稍后重试');
+        }
+      } catch (error) {
+        console.error('获取借阅数据失败:', error);
+        this.$message.error('网络错误，请检查网络连接');
+      }
+    },
+    
+    // 创建借阅统计图表
+    createBorrowStatsChart() {
+      const ctx = document.getElementById('borrowStatsChart').getContext('2d');
+      this.borrowStatsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: '借阅数量',
+            data: [],
+            backgroundColor: 'rgba(25, 118, 210, 0.6)',
+            borderColor: 'rgba(25, 118, 210, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: '各类别图书借阅数量统计',
+              font: {
+                size: 16
+              }
+            },
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+    },
+
     // 图表相关方法 
     initCharts() {
       // 销毁现有图表实例
       if (this.bookCategoryChart) this.bookCategoryChart.destroy();
       if (this.lendTrendChart) this.lendTrendChart.destroy();
       if (this.userTypeChart) this.userTypeChart.destroy();
-      if (this.announcementStatusChart) this.announcementStatusChart.destroy();
+
+      // 初始化日期范围
+      this.initDateRange();
       
       // 图书分类分布图
       const bookCategoryCtx = document.getElementById('bookCategoryChart');
@@ -1285,10 +1683,10 @@ export default {
         this.userTypeChart = new Chart(userTypeCtx, {
           type: 'pie',
           data: {
-            labels: ['学生', '教师', '终端管理员', '图书管理员', '借阅管理员'],
+            labels: ['学生', '教师', '终端管理员', '图书管理员', '借阅管理员', '临时工'],
             datasets: [{
               data: this.getUserTypeCounts(),
-              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#8AC926'],
               borderWidth: 1
             }]
           },
@@ -1301,35 +1699,14 @@ export default {
             }
           }
         });
-      }
+      }  
+
+      // 创建借阅统计图表
+      this.createBorrowStatsChart();
       
-      // 公告状态图
-      const announcementStatusCtx = document.getElementById('announcementStatusChart');
-      if (announcementStatusCtx) {
-        this.announcementStatusChart = new Chart(announcementStatusCtx, {
-          type: 'bar',
-          data: {
-            labels: ['已发布', '草稿'],
-            datasets: [{
-              label: '公告数量',
-              data: this.getAnnouncementStatusCounts(),
-              backgroundColor: ['#4BC0C0', '#FFCE56'],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  stepSize: 1
-                }
-              }
-            }
-          }
-        });
-      }
+      // 初始加载数据
+      this.updateLendTrendChart();
+      this.updateBorrowStatsChart();
     },
     
     // 获取分类名称
@@ -1385,13 +1762,14 @@ export default {
         
     // 获取用户类型数量
     getUserTypeCounts() {
-      const studentCount = this.users.filter(user => user._utype === 'student').length;
-      const teacherCount = this.users.filter(user => user._utype === 'teacher').length;
-      const admin_tCount = this.users.filter(user => user._utype === 'admin_t').length;
-      const admin_bCount = this.users.filter(user => user._utype === 'admin_b').length;
-      const admin_lCount = this.users.filter(user => user._utype === 'admin_l').length;
+      const studentCount = this.users.filter(u => u._utype === 'student').length;
+      const teacherCount = this.users.filter(u => u._utype === 'teacher').length;
+      const adminTCount = this.users.filter(u => u._utype === 'admin_t').length;
+      const adminBCount = this.users.filter(u => u._utype === 'admin_b').length;
+      const adminLCount = this.users.filter(u => u._utype === 'admin_l').length;
+      const tempWorkerCount = this.users.filter(u => u._utype === 'tempworker').length;
       
-      return [studentCount, teacherCount, admin_tCount, admin_bCount, admin_lCount];
+      return [studentCount, teacherCount, adminTCount, adminBCount, adminLCount, tempWorkerCount];
     },
     
     // 获取公告状态数量
@@ -2023,7 +2401,8 @@ export default {
         'teacher': '教师', 
         'admin_t': '终端管理员',
         'admin_b': '图书管理员',
-        'admin_l': '借阅管理员'
+        'admin_l': '借阅管理员',
+        'tempworker': '临时工'
       };
       return typeMap[utype] || '未知类型';
     },
@@ -2779,6 +3158,58 @@ html, body {
 #sidebar .nav li.logout-item a:hover {
   background-color: rgba(231, 76, 60, 0.1);
 }
+
+/* ... 可视化表样式 ... */
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.date-filter label {
+  font-weight: normal;
+  color: #666;
+}
+
+.date-filter input[type="date"] {
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.chart-tabs {
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.chart-tabs button {
+  background-color: #f0f0f0;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+  border-radius: 4px 4px 0 0;
+  margin-right: 2px;
+}
+
+.chart-tabs button.active {
+  background-color: #1976D2;
+  color: white;
+  border-color: #1976D2;
+}
+
 
 /* 内容区域样式 */
 #content {
@@ -3709,4 +4140,24 @@ button:disabled:hover {
 .upload-info li {
   margin-bottom: 5px;
 }
+
+/* 可视化借阅--添加刷新按钮样式 */
+.refresh-button {
+  background-color: #1194AE;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+  margin-left: 10px;
+}
+
+.refresh-button:hover {
+  background-color: #067a97;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
 </style>
