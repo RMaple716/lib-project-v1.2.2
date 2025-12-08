@@ -237,6 +237,8 @@
                 <button type="button" class="search-button" @click="handleBookSearch">查询</button>
                 <button type="button" class="reset-button" @click="handleReset">重置</button>
                 <button type="button" class="addBookModal" @click="showAddBookModal">添加图书</button>
+                <button type="button" class="bulkUploadButton" @click="showBulkUploadModal">批量上传</button>
+                <button type="button" class="downloadTemplateButton" @click="downloadTemplate">下载模板</button>
               </form>
 
               <!-- 添加/编辑图书弹窗 -->
@@ -262,6 +264,39 @@
                     <label for="coverUrl">封面URL：</label>
                     <input type="text" id="coverUrl" v-model="bookForm.coverUrl" placeholder="请输入封面图片URL"> 
                     <button type="submit" class="submit-button">提交</button>
+                  </form>
+                </div>
+              </div>
+              <!-- 批量上传图书弹窗 -->
+              <div id="bulkUploadModal" class="modal" v-if="showBulkUploadModalFlag">
+                <div class="modal-content">
+                  <span class="close-button" @click="closeBulkUploadModal">&times;</span>
+                  <h2>批量上传图书</h2>
+                  <form @submit.prevent="submitBulkUpload">
+                    <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop">
+                      <input type="file" ref="fileInput" accept=".csv,.xlsx,.xls" @change="handleFileSelect" style="display: none;">
+                      <div class="upload-content" @click="$refs.fileInput.click()">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <p>点击选择文件或将文件拖拽到此处</p>
+                        <p class="file-types">支持 CSV、XLSX、XLS 格式</p>
+                        <p v-if="selectedFile" class="selected-file">已选择文件: {{ selectedFile.name }}</p>
+                      </div>
+                    </div>
+                    
+                    <div class="upload-info">
+                      <p><strong>说明：</strong></p>
+                      <ul>
+                        <li>请使用我们提供的模板文件进行批量上传</li>
+                        <li>支持 CSV、Excel 格式</li>
+                        <li>文件大小不能超过 10MB</li>
+                        <li>系统会自动处理重复图书（更新库存）</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="modal-buttons">
+                      <button type="button" class="cancel-button" @click="closeBulkUploadModal">取消</button>
+                      <button type="submit" class="submit-button" :disabled="!selectedFile">开始上传</button>
+                    </div>
                   </form>
                 </div>
               </div>
@@ -860,6 +895,9 @@ export default {
       showAddBookModalFlag: false,
       isEditBook: false,
       currentEditBookId: null,
+      // 批量上传相关
+      showBulkUploadModalFlag: false,
+      selectedFile: null,
       bookForm: {
         bookTitle: '',
         author: '',
@@ -1550,6 +1588,108 @@ export default {
       } catch (err) {
         console.error(err)
         this.$message.error('删除图书失败')
+      }
+    },
+    // 显示批量上传弹窗
+    showBulkUploadModal() {
+      this.selectedFile = null;
+      this.showBulkUploadModalFlag = true;
+    },
+
+    // 关闭批量上传弹窗
+    closeBulkUploadModal() {
+      this.showBulkUploadModalFlag = false;
+      this.selectedFile = null;
+    },
+
+    // 处理文件选择
+    handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        this.selectedFile = file;
+      }
+    },
+
+    // 处理拖拽上传
+    handleDrop(event) {
+      const file = event.dataTransfer.files[0];
+      if (file) {
+        // 检查文件类型
+        const validTypes = ['text/csv', 'application/vnd.ms-excel', 
+                          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+        if (validTypes.includes(file.type)) {
+          this.selectedFile = file;
+        } else {
+          this.$message.error('请上传 CSV 或 Excel 文件');
+        }
+      }
+    },
+
+    // 下载模板
+    async downloadTemplate() {
+      try {
+        const response = await fetch('/api/books/bulk-upload/template', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = '图书批量上传模板.csv';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        } else {
+          this.$message.error('模板下载失败');
+        }
+      } catch (error) {
+        console.error('下载模板失败:', error);
+        this.$message.error('模板下载失败: ' + error.message);
+      }
+    },
+
+    // 提交批量上传
+    async submitBulkUpload() {
+      if (!this.selectedFile) {
+        this.$message.error('请选择要上传的文件');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', this.selectedFile);
+
+      try {
+        const response = await fetch('/api/books/bulk-upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: formData
+        });
+
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+          this.$message.success(`批量上传成功！共处理 ${result.data.total} 条记录`);
+          this.closeBulkUploadModal();
+          await this.fetchBooks(); // 重新加载图书列表
+        } else {
+          const errorMsg = result.message || '批量上传失败';
+          this.$message.error(errorMsg);
+          
+          // 如果有详细错误信息，显示出来
+          if (result.errors && result.errors.length > 0) {
+            console.error('上传错误详情:', result.errors);
+          }
+        }
+      } catch (error) {
+        console.error('批量上传失败:', error);
+        this.$message.error('批量上传失败: ' + error.message);
       }
     },
     
@@ -2774,11 +2914,13 @@ small {
   background-color: #6c757d;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 12px 24px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 600;
   transition: all 0.3s;
+  margin-top: 10px;
 }
 
 .cancel-button:hover {
@@ -3080,7 +3222,7 @@ small {
 }
 
 /* 搜索按钮 */
-.search-button {
+.search-button,.bulkUploadButton, .downloadTemplateButton  {
   background-color: #1194AE; /* 主题色 */
   color: white;
   border: none;
@@ -3093,7 +3235,7 @@ small {
   min-width: 100px;
 }
 
-.search-button:hover {
+.search-button:hover,.bulkUploadButton:hover, .downloadTemplateButton:hover {
   background-color: #067a97;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
@@ -3514,5 +3656,57 @@ button:disabled:hover {
   #content {
     padding: 15px;
   }
+}
+/* 批量上传样式 */
+.upload-area {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.upload-area:hover {
+  border-color: #1194AE;
+}
+
+.upload-content {
+  padding: 20px;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #1194AE;
+  margin-bottom: 15px;
+}
+
+.file-types {
+  color: #666;
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+.selected-file {
+
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.upload-info {
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.upload-info ul {
+  padding-left: 20px;
+  margin: 10px 0;
+}
+
+.upload-info li {
+  margin-bottom: 5px;
 }
 </style>
