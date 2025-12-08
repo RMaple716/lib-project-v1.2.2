@@ -74,7 +74,7 @@ router.get('/', authenticate, async (req, res) => {
       whereCondition = {
         ...whereCondition,
         [Op.or]: [
-          { _uid: { [Op.like]: `%${query}%` } },
+          { _uid: { [Op.eq]: !isNaN(query) ? parseInt(query) : null } },
           { _account: { [Op.like]: `%${query}%` } },
           { _name: { [Op.like]: `%${query}%` } }
         ]
@@ -84,6 +84,40 @@ router.get('/', authenticate, async (req, res) => {
     const readers = await User.findAll({
       where: whereCondition,
       attributes: { exclude: ['_password'] },
+      include: [
+        {
+          model: require('../models').Department,
+          as: 'department',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: require('../models').Major,
+          as: 'major',
+          attributes: ['id', 'name'],
+          required: false,
+          include: [
+            {
+              model: require('../models').Department,
+              as: 'department',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ]
+        },
+        {
+          model: require('../models').Class,
+          as: 'class',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: require('../models').WorkDepartment,
+          as: 'workDepartment',
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ],
       limit: 50,
     });
 
@@ -323,7 +357,41 @@ router.get('/:id', authenticate, async (req, res) => {
     const { id } = req.params;
 
     const reader = await User.findByPk(id, {
-      attributes: { exclude: ['_password'] }
+      attributes: { exclude: ['_password'] },
+      include: [
+        {
+          model: require('../models').Department,
+          as: 'department',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: require('../models').Major,
+          as: 'major',
+          attributes: ['id', 'name'],
+          required: false,
+          include: [
+            {
+              model: require('../models').Department,
+              as: 'department',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ]
+        },
+        {
+          model: require('../models').Class,
+          as: 'class',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: require('../models').WorkDepartment,
+          as: 'workDepartment',
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ]
     });
 
     if (!reader) {
@@ -800,6 +868,40 @@ router.get('/rank', authenticate, async (req, res) => {
         ['_total', 'DESC'] // 借阅数量相同时按总阅读时间排序
       ],
       attributes: { exclude: ['_password'] },
+      include: [
+        {
+          model: require('../models').Department,
+          as: 'department',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: require('../models').Major,
+          as: 'major',
+          attributes: ['id', 'name'],
+          required: false,
+          include: [
+            {
+              model: require('../models').Department,
+              as: 'department',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ]
+        },
+        {
+          model: require('../models').Class,
+          as: 'class',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: require('../models').WorkDepartment,
+          as: 'workDepartment',
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ],
       limit: 10
     });
 
