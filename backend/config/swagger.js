@@ -61,9 +61,9 @@ const options = {
             },
             _utype: {
               type: 'string',
-              enum: ['student', 'teacher', 'admin_t', 'admin_b', 'admin_l'],
+              enum: ['student', 'teacher', 'tempworker', 'admin_terminal', 'admin_general'],
               description: '用户类型',
-              example: "admin_t"
+              example: "admin_terminal"
             },
             _account: {
               type: 'string',
@@ -849,6 +849,215 @@ const options = {
               items: {
                 $ref: "#/components/schemas/BorrowStatsResponse"
               }
+            }
+          }
+        },
+        // 权限相关模型
+        Permission: {
+          type: "object",
+          properties: {
+            id: {
+              type: "integer",
+              description: "权限ID",
+              example: 1
+            },
+            name: {
+              type: "string",
+              description: "权限名称",
+              example: "查看读者列表"
+            },
+            code: {
+              type: "string",
+              description: "权限代码",
+              example: "readers.view"
+            },
+            description: {
+              type: "string",
+              description: "权限描述",
+              example: "查看读者列表和详情"
+            },
+            module: {
+              type: "string",
+              description: "所属模块",
+              example: "readers"
+            },
+            created_at: {
+              type: "string",
+              format: "date-time",
+              description: "创建时间",
+              example: "2024-01-15T10:30:00.000Z"
+            },
+            updated_at: {
+              type: "string",
+              format: "date-time",
+              description: "更新时间",
+              example: "2024-01-15T10:30:00.000Z"
+            }
+          }
+        },
+        Role: {
+          type: "object",
+          properties: {
+            id: {
+              type: "integer",
+              description: "角色ID",
+              example: 1
+            },
+            name: {
+              type: "string",
+              description: "角色名称",
+              example: "图书管理员"
+            },
+            code: {
+              type: "string",
+              description: "角色代码",
+              example: "librarian"
+            },
+            description: {
+              type: "string",
+              description: "角色描述",
+              example: "负责图书管理的管理员"
+            },
+            created_at: {
+              type: "string",
+              format: "date-time",
+              description: "创建时间",
+              example: "2024-01-15T10:30:00.000Z"
+            },
+            updated_at: {
+              type: "string",
+              format: "date-time",
+              description: "更新时间",
+              example: "2024-01-15T10:30:00.000Z"
+            },
+            permissions: {
+              type: "array",
+              description: "角色拥有的权限",
+              items: {
+                $ref: "#/components/schemas/Permission"
+              }
+            }
+          }
+        },
+        CreatePermissionRequest: {
+          type: "object",
+          required: ["name", "code", "module"],
+          properties: {
+            name: {
+              type: "string",
+              description: "权限名称",
+              example: "查看读者列表"
+            },
+            code: {
+              type: "string",
+              description: "权限代码",
+              example: "readers.view"
+            },
+            description: {
+              type: "string",
+              description: "权限描述",
+              example: "查看读者列表和详情"
+            },
+            module: {
+              type: "string",
+              description: "所属模块",
+              example: "readers"
+            }
+          }
+        },
+        UpdatePermissionRequest: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "权限名称",
+              example: "查看读者列表"
+            },
+            code: {
+              type: "string",
+              description: "权限代码",
+              example: "readers.view"
+            },
+            description: {
+              type: "string",
+              description: "权限描述",
+              example: "查看读者列表和详情"
+            },
+            module: {
+              type: "string",
+              description: "所属模块",
+              example: "readers"
+            }
+          }
+        },
+        CreateRoleRequest: {
+          type: "object",
+          required: ["name", "code"],
+          properties: {
+            name: {
+              type: "string",
+              description: "角色名称",
+              example: "图书管理员"
+            },
+            code: {
+              type: "string",
+              description: "角色代码",
+              example: "librarian"
+            },
+            description: {
+              type: "string",
+              description: "角色描述",
+              example: "负责图书管理的管理员"
+            },
+            permissionIds: {
+              type: "array",
+              description: "权限ID列表",
+              items: {
+                type: "integer"
+              },
+              example: [1, 2, 3]
+            }
+          }
+        },
+        UpdateRoleRequest: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "角色名称",
+              example: "图书管理员"
+            },
+            code: {
+              type: "string",
+              description: "角色代码",
+              example: "librarian"
+            },
+            description: {
+              type: "string",
+              description: "角色描述",
+              example: "负责图书管理的管理员"
+            },
+            permissionIds: {
+              type: "array",
+              description: "权限ID列表",
+              items: {
+                type: "integer"
+              },
+              example: [1, 2, 3]
+            }
+          }
+        },
+        AssignRoleRequest: {
+          type: "object",
+          required: ["roleIds"],
+          properties: {
+            roleIds: {
+              type: "array",
+              description: "角色ID列表",
+              items: {
+                type: "integer"
+              },
+              example: [1, 2]
             }
           }
         },

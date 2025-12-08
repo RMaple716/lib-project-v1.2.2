@@ -10,6 +10,11 @@ const Department = require('./Department');
 const Major = require('./Major');
 const Class = require('./Class');
 const WorkDepartment = require('./WorkDepartment');
+// 添加RBAC模型
+const Permission = require('./Permission');
+const Role = require('./Role');
+const RolePermission = require('./RolePermission');
+const UserRole = require('./UserRole');
 
 // 定义模型关联
 const defineAssociations = () => {
@@ -187,6 +192,37 @@ const defineAssociations = () => {
       onDelete: 'RESTRICT'
     });
 
+    // RBAC 模型关联
+    // 角色-权限关联
+    Role.belongsToMany(Permission, {
+      through: RolePermission,
+      foreignKey: '_rid',
+      otherKey: '_pid',
+      as: 'permissions'
+    });
+
+    Permission.belongsToMany(Role, {
+      through: RolePermission,
+      foreignKey: '_pid',
+      otherKey: '_rid',
+      as: 'roles'
+    });
+
+    // 用户-角色关联
+    User.belongsToMany(Role, {
+      through: UserRole,
+      foreignKey: '_uid',
+      otherKey: '_rid',
+      as: 'roles'
+    });
+
+    Role.belongsToMany(User, {
+      through: UserRole,
+      foreignKey: '_rid',
+      otherKey: '_uid',
+      as: 'users'
+    });
+
     console.log('模型关联定义成功');
   } catch (error) {
     console.error('模型关联定义失败:', error);
@@ -329,6 +365,10 @@ const syncDatabase = async () => {
     
     // 创建默认管理员账户（如果不存在）
     await createDefaultAdmin();
+    
+    // 初始化RBAC系统
+    const { initRbac } = require('../scripts/initRbac');
+    await initRbac();
   } catch (error) {
     console.error('数据库表同步失败 =< :', error);
   }
@@ -338,13 +378,13 @@ const syncDatabase = async () => {
 const createDefaultAdmin = async () => {
   try {
     const existingAdmin = await User.findOne({ 
-      where: { _account: 'admin_t' } 
+      where: { _account: 'admin_terminal' } 
     });
     
     if (!existingAdmin) {
       await User.create({
-        _utype: 'admin_t',
-        _account: 'admin_t',
+        _utype: 'admin_terminal',
+        _account: 'admin_terminal',
         _name: '终端管理员',
         _password: 'admin123',
         _email: 'admin@library.com',
@@ -353,7 +393,7 @@ const createDefaultAdmin = async () => {
         access: 1,
         _create_time: new Date()
       });
-      console.log(' 默认管理员账户创建成功 (账号: admin_b, 密码: admin123)');
+      console.log(' 默认管理员账户创建成功 (账号: admin_terminal, 密码: admin123)');
     }
   } catch (error) {
     console.error(' 创建默认管理员失败:', error);
@@ -371,5 +411,9 @@ module.exports = {
   WorkDepartment,
   BorrowRecord,
   Announcement,
+  Permission,
+  Role,
+  RolePermission,
+  UserRole,
   syncDatabase
 };

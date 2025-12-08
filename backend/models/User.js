@@ -25,7 +25,7 @@ const User = sequelize.define('User', {
     field: '_uid'
   },
   _utype: {
-    type: DataTypes.ENUM('student', 'teacher', 'tempworker', 'admin_t', 'admin_b', 'admin_l'),
+    type: DataTypes.ENUM('student', 'teacher', 'tempworker', 'admin_t', 'admin_n'),
     allowNull: false,
     field: '_utype'
   },
