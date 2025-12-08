@@ -824,6 +824,34 @@ const options = {
             }
           }
         },
+        BorrowStatsResponse: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              format: "date",
+              description: "日期",
+              example: "2025-11-15"
+            },
+            count: {
+              type: "integer",
+              description: "借阅数量",
+              example: 3
+            }
+          }
+        },
+        BorrowStatsListResponse: {
+          type: "object",
+          properties: {
+            data: {
+              type: "array",
+              description: "借阅统计数据",
+              items: {
+                $ref: "#/components/schemas/BorrowStatsResponse"
+              }
+            }
+          }
+        },
         // 批量上传相关模型（添加到现有 schemas 对象中）
         BulkUploadResponse: {
           type: "object",
