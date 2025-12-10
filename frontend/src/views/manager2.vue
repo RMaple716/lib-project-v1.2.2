@@ -25,20 +25,16 @@
                   <span>{{ currentAdmin._uid }}</span>
                 </div>
                 <div class="info-item">
-                  <label>用户名：</label>
+                  <label>账号：</label>
                   <span>{{ currentAdmin._username }}</span>
                 </div>
                 <div class="info-item">
-                  <label>姓名：</label>
+                  <label>用户名：</label>
                   <span>{{ currentAdmin._name }}</span>
                 </div>
                 <div class="info-item">
                   <label>管理员类型：</label>
                   <span class="admin-type">{{ getAdminTypeText(currentAdmin._type) }}</span>
-                </div>
-                <div class="info-item">
-                  <label>手机号：</label>
-                  <span>{{ currentAdmin._phone }}</span>
                 </div>
                 <div class="info-item">
                   <label>邮箱：</label>
@@ -917,13 +913,12 @@ export default {
       // 添加管理员信息和弹窗状态
       showUserInfoModal: false,
       currentAdmin: {
-        _uid: '001',
-        _username: 'admin',
-        _name: '系统管理员',
-        _type: 'super', // super: 终端管理员, book: 图书管理员, lend: 借阅管理员
-        _phone: '13800138000',
-        _email: 'admin@library.com',
-        _create_time: '2024-01-01'
+        _uid: '',
+        _username: '',
+        _name: '',
+        _type: '', // super: 终端管理员, book: 图书管理员, lend: 借阅管理员
+        _email: '',
+        _create_time: ''
       },
 
       // 页面状态
@@ -1164,6 +1159,9 @@ export default {
     }
     
     try {
+       // 获取当前管理员信息
+      await this.fetchCurrentAdminInfo();
+
       await Promise.all([
         this.fetchBooks(),
         this.fetchCategories(), 
@@ -1771,7 +1769,7 @@ export default {
       
       return [studentCount, teacherCount, adminTCount, adminBCount, adminLCount, tempWorkerCount];
     },
-    
+
     // 获取公告状态数量
     getAnnouncementStatusCounts() {
       const publishedCount = this.announcements.filter(a => a._status === 1).length;
@@ -1779,6 +1777,70 @@ export default {
       return [publishedCount, draftCount];
     },
     
+
+    // 获取当前管理员信息
+    async fetchCurrentAdminInfo() {
+      try {
+        const token = localStorage.getItem('token');
+        // 从token中解析出用户基本信息
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const tokenData = JSON.parse(jsonPayload);
+        
+        // 使用_uid获取完整用户信息
+        const response = await fetch(`/api/readers?query=${tokenData._uid}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data.readerlist && result.data.readerlist.length > 0) {
+            const userInfo = result.data.readerlist[0];
+            this.currentAdmin = {
+              _uid: userInfo._uid || tokenData._uid || '',
+              _username: userInfo._account || tokenData._account || '',
+              _name: userInfo._name || '',
+              _type: this.mapAdminType(userInfo._utype || tokenData._utype),
+              _email: userInfo._email || '',
+              _create_time: userInfo._create_time || ''
+            };
+          } else {
+            // 如果获取不到用户信息，则使用token中的基本数据
+            this.currentAdmin = {
+              _uid: tokenData._uid || '',
+              _username: tokenData._account || '',
+              _name: tokenData._name || '',
+              _type: this.mapAdminType(tokenData._utype),
+              _email: '',
+              _create_time: ''
+            };
+          }
+        } else if (response.status === 401) {
+          this.performLogout();
+        }
+      } catch (error) {
+        console.error('获取管理员信息失败:', error);
+      }
+    },
+
+    // 映射管理员类型
+    mapAdminType(utype) {
+      const typeMap = {
+        'admin_t': 'super',
+        'admin_b': 'book',
+        'admin_l': 'lend'
+      };
+      return typeMap[utype] || utype;
+    },
+
     // 图书管理相关方法
     async fetchBooks() {
       const token = localStorage.getItem('token');
@@ -3362,11 +3424,13 @@ small {
   background-color: #e74c3c;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 12px 24px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 600;
   transition: all 0.3s;
+  margin-top: 10px;
 }
 
 .logout-button:hover {
