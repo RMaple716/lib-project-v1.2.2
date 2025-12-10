@@ -375,7 +375,7 @@ router.put('/password', async (req, res) => {
   try {
     const { _uid, _password, _captcha, _usertype } = req.body;
     
-    console.log('重置密码请求:', { _uid, _usertype });
+    console.log('重置密码请求:', { _uid, _usertype, _password, _captcha });
     
     // 输入验证
     if (!_uid || !_password || !_captcha) {
@@ -727,6 +727,8 @@ router.get('/current-user', async (req, res) => {
  *           application/json:
  *             example:
  *               success: true
+ *               _uid: 2
+ *               _utype: "student"
  *               message: "验证信息已发送至您的邮箱"
  *       400:
  *         description: 请求参数错误或用户不存在
@@ -776,7 +778,8 @@ router.post('/password', async (req, res) => {
         _email: email
       }
     });
-    
+    const uid = user._uid;
+    const utype = user._utype;
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -828,6 +831,8 @@ router.post('/password', async (req, res) => {
 
     res.status(200).json({
       success: true,
+      _uid: uid,
+      _utype: utype,
       message: '验证信息已发送至您的邮箱'
     });
   } catch (error) {
