@@ -89,12 +89,17 @@ const User = sequelize.define('User', {
     allowNull: true,
     field: 'work_department_id'
   }
-  }, {
+}, {
   tableName: 't_user',
   timestamps: false,
   hooks: {
     beforeCreate: async (user) => {
       if (user._password) {
+        user._password = await bcrypt.hash(user._password, 12);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('_password')) {
         user._password = await bcrypt.hash(user._password, 12);
       }
     }
@@ -106,7 +111,6 @@ const User = sequelize.define('User', {
  * @param {string} password - 明文密码
  * @returns {Promise<boolean>} 密码是否匹配
  */
-
 
 // 实例方法：验证密码
 User.prototype.validatePassword = async function(password) {
