@@ -250,6 +250,7 @@ export default {
         confirmPassword: ''
       },
       userId: null, // 保存用户ID
+      userType: '',
       /*
       registerForm: {
         account: '', // 初始为空
@@ -496,6 +497,7 @@ export default {
         confirmPassword: ''
       };
       this.userId = null;
+      this.userType = ''; 
       this.forgotPasswordStep = 1;
     },
     
@@ -529,7 +531,8 @@ export default {
         
         if (response.ok && data.success) {
           // 保存用户ID用于后续步骤
-          this.userId = data.userId || null; // 如果后端返回了userId就保存
+          this.userId = data._uid || null; // 修改这里，使用_uid而不是userId
+          this.userType = data._utype || ''; // 保存用户类型
           this.forgotPasswordStep = 2; // 进入第二步
           this.showMessage('验证码已发送，请检查您的邮箱', 'success', 5000);
         } else {
@@ -551,6 +554,7 @@ export default {
       }
     },
     
+
     async handleResetPassword() {
       // 验证输入
       if (!this.resetPasswordForm.captcha) {
@@ -582,10 +586,10 @@ export default {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            _uid: this.userId, // 使用保存的用户ID
+            _uid: this.userId.toString(), // 修改这里，确保UID是字符串类型
             _password: this.resetPasswordForm.password,
             _captcha: this.resetPasswordForm.captcha,
-            _usertype: '' // 可选参数
+            _usertype: this.userType
           })
         });
         
