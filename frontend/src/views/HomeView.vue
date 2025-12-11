@@ -35,7 +35,6 @@
             <select id="loginUserType" v-model="loginForm.userType">
               <option value="student">学生</option>
               <option value="teacher">教师</option>
-              <option value="tempworker">临时工</option>
               <option value="admin_t">终端管理员</option>
               <option value="admin_b">图书管理员</option>
               <option value="admin_l">借阅管理员</option>
@@ -146,8 +145,8 @@
         </form>
         -->
       </div>    
-      <!-- 忘记密码模态框 - 步骤1: 输入账号和邮箱 -->
-      <div v-if="showForgotPasswordForm && forgotPasswordStep === 1" class="modal-overlay">
+      <!-- 忘记密码模态框 -->
+      <div v-if="showForgotPasswordForm" class="modal-overlay">
         <div class="modal-content forgot-password-modal">
           <span class="close-button" @click="hideForgotPassword">&times;</span>
           <h2><i class="fas fa-key"></i> 找回密码</h2>
@@ -172,49 +171,7 @@
               >
               <label for="forgotEmail">邮箱</label>
             </div>
-            <button type="submit">发送验证码</button>
-          </form>
-        </div>
-      </div>
-      
-      <!-- 忘记密码模态框 - 步骤2: 输入验证码和新密码 -->
-      <div v-if="showForgotPasswordForm && forgotPasswordStep === 2" class="modal-overlay">
-        <div class="modal-content forgot-password-modal">
-          <span class="close-button" @click="hideForgotPassword">&times;</span>
-          <h2><i class="fas fa-key"></i> 重置密码</h2>
-          <form @submit.prevent="handleResetPassword">
-            <div class="form-group">
-              <input 
-                type="text" 
-                id="verificationCode" 
-                v-model="resetPasswordForm.captcha"
-                placeholder=" "
-                required
-              >
-              <label for="verificationCode">验证码</label>
-              <p class="hint">验证码已发送至 {{ forgotPasswordForm.email }}</p>
-            </div>
-            <div class="form-group">
-              <input 
-                type="password" 
-                id="newPassword" 
-                v-model="resetPasswordForm.password"
-                placeholder=" "
-                required
-              >
-              <label for="newPassword">新密码</label>
-            </div>
-            <div class="form-group">
-              <input 
-                type="password" 
-                id="confirmNewPassword" 
-                v-model="resetPasswordForm.confirmPassword"
-                placeholder=" "
-                required
-              >
-              <label for="confirmNewPassword">确认新密码</label>
-            </div>
-            <button type="submit">重置密码</button>
+            <button type="submit">发送重置链接</button>
           </form>
         </div>
       </div>
@@ -234,7 +191,6 @@ export default {
       activeForm: 'login',
       rememberMe: false,
       showForgotPasswordForm: false,
-      forgotPasswordStep: 1, // 忘记密码流程步骤 (1: 输入账号邮箱, 2: 输入验证码和新密码)
       loginForm: {
         account: '',
         password: '',
@@ -243,14 +199,7 @@ export default {
       forgotPasswordForm: {
         account: '',
         email: ''
-      },
-      resetPasswordForm: {
-        captcha: '',
-        password: '',
-        confirmPassword: ''
-      },
-      userId: null, // 保存用户ID
-      userType: '',
+      }
       /*
       registerForm: {
         account: '', // 初始为空
@@ -338,7 +287,6 @@ export default {
       }
     },
     */
-    
     async handleLogin() {
       // 记住我功能
       if (this.rememberMe) {
@@ -370,29 +318,44 @@ export default {
         if (res.status === 200) {
           this.showMessage('登录成功！', 'success', 2000);
 
-           // 🔥 关键修复：添加 token 存储
-          if (data.data && data.data.token) {
-            localStorage.setItem('token', data.data.token);
-            console.log('✅ token已存储:', data.data.token);
-            console.log('存储后检查:', localStorage.getItem('token'));
-          } else {
-            console.error('❌ API返回中没有token:', data);
-            this.showMessage('登录失败：未获取到token', 'error', 4000);
-            return;
-          }
+          // 🔥 关键修复：添加完整的用户信息存储
+          const userData = {
+            token: data.data.token,
+            _uid: data.data._uid,
+            _account: data.data._account,
+            _name: data.data._name,
+            _utype: data.data._utype,
+            // 添加其他需要的用户信息字段
+            _phone: data.data._phone,
+            _email: data.data._email,
+            // ... 其他字段
+          };
 
-          // 更新登录成功后的跳转逻辑
+          // 存储token和用户信息
+          localStorage.setItem('token', userData.token);
+          localStorage.setItem('userInfo', JSON.stringify(userData));
+          
+          console.log('✅ 用户信息已存储:', userData);
+          console.log('存储后检查 - token:', localStorage.getItem('token'));
+          console.log('存储后检查 - userInfo:', localStorage.getItem('userInfo'));
+
+          // 延迟跳转，确保存储完成
           setTimeout(() => {
-            console.log('跳转前检查token:', localStorage.getItem('token'));
+            console.log('准备跳转...');
             // 根据API文档，用户类型字段是 usertype，且管理员类型为 admin_t, admin_b, admin_l
-            if (['admin_t', 'admin_b', 'admin_l'].includes(data.data.usertype)) {
+            if (['admin_t', 'admin_b', 'admin_l'].includes(data.data._utype)) {
               console.log('跳转到管理员页面');
               this.$router.push('/manager2'); // 跳转到管理员页面
-            } else if (['student', 'teacher', 'tempworker'].includes(data.data.usertype)) {
+            } else if (['student', 'teacher'].includes(data.data._utype)) {
               console.log('跳转到读者页面');
               this.$router.push('/readers'); // 跳转到读者页面
+            } else {
+              // 默认跳转到读者页面
+              console.log('默认跳转到读者页面');
+              this.$router.push('/readers');
             }
-          }, 1500);
+          }, 500); // 增加延迟时间到500ms
+
         } else if (res.status === 400) {
           if (data.errorCode === "4002") {
             this.showMessage(data.message || '用户不存在', 'error', 4000);
@@ -412,8 +375,8 @@ export default {
         this.showMessage('网络错误，请稍后再试。', 'error', 5000);
       }
     },
-    
-        /*
+
+         /*
     async handleRegister() {
       // 确认密码一致性
       if (this.registerForm.password !== this.registerForm.confirmPassword) {
@@ -482,7 +445,6 @@ export default {
     */
     showForgotPassword() {
       this.showForgotPasswordForm = true;
-      this.forgotPasswordStep = 1; // 重置到第一步
     },
     
     hideForgotPassword() {
@@ -491,27 +453,12 @@ export default {
         account: '',
         email: ''
       };
-      this.resetPasswordForm = {
-        captcha: '',
-        password: '',
-        confirmPassword: ''
-      };
-      this.userId = null;
-      this.userType = ''; 
-      this.forgotPasswordStep = 1;
     },
     
     async handleForgotPassword() {
       // 验证输入
       if (!this.forgotPasswordForm.account || !this.forgotPasswordForm.email) {
         this.showMessage('请填写完整的账号和邮箱信息', 'warning', 3000);
-        return;
-      }
-
-      // 简单的邮箱格式验证
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(this.forgotPasswordForm.email)) {
-        this.showMessage('请输入有效的邮箱地址', 'warning', 3000);
         return;
       }
       
@@ -530,94 +477,13 @@ export default {
         const data = await response.json();
         
         if (response.ok && data.success) {
-          // 保存用户ID用于后续步骤
-          this.userId = data._uid || null; // 修改这里，使用_uid而不是userId
-          this.userType = data._utype || ''; // 保存用户类型
-          this.forgotPasswordStep = 2; // 进入第二步
-          this.showMessage('验证码已发送，请检查您的邮箱', 'success', 5000);
+          this.showMessage('密码重置邮件已发送，请检查您的邮箱', 'success', 5000);
+          this.hideForgotPassword();
         } else {
-          // 根据不同的错误代码显示不同的消息
-          switch (data.errorCode) {
-            case 'MISSING_FIELDS':
-              this.showMessage('请提供账号和邮箱', 'warning', 5000);
-              break;
-            case 'USER_NOT_EXISTS':
-              this.showMessage('用户不存在或邮箱不匹配', 'error', 5000);
-              break;
-            default:
-              this.showMessage(data.message || '找回密码失败，请稍后重试', 'error', 5000);
-          }
+          this.showMessage(data.message || '找回密码失败，请稍后重试', 'error', 5000);
         }
       } catch (error) {
         console.error('找回密码错误:', error);
-        this.showMessage('网络错误，请稍后重试', 'error', 5000);
-      }
-    },
-    
-
-    async handleResetPassword() {
-      // 验证输入
-      if (!this.resetPasswordForm.captcha) {
-        this.showMessage('请输入验证码', 'warning', 3000);
-        return;
-      }
-      
-      if (!this.resetPasswordForm.password || !this.resetPasswordForm.confirmPassword) {
-        this.showMessage('请输入新密码并确认', 'warning', 3000);
-        return;
-      }
-      
-      if (this.resetPasswordForm.password !== this.resetPasswordForm.confirmPassword) {
-        this.showMessage('两次输入的密码不一致', 'warning', 3000);
-        return;
-      }
-      
-      // 密码强度验证
-      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
-      if (!passwordRegex.test(this.resetPasswordForm.password)) {
-        this.showMessage('密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位', 'warning', 5000);
-        return;
-      }
-      
-      try {
-        const response = await fetch('/api/auth/password', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            _uid: this.userId.toString(), // 修改这里，确保UID是字符串类型
-            _password: this.resetPasswordForm.password,
-            _captcha: this.resetPasswordForm.captcha,
-            _usertype: this.userType
-          })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-          this.showMessage('密码重置成功，请使用新密码登录', 'success', 5000);
-          this.hideForgotPassword(); // 关闭模态框
-        } else {
-          switch (data.errorCode) {
-            case 'MISSING_FIELDS':
-              this.showMessage('请提供用户ID、新密码和验证码', 'warning', 5000);
-              break;
-            case 'CAPTCHA_INCORRECT':
-              this.showMessage('验证码错误', 'error', 5000);
-              break;
-            case 'PASSWORD_TOO_SIMPLE':
-              this.showMessage('密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位', 'warning', 5000);
-              break;
-            case 'USER_NOT_EXIST':
-              this.showMessage('用户不存在', 'error', 5000);
-              break;
-            default:
-              this.showMessage(data.message || '重置密码失败，请稍后重试', 'error', 5000);
-          }
-        }
-      } catch (error) {
-        console.error('重置密码错误:', error);
         this.showMessage('网络错误，请稍后重试', 'error', 5000);
       }
     }
@@ -847,14 +713,6 @@ button:active {
   display: block;
   font-weight: 500;
 }
-
-.hint {
-  font-size: 0.85rem;
-  color: #666;
-  margin-top: 0.5rem;
-  display: block;
-}
-
 /* 响应式设计 */
 @media (max-width: 480px) {
   .container {
