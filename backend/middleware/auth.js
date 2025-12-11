@@ -72,7 +72,7 @@ function authenticate(req, res, next) {
  * @returns {void}
  */
 function requireTerminalAdmin(req, res, next) {
-  if (!req.user || !req.user._utype.includes('admin_terminal')) {
+  if (!req.user || !req.user._utype.includes('admin_t')) {
     return res.status(403).json({
       success: false,
       errorCode: 'PERMISSION_DENIED',
@@ -90,7 +90,7 @@ function requireTerminalAdmin(req, res, next) {
  * @returns {void}
  */
 function requireAdmin(req, res, next) {
-  if (!req.user || (!req.user._utype.includes('admin_terminal') && !req.user._utype.includes('admin_general'))) {
+  if (!req.user || (!req.user._utype.includes('admin_t') && !req.user._utype.includes('admin_n'))) {
     return res.status(403).json({
       success: false,
       errorCode: 'PERMISSION_DENIED',

@@ -96,7 +96,7 @@ const { authenticate, requireTerminalAdmin } = require('../middleware/auth');
 router.post('/grant', authenticate, requireTerminalAdmin, async (req, res) => {
   try {
     // 检查当前用户是否为终端管理员
-    if (req.user._utype !== 'admin_terminal') {
+    if (req.user._utype !== 'admin_t') {
       return res.status(403).json({
         success: false,
         errorCode: 'PERMISSION_DENIED',
@@ -146,7 +146,7 @@ router.post('/grant', authenticate, requireTerminalAdmin, async (req, res) => {
 
     // 授权为普通管理员
     await targetUser.update({
-      _utype: 'admin_general'
+      _utype: 'admin_n'
     });
 
     res.json({

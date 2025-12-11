@@ -61,7 +61,7 @@ const options = {
             },
             _utype: {
               type: 'string',
-              enum: ['student', 'teacher', 'tempworker', 'admin_terminal', 'admin_general'],
+              enum: ['student', 'teacher', 'tempworker', 'admin_t', 'admin_n'],
               description: '用户类型',
               example: "admin_terminal"
             },
@@ -591,6 +591,143 @@ const options = {
               type: "integer",
               description: "公告状态 (1: 已发布, 0: 未发布)",
               example: 1
+            }
+          }
+        },
+        // 消息相关模型
+        Message: {
+          type: "object",
+          properties: {
+            _mid: {
+              type: "integer",
+              description: "消息ID",
+              example: 1
+            },
+            _sender_id: {
+              type: "integer",
+              description: "发送者ID",
+              example: 100
+            },
+            _receiver_id: {
+              type: "integer",
+              description: "接收者ID",
+              example: 200
+            },
+            _title: {
+              type: "string",
+              description: "消息标题",
+              example: "图书即将到期提醒"
+            },
+            _content: {
+              type: "string",
+              description: "消息内容",
+              example: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。"
+            },
+            _type: {
+              type: "integer",
+              description: "消息类型 (1: 系统通知, 2: 借阅提醒, 3: 预约通知, 4: 其他)",
+              example: 2
+            },
+            _status: {
+              type: "integer",
+              description: "消息状态 (0: 未读, 1: 已读)",
+              example: 0
+            },
+            _create_time: {
+              type: "string",
+              format: "date-time",
+              description: "创建时间",
+              example: "2024-01-15T10:30:00.000Z"
+            },
+            _read_time: {
+              type: "string",
+              format: "date-time",
+              description: "阅读时间",
+              nullable: true,
+              example: "2024-01-16T09:15:00.000Z"
+            },
+            sender: {
+              type: "object",
+              description: "发送者信息",
+              properties: {
+                _uid: {
+                  type: "integer",
+                  description: "用户ID",
+                  example: 100
+                },
+                _name: {
+                  type: "string",
+                  description: "用户姓名",
+                  example: "系统管理员"
+                },
+                _account: {
+                  type: "string",
+                  description: "用户账号",
+                  example: "admin_t"
+                }
+              }
+            }
+          }
+        },
+        MessageListResponse: {
+          type: "object",
+          properties: {
+            messages: {
+              type: "array",
+              items: {
+                $ref: "#/components/schemas/Message"
+              }
+            },
+            pagination: {
+              type: "object",
+              properties: {
+                total: {
+                  type: "integer",
+                  description: "总记录数",
+                  example: 25
+                },
+                page: {
+                  type: "integer",
+                  description: "当前页码",
+                  example: 1
+                },
+                limit: {
+                  type: "integer",
+                  description: "每页记录数",
+                  example: 10
+                },
+                totalPages: {
+                  type: "integer",
+                  description: "总页数",
+                  example: 3
+                }
+              }
+            }
+          }
+        },
+        CreateMessageRequest: {
+          type: "object",
+          required: ["_receiver_id", "_title", "_content"],
+          properties: {
+            _receiver_id: {
+              type: "integer",
+              description: "接收者ID",
+              example: 200
+            },
+            _title: {
+              type: "string",
+              description: "消息标题",
+              example: "图书即将到期提醒"
+            },
+            _content: {
+              type: "string",
+              description: "消息内容",
+              example: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。"
+            },
+            _type: {
+              type: "integer",
+              description: "消息类型 (1: 系统通知, 2: 借阅提醒, 3: 预约通知, 4: 其他)",
+              example: 2
             }
           }
         },
@@ -2152,6 +2289,118 @@ BulkUploadEmptyFile: {
     success: false,
     errorCode: "EMPTY_FILE",
     message: "上传的文件为空"
+  }
+},
+// 消息相关示例
+MessageListSuccess: {
+  summary: "获取消息列表成功",
+  value: {
+    success: true,
+    message: "获取消息列表成功",
+    data: {
+      messages: [
+        {
+          _mid: 1,
+          _sender_id: 100,
+          _receiver_id: 200,
+          _title: "图书即将到期提醒",
+          _content: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。",
+          _type: 2,
+          _status: 0,
+          _create_time: "2024-01-15T10:30:00.000Z",
+          _read_time: null,
+          sender: {
+            _uid: 100,
+            _name: "系统管理员",
+            _account: "admin_t"
+          }
+        },
+        {
+          _mid: 2,
+          _sender_id: 100,
+          _receiver_id: 200,
+          _title: "预约图书到馆通知",
+          _content: "您预约的《深入理解计算机系统》已经到馆，请在一周内到图书馆借阅。",
+          _type: 3,
+          _status: 1,
+          _create_time: "2024-01-14T14:20:00.000Z",
+          _read_time: "2024-01-14T15:30:00.000Z",
+          sender: {
+            _uid: 100,
+            _name: "系统管理员",
+            _account: "admin_t"
+          }
+        }
+      ],
+      pagination: {
+        total: 5,
+        page: 1,
+        limit: 10,
+        totalPages: 1
+      }
+    }
+  }
+},
+MessageDetailSuccess: {
+  summary: "获取消息详情成功",
+  value: {
+    success: true,
+    message: "成功获取消息详情",
+    data: {
+      _mid: 1,
+      _sender_id: 100,
+      _receiver_id: 200,
+      _title: "图书即将到期提醒",
+      _content: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。",
+      _type: 2,
+      _status: 0,
+      _create_time: "2024-01-15T10:30:00.000Z",
+      _read_time: null,
+      sender: {
+        _uid: 100,
+        _name: "系统管理员",
+        _account: "admin_t"
+      }
+    }
+  }
+},
+CreateMessageSuccess: {
+  summary: "发送消息成功",
+  value: {
+    success: true,
+    message: "消息发送成功",
+    data: {
+      _mid: 3,
+      _sender_id: 100,
+      _receiver_id: 200,
+      _title: "系统维护通知",
+      _content: "系统将于本周六进行维护，届时将暂停服务2小时。",
+      _type: 1,
+      _status: 0,
+      _create_time: "2024-01-16T09:00:00.000Z",
+      _read_time: null,
+      sender: {
+        _uid: 100,
+        _name: "系统管理员",
+        _account: "admin_t"
+      }
+    }
+  }
+},
+MessageNotFoundError: {
+  summary: "消息不存在",
+  value: {
+    success: false,
+    errorCode: "MESSAGE_NOT_FOUND",
+    message: "消息不存在"
+  }
+},
+ReceiverNotFoundError: {
+  summary: "接收者不存在",
+  value: {
+    success: false,
+    errorCode: "RECEIVER_NOT_FOUND",
+    message: "接收者不存在"
   }
 },
 BulkUploadDuplicateISBN: {
