@@ -26,40 +26,26 @@
           </li>
         </ul>
 
-        <!-- 登录注册按钮 / 用户头像 -->
+        <!-- 登录按钮 / 用户头像 -->
         <div class="auth-links">
-          <div v-if="isLoggedIn" class="user-menu">
+          <div v-if="isLoggedIn" class="user-menu" @click.stop="toggleUserMenu">
             <img
               v-if="avatarUrl"
               :src="avatarUrl"
-              alt="avatar"
+              alt="用户头像"
               class="user-avatar"
-              @click.prevent="openPersonal"
             />
-            <div
-              v-else
-              class="user-avatar-placeholder"
-              @click.prevent="openPersonal"
-            >
-              {{
-                (user && (user._name || user.name || user._account)) || "用户"
-              }}
+            <div v-else class="user-avatar-placeholder">
+              {{ (userInfo?._name || userInfo?.name || "U").charAt(0).toUpperCase() }}
             </div>
-
-            <div class="user-dropdown">
-              <button class="auth-link" @click.prevent="logout">
-                退出登录
-              </button>
+           <!-- 用户下拉菜单 -->
+            <div class="user-dropdown" v-show="showUserDropdown">
+              <button @click.stop="openPersonal" class="auth-link">个人信息</button>
+              <button @click.stop="handleLogout" class="auth-link">退出登录</button>
             </div>
           </div>
-          <div v-else>
-            <a href="#" class="auth-link" @click.prevent="goToAuth('login')"
-              >登录</a
-            >
-            <span class="auth-divider">|</span>
-            <a href="#" class="auth-link" @click.prevent="goToAuth('register')"
-              >注册</a
-            >
+          <div v-else class="auth-links">
+            <a href="#" @click.prevent="goToAuth('login')" class="auth-link">登录</a>
           </div>
         </div>
       </nav>
@@ -1205,6 +1191,8 @@ export default {
   data() {
     return {
       clickedSearch: false, // 添加这个标志位来跟踪是否点击了检索按钮或选择了分类
+      showUserDropdown: false, // 控制用户下拉菜单显示状态
+      //isLoggedIn: false,        // 登录状态
       currentPage: "search",
       pageType: "",
       searchType: "book",
@@ -1291,6 +1279,14 @@ export default {
     };
   },
   computed: {
+    isLoggedIn() {
+      return !!localStorage.getItem("token") && !!this.user;
+  },
+  avatarUrl() {
+    const u = this.user || this.userInfo;
+    if (!u) return "";
+    return u.avatar || u._avatar || u.avatar_url || u._cover_url || "";
+  },
     // 原有计算属性保持不变
     filteredBooks() {
       let result = [...this.books];
@@ -1651,9 +1647,7 @@ export default {
       return this.allBorrowingRecords.filter((r) => r.status === "borrowing")
         .length;
     },
-    isLoggedIn() {
-      return !!(localStorage.getItem("token") || this.user);
-    },
+    
     avatarUrl() {
       // 优先使用 user.avatar 或 user._avatar 或 user.avatar_url 等常见字段
       const u =
@@ -1667,7 +1661,12 @@ export default {
   },
   methods: {
     // 原有方法保持不变
-
+    handleVisibilityChange() {
+      if (!document.hidden) {
+        // 页面变为可见时，重新检查登录状态
+        this.loadUserFromStorage();
+      }
+    },
     // 切换收藏状态
     async toggleFavorite(bookId) {
       if (!bookId) return;
@@ -1746,7 +1745,7 @@ export default {
       document.body.scrollTop = 0;
     },
 
-    // 导航到登录/注册页，保留当前页面用于登录后重定向
+    // 导航到登录页，保留当前页面用于登录后重定向
     goToAuth(type) {
       const redirect = window.location.pathname || "/readers";
       window.location.href = `/HomeView?view=${type}&redirect=${encodeURIComponent(redirect)}`;
@@ -1755,26 +1754,102 @@ export default {
     // 从 localStorage 加载用户信息
     loadUserFromStorage() {
       try {
-        const raw = localStorage.getItem("userInfo");
-        if (raw) {
-          const parsed = JSON.parse(raw);
+        const token = localStorage.getItem("token");
+        const userInfo = localStorage.getItem("userInfo");
+        
+        console.log('loadUserFromStorage - token:', token);
+        console.log('loadUserFromStorage - userInfo:', userInfo);
+        
+        if (!token) {
+          this.user = null;
+          this.userInfo = null;
+          return;
+        }
+        
+        if (userInfo) {
+          const parsed = JSON.parse(userInfo);
           this.user = parsed;
           this.userInfo = parsed;
-        } else {
-          this.user = null;
+          
+          // 强制触发视图更新
+          this.$nextTick(() => {
+            this.$forceUpdate();
+          });
+          
+          console.log('loadUserFromStorage - 用户信息已加载:', parsed);
         }
       } catch (e) {
+        console.error('loadUserFromStorage - 错误:', e);
         this.user = null;
+        this.userInfo = null;
+        localStorage.removeItem("token");
+        localStorage.removeItem("userInfo");
       }
     },
 
     // 注销
-    logout() {
+    handleLogout() {
+      // 先隐藏下拉菜单
+      this.showUserDropdown = false;
+      
+      // 显示确认对话框
+      if (confirm('确定要退出登录吗？')) {
+        // 清除本地存储
+        localStorage.removeItem("token");
+        localStorage.removeItem("userInfo");
+        
+        // 清除内存中的用户信息
+        this.user = null;
+        this.userInfo = null;
+        
+        // 更新登录状态
+        this.isLoggedIn = false;
+        
+        // 清除收藏列表
+        this.favorites = [];
+        
+        // 如果当前在需要登录的页面，则跳转到首页
+        if (['personal', 'feedback'].includes(this.currentPage)) {
+          this.currentPage = 'search';
+        }
+        
+        // 显示退出成功提示
+        alert('已成功退出登录');
+      }
+    },
+
+    performLogout() {
+      // 清除本地存储的用户信息
       localStorage.removeItem("token");
       localStorage.removeItem("userInfo");
+      
+      // 清除内存中的用户信息
       this.user = null;
-      // 重新加载当前页面的数据
+      this.userInfo = null;
+      
+      // 如果当前在需要登录的页面，则跳转到首页
+      if (['personal', 'feedback'].includes(this.currentPage)) {
+        this.currentPage = 'search';
+      }
+       // 重新加载当前页面数据
       this.loadSearchPage();
+      
+      // 显示登出成功的提示消息（可选）
+      // this.$message.success('您已成功退出登录'); // 如果使用了element-ui的消息组件
+      
+      // 或者使用简单的提示
+      console.log("您已成功退出登录");
+    },
+    toggleUserMenu() {
+      this.showUserDropdown = !this.showUserDropdown;
+    },
+    
+    // 点击其他地方隐藏用户菜单
+    handleClickOutside(event) {
+      const userMenu = this.$el.querySelector('.user-menu');
+      if (userMenu && !userMenu.contains(event.target)) {
+        this.showUserDropdown = false;
+      }
     },
 
     // 点击头像打开个人信息页
@@ -1898,30 +1973,25 @@ export default {
 
     async loadPersonalData() {
       try {
-        // 获取当前用户信息
+        console.log('loadPersonalData - 开始加载个人数据');
         const response = await axios.get("/api/auth/current-user");
-        const payload =
-          (response &&
-            response.data &&
-            (response.data.data || response.data)) ||
-          null;
-        this.userInfo = payload;
-        // 同步到本地存储，便于刷新或其他页面使用
+        const payload = response?.data?.data || response?.data || null;
+        
+        console.log('loadPersonalData - 服务器响应:', payload);
+        
         if (payload) {
-          try {
-            localStorage.setItem("userInfo", JSON.stringify(payload));
-            this.user = payload;
-          } catch (e) {}
+          this.userInfo = payload;
+          this.user = payload;
+          localStorage.setItem("userInfo", JSON.stringify(payload));
+          
+          console.log('loadPersonalData - 个人数据已更新:', payload);
         }
       } catch (error) {
-        console.error(
-          "加载个人数据失败:",
-          (error && error.response && error.response.data) || error.message
-        );
-        alert("加载个人信息失败，请重新登录");
-        // 可以在这里跳转到登录页
+        console.error("加载个人数据失败:", error);
+        this.handleLogout();
       }
     },
+
 
     // 切换编辑模式
     toggleEdit() {
@@ -1985,8 +2055,6 @@ export default {
         this.loadUserFromStorage();
         if (localStorage.getItem("token")) {
           this.loadPersonalData();
-        } else {
-          this.userInfo = null;
         }
       }
     },
@@ -2557,29 +2625,60 @@ export default {
     },
   },
   async mounted() {
+    // 添加全局点击监听器来关闭用户菜单
+    document.addEventListener('click', this.handleClickOutside);
+    
+    // 启动轮播
     this.startCarousel();
-    // 先加载分类以便筛选控件显示正确
+    
+    // 加载分类信息
     await this.loadBookCategories();
+    
+    // 加载图书数据
     await this.loadSearchPage();
-    // 加载本地用户信息以显示头像
+    
+    // 加载本地用户信息
     this.loadUserFromStorage();
-    // 如果已登录，尝试从后端拉取最新个人信息
-    if (localStorage.getItem("token")) {
-      this.loadPersonalData();
-    }
-    // 监听 storage 事件以在其它标签/窗口登录时同步
+    
+    // 监听 storage 事件
     if (typeof window !== "undefined" && window.addEventListener) {
       window.addEventListener("storage", this.onStorageChange);
     }
-    // 加载收藏列表
-    if (localStorage.getItem('token')) {
+    
+    // 添加页面可见性监听
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    }
+    
+    // 只有在已登录时才加载需要登录的数据
+    if (this.isLoggedIn) {
+      await this.loadPersonalData();
       await this.loadFavorites();
     }
+    
+    // 添加定时检查登录状态 - 改为更短的时间间隔
+    this.checkLoginStatus = setInterval(() => {
+      this.loadUserFromStorage();
+    }, 500); // 减少到500毫秒
   },
+
+
+
   beforeDestroy() {
     this.stopCarousel();
+    document.removeEventListener('click', this.handleClickOutside);
     if (typeof window !== "undefined" && window.removeEventListener) {
       window.removeEventListener("storage", this.onStorageChange);
+    }
+    
+    // 移除页面可见性监听
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    }
+    
+    // 清除定时器
+    if (this.checkLoginStatus) {
+      clearInterval(this.checkLoginStatus);
     }
   },
 };
@@ -2698,8 +2797,8 @@ h2 {
   vertical-align: middle;
 }
 
-/* 登录注册 */
-/* 登录注册链接容器样式 - 设置弹性布局和对齐 */
+/* 登录 */
+/* 登录链接容器样式 - 设置弹性布局和对齐 */
 .auth-links {
   margin-left: auto;
   display: flex;
@@ -2708,7 +2807,7 @@ h2 {
   padding-right: 20px;
 }
 
-/* 登录注册链接样式 - 设置颜色、装饰线和过渡效果 */
+/* 登录链接样式 - 设置颜色、装饰线和过渡效果 */
 .auth-link {
   color: white;
   text-decoration: none;
@@ -2719,16 +2818,10 @@ h2 {
   padding: 3px 6px;
 }
 
-/* 登录注册链接悬停效果 */
+/* 登录链接悬停效果 */
 .auth-link:hover {
   color: #f0f0f0;
   text-decoration: underline;
-}
-
-/* 登录注册分割线样式 - 设置颜色和字体大小 */
-.auth-divider {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 18px;
 }
 
 /* 用户头像样式 - 设置尺寸、圆角和边框 */
@@ -2757,39 +2850,55 @@ h2 {
   margin-right: 8px;
 }
 
-/* 用户菜单样式 - 设置相对定位 */
+/* 用户菜单样式 */
 .user-menu {
   position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 
-/* 用户下拉菜单样式 - 设置隐藏、定位和阴影 */
+/* 用户下拉菜单样式 */
 .user-dropdown {
-  display: none;
   position: absolute;
+  top: 100%;
   right: 0;
-  top: calc(100% + 8px);
-  background: #fff;
-  color: #333;
-  padding: 8px;
-  border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-  min-width: 100px;
-  z-index: 300;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 8px 0;
+  min-width: 120px;
+  z-index: 1000;
+  margin-top: 5px;
 }
 
-/* 用户下拉菜单悬停显示 */
-.user-menu:hover .user-dropdown {
-  display: block;
+.user-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 20px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid white;
 }
 
-/* 用户下拉菜单链接样式 - 设置颜色、背景色和光标 */
 .user-dropdown .auth-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
   color: #333;
   background: transparent;
   border: none;
-  padding: 6px 8px;
   cursor: pointer;
   font-size: 14px;
+  text-decoration: none;
+}
+
+.user-dropdown .auth-link:hover {
+  background-color: #f5f5f5;
 }
 
 /* 搜索框 */
