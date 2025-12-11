@@ -9,7 +9,7 @@
           </div>
           <div class="user-info">
             <div class="user-avatar" @click="toggleUserInfo">
-              <i class="fas fa-user-circle"></i>
+              <i class="fas fa-user"></i>
             </div>
             <span class="user-name">管理员</span>
           </div>
@@ -402,8 +402,7 @@
                       <option value="teacher">教师</option>
                       <option value="tempworker">临时工</option>
                       <option value="admin_t">终端管理员</option>
-                      <option value="admin_b">图书管理员</option>
-                      <option value="admin_l">借阅管理员</option>
+                      <option value="admin_n">普通管理员</option>
                     </select>
                     
                     <!-- 根据用户类型动态显示不同字段 -->
@@ -1001,7 +1000,7 @@ export default {
         name: '',
         password: '',
         email: '',
-        userType: 'student',// student: 学生, teacher: 教师, admin_t: 终端管理员, admin_b: 图书管理员, admin_l: 借阅管理员
+        userType: 'student',// student: 学生, teacher: 教师, admin_t: 终端管理员, admin_n: 普通管理员
         class: '',        // 学生班级
         department: '',   // 教师院系
         workDepartment: '' // 临时工工作部门
@@ -1294,8 +1293,7 @@ export default {
     getAdminTypeText(type) {
       const typeMap = {
         'super': '终端管理员',
-        'book': '图书管理员', 
-        'lend': '借阅管理员'
+        'normal': '普通管理员'
       };
       return typeMap[type] || '未知类型';
     },
@@ -1681,10 +1679,10 @@ export default {
         this.userTypeChart = new Chart(userTypeCtx, {
           type: 'pie',
           data: {
-            labels: ['学生', '教师', '终端管理员', '图书管理员', '借阅管理员', '临时工'],
+            labels: ['学生', '教师', '终端管理员', '普通管理员', '临时工'],
             datasets: [{
               data: this.getUserTypeCounts(),
-              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#8AC926'],
+              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#8AC926'],
               borderWidth: 1
             }]
           },
@@ -1763,11 +1761,10 @@ export default {
       const studentCount = this.users.filter(u => u._utype === 'student').length;
       const teacherCount = this.users.filter(u => u._utype === 'teacher').length;
       const adminTCount = this.users.filter(u => u._utype === 'admin_t').length;
-      const adminBCount = this.users.filter(u => u._utype === 'admin_b').length;
-      const adminLCount = this.users.filter(u => u._utype === 'admin_l').length;
+      const adminNCount = this.users.filter(u => u._utype === 'admin_n').length;
       const tempWorkerCount = this.users.filter(u => u._utype === 'tempworker').length;
       
-      return [studentCount, teacherCount, adminTCount, adminBCount, adminLCount, tempWorkerCount];
+      return [studentCount, teacherCount, adminTCount, adminNCount, tempWorkerCount];
     },
 
     // 获取公告状态数量
@@ -1831,15 +1828,14 @@ export default {
       }
     },
 
-    // 映射管理员类型
-    mapAdminType(utype) {
-      const typeMap = {
-        'admin_t': 'super',
-        'admin_b': 'book',
-        'admin_l': 'lend'
-      };
-      return typeMap[utype] || utype;
-    },
+     // 映射管理员类型
+      mapAdminType(utype) {
+        const typeMap = {
+          'admin_t': 'super',
+          'admin_n': 'normal'
+        };
+        return typeMap[utype] || utype;
+      },
 
     // 图书管理相关方法
     async fetchBooks() {
@@ -2462,8 +2458,7 @@ export default {
         'student': '学生',
         'teacher': '教师', 
         'admin_t': '终端管理员',
-        'admin_b': '图书管理员',
-        'admin_l': '借阅管理员',
+        'admin_n': '普通管理员',
         'tempworker': '临时工'
       };
       return typeMap[utype] || '未知类型';
@@ -3131,15 +3126,23 @@ html, body {
 }
 
 .user-avatar {
-  font-size: 28px;
+  font-size: 24px;
   color: white;
-  cursor: pointer; /* 添加手型光标 */
+  cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .user-avatar:hover {
-  transform: scale(1.1); /* 悬停时稍微放大 */
-  color: #f0f0f0; /* 悬停时颜色微调 */
+  transform: scale(1.1);
+  color: #f0f0f0;
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .user-name {
