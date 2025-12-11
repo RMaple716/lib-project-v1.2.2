@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import readers from '../views/readers.vue'
 import GlobalMessage from '../views/GlobalMessage.vue'
 
 // 创建消息组件实例
@@ -23,8 +23,13 @@ Vue.use(VueRouter)
 const routes = [
   {
     path: '/',
-    name: 'home',
-    component: HomeView
+    name: 'readers',
+    component: readers
+  },
+  {
+    path: '/readers',
+    name: 'Readers',
+    component: readers
   },
   {
     path: '/about',
@@ -41,9 +46,9 @@ const routes = [
     component: () => import('../views/manager.vue')
   },
   {
-    path: '/readers',
-    name: 'Readers',
-    component: () => import('../views/readers.vue')
+    path: '/HomeView',
+    name: 'HomeView',
+    component: () => import('../views/HomeView.vue')
   },
   {
     path: '/manager2',
