@@ -12,6 +12,7 @@ const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
 const readerRoutes = require('./routes/readers');
 const announcementRoutes = require('./routes/announcement');
+const messageRoutes = require('./routes/message');
 const categoryRoutes = require('./routes/category');
 const borrowRecordRoutes = require('./routes/borrow-record');
 const userImportRoutes = require('./routes/userImport');
@@ -72,6 +73,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/readers', readerRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/borrow-records', borrowRecordRoutes);
 app.use('/api/user-import', userImportRoutes);
@@ -159,6 +161,7 @@ async function startServer() {
           books: '/api/books',
           readers: '/api/readers',
           announcements: '/api/announcements',
+          messages: '/api/messages',
           categories: '/api/categories',
           borrowRecords: '/api/borrow-records'
         }

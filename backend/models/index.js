@@ -5,6 +5,7 @@ const Book = require('./Book');
 const Category = require('./Category');
 const BorrowRecord = require('./BorrowRecord');
 const Announcement = require('./Announcement');
+const Message = require('./Message');
 // 添加院系、专业、班级和工作部门模型
 const Department = require('./Department');
 const Major = require('./Major');
@@ -222,6 +223,19 @@ const defineAssociations = () => {
       otherKey: '_uid',
       as: 'users'
     });
+    
+    // 消息模型关联
+    // 用户作为发送者
+    User.hasMany(Message, {
+      foreignKey: '_sender_id',
+      as: 'sentMessages'
+    });
+    
+    // 用户作为接收者
+    User.hasMany(Message, {
+      foreignKey: '_receiver_id',
+      as: 'receivedMessages'
+    });
 
     console.log('模型关联定义成功');
   } catch (error) {
@@ -357,6 +371,32 @@ const syncDatabase = async () => {
         onUpdate: 'CASCADE'
       });
       
+      // 为Message表的_sender_id字段创建外键约束
+      await sequelize.getQueryInterface().addConstraint('t_messages', {
+        fields: ['_sender_id'],
+        type: 'foreign key',
+        name: 'message_sender_id_fkey',
+        references: {
+          table: 't_user',
+          field: '_uid'
+        },
+        onDelete: 'RESTRICT',
+        onUpdate: 'CASCADE'
+      });
+      
+      // 为Message表的_receiver_id字段创建外键约束
+      await sequelize.getQueryInterface().addConstraint('t_messages', {
+        fields: ['_receiver_id'],
+        type: 'foreign key',
+        name: 'message_receiver_id_fkey',
+        references: {
+          table: 't_user',
+          field: '_uid'
+        },
+        onDelete: 'RESTRICT',
+        onUpdate: 'CASCADE'
+      });
+
       console.log('所有外键约束创建成功');
     } catch (error) {
       console.log('外键约束可能已存在或创建失败:', error.message);
@@ -378,13 +418,13 @@ const syncDatabase = async () => {
 const createDefaultAdmin = async () => {
   try {
     const existingAdmin = await User.findOne({ 
-      where: { _account: 'admin_terminal' } 
+      where: { _account: 'admin_t' } 
     });
     
     if (!existingAdmin) {
       await User.create({
-        _utype: 'admin_terminal',
-        _account: 'admin_terminal',
+        _utype: 'admin_t',
+        _account: 'admin_t',
         _name: '终端管理员',
         _password: 'admin123',
         _email: 'admin@library.com',
@@ -393,7 +433,7 @@ const createDefaultAdmin = async () => {
         access: 1,
         _create_time: new Date()
       });
-      console.log(' 默认管理员账户创建成功 (账号: admin_terminal, 密码: admin123)');
+      console.log(' 默认管理员账户创建成功 (账号: admin_t, 密码: admin123)');
     }
   } catch (error) {
     console.error(' 创建默认管理员失败:', error);
@@ -411,6 +451,7 @@ module.exports = {
   WorkDepartment,
   BorrowRecord,
   Announcement,
+  Message,
   Permission,
   Role,
   RolePermission,
