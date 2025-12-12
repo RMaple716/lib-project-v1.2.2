@@ -37,8 +37,7 @@
               <option value="teacher">教师</option>
               <option value="tempworker">临时工</option>
               <option value="admin_t">终端管理员</option>
-              <option value="admin_b">图书管理员</option>
-              <option value="admin_l">借阅管理员</option>
+              <option value="admin_n">普通管理员</option>
             </select>
           </div>
           <div class="remember-me">
@@ -384,8 +383,8 @@ export default {
           // 更新登录成功后的跳转逻辑
           setTimeout(() => {
             console.log('跳转前检查token:', localStorage.getItem('token'));
-            // 根据API文档，用户类型字段是 usertype，且管理员类型为 admin_t, admin_b, admin_l
-            if (['admin_t', 'admin_b', 'admin_l'].includes(data.data.usertype)) {
+            // 根据API文档，用户类型字段是 usertype，且管理员类型为 admin_t, admin_n
+            if (['admin_t', 'admin_n'].includes(data.data.usertype)) {
               console.log('跳转到管理员页面');
               this.$router.push('/manager2'); // 跳转到管理员页面
             } else if (['student', 'teacher', 'tempworker'].includes(data.data.usertype)) {
