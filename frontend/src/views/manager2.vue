@@ -376,6 +376,8 @@
                 <button type="button" class="search-button" @click="handleUserSearch">查询</button>
                 <button type="button" class="reset-button" @click="handleReset">重置</button>
                 <button type="button" class="addUserModal" @click="showAddUserModal">添加用户</button>
+                <button type="button" class="bulkUploadButton" @click="showBulkUserUploadModal">批量上传</button>
+                <button type="button" class="downloadUserTemplateButton" @click="downloadUserTemplate">下载模板</button>
               </form>
 
               <!-- 添加/编辑用户弹窗 -->
@@ -422,6 +424,40 @@
                     </div>
 
                     <button type="submit" class="submit-button">提交</button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- 批量上传用户弹窗 -->
+              <div id="bulkUserUploadModal" class="modal" v-if="showBulkUserUploadModalFlag">
+                <div class="modal-content">
+                  <span class="close-button" @click="closeBulkUserUploadModal">&times;</span>
+                  <h2>批量上传用户</h2>
+                  <form @submit.prevent="submitBulkUserUpload">
+                    <div class="upload-area" @dragover.prevent @drop.prevent="handleUserDrop">
+                      <input type="file" ref="userFileInput" accept=".csv,.xlsx" @change="handleUserFileSelect" style="display: none;">
+                      <div class="upload-content" @click="$refs.userFileInput.click()">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <p>点击选择文件或将文件拖拽到此处</p>
+                        <p class="file-types">支持 CSV、XLSX 格式</p>
+                        <p v-if="selectedUserFile" class="selected-file">已选择文件: {{ selectedUserFile.name }}</p>
+                      </div>
+                    </div>
+                    
+                    <div class="upload-info">
+                      <p><strong>说明：</strong></p>
+                      <ul>
+                        <li>请使用我们提供的模板文件进行批量上传</li>
+                        <li>支持 CSV、Excel 格式</li>
+                        <li>文件大小不能超过 10MB</li>
+                        <li>系统会自动跳过已存在的账号</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="modal-buttons">
+                      <button type="button" class="cancel-button" @click="closeBulkUserUploadModal">取消</button>
+                      <button type="submit" class="submit-button" :disabled="!selectedUserFile">开始上传</button>
+                    </div>
                   </form>
                 </div>
               </div>
@@ -993,6 +1029,9 @@ export default {
       userSearchType: '_username',
       userSearchKeyword: '',
       showAddUserModalFlag: false,
+      // 用户批量上传相关
+      showBulkUserUploadModalFlag: false,
+      selectedUserFile: null,
       isEditUser: false,
       currentEditUserId: null,
       userForm: {
@@ -2681,6 +2720,167 @@ export default {
         this.$message.error('重置密码失败')
       }
     },
+    // 显示用户批量上传弹窗
+    showBulkUserUploadModal() {
+      this.selectedUserFile = null;
+      this.showBulkUserUploadModalFlag = true;
+    },
+
+    // 关闭用户批量上传弹窗
+    closeBulkUserUploadModal() {
+      this.showBulkUserUploadModalFlag = false;
+      this.selectedUserFile = null;
+    },
+
+    // 处理用户文件选择
+    handleUserFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        this.selectedUserFile = file;
+      }
+    },
+
+    // 处理用户拖拽上传
+    handleUserDrop(event) {
+      const file = event.dataTransfer.files[0];
+      if (file) {
+        // 检查文件类型
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith('.csv') || fileName.endsWith('.xlsx')) {
+          this.selectedUserFile = file;
+        } else {
+          this.$message.error('请上传 CSV 或 Excel 文件');
+        }
+      }
+    },
+
+    // 下载用户模板
+    async downloadUserTemplate() {
+      try {
+        // 创建一个包含所有用户类型模板的 ZIP 文件链接
+        this.$message.info('请选择要下载的用户类型模板');
+        
+        // 创建选择对话框
+        const userType = prompt('请输入要下载的用户类型模板 (student/teacher/tempworker):', 'student');
+        
+        if (!userType) return;
+        
+        let url = '';
+        let filename = '';
+        
+        switch(userType.toLowerCase()) {
+          case 'student':
+            url = '/api/user-import/students/template';
+            filename = '学生导入模板.csv';
+            break;
+          case 'teacher':
+            url = '/api/user-import/teachers/template';
+            filename = '教师导入模板.csv';
+            break;
+          case 'tempworker':
+            url = '/api/user-import/tempworkers/template';
+            filename = '临时工导入模板.csv';
+            break;
+          default:
+            this.$message.error('无效的用户类型');
+            return;
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        } else {
+          this.$message.error('模板下载失败');
+        }
+      } catch (error) {
+        console.error('下载模板失败:', error);
+        this.$message.error('模板下载失败: ' + error.message);
+      }
+    },
+
+    // 提交用户批量上传
+    async submitBulkUserUpload() {
+      if (!this.selectedUserFile) {
+        this.$message.error('请选择要上传的文件');
+        return;
+      }
+
+      // 根据文件名或用户选择确定用户类型
+      const filename = this.selectedUserFile.name.toLowerCase();
+      let uploadUrl = '';
+
+      if (filename.includes('学生') || filename.includes('student')) {
+        uploadUrl = '/api/user-import/students';
+      } else if (filename.includes('教师') || filename.includes('teacher')) {
+        uploadUrl = '/api/user-import/teachers';
+      } else if (filename.includes('临时') || filename.includes('tempworker')) {
+        uploadUrl = '/api/user-import/tempworkers';
+      } else {
+        // 如果无法从文件名判断，则让用户选择
+        const userType = prompt('请输入用户类型 (student/teacher/tempworker):', 'student');
+        if (!userType) return;
+        
+        switch(userType.toLowerCase()) {
+          case 'student':
+            uploadUrl = '/api/user-import/students';
+            break;
+          case 'teacher':
+            uploadUrl = '/api/user-import/teachers';
+            break;
+          case 'tempworker':
+            uploadUrl = '/api/user-import/tempworkers';
+            break;
+          default:
+            this.$message.error('无效的用户类型');
+            return;
+        }
+      }
+
+      const formData = new FormData();
+      formData.append('file', this.selectedUserFile);
+
+      try {
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: formData
+        });
+
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+          this.$message.success(`批量上传成功！${result.message}`);
+          this.closeBulkUserUploadModal();
+          await this.fetchUsers(); // 重新加载用户列表
+        } else {
+          const errorMsg = result.message || '批量上传失败';
+          this.$message.error(errorMsg);
+          
+          // 如果有详细错误信息，显示出来
+          if (result.errors && result.errors.length > 0) {
+            console.error('上传错误详情:', result.errors);
+          }
+        }
+      } catch (error) {
+        console.error('批量上传失败:', error);
+        this.$message.error('批量上传失败: ' + error.message);
+      }
+    },
 
     // 公告管理相关方法
     // 公告内容预览方法
@@ -3224,55 +3424,191 @@ html, body {
   background-color: rgba(231, 76, 60, 0.1);
 }
 
-/* ... 可视化表样式 ... */
+/* 可视化表样式优化 */
 
 .chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eaeaea;
 }
 
 .date-filter {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 14px;
 }
 
 .date-filter label {
-  font-weight: normal;
-  color: #666;
+  font-weight: 500;
+  color: #555;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .date-filter input[type="date"] {
-  padding: 5px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
   font-size: 14px;
+  transition: all 0.2s ease;
+  background-color: #fafafa;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.date-filter input[type="date"]:focus {
+  outline: none;
+  border-color: #1976D2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  background-color: white;
+}
+
+.date-filter input[type="date"]:hover {
+  border-color: #bdbdbd;
 }
 
 .chart-tabs {
   display: flex;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eaeaea;
+  padding-bottom: 1px;
 }
 
 .chart-tabs button {
-  background-color: #f0f0f0;
+  background-color: transparent;
   color: #666;
-  border: 1px solid #ddd;
-  padding: 8px 16px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 10px 20px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s;
-  border-radius: 4px 4px 0 0;
-  margin-right: 2px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+  border-radius: 6px 6px 0 0;
+  margin: 0 2px;
+}
+
+.chart-tabs button:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+  color: #1976D2;
+  transform: translateY(-1px);
 }
 
 .chart-tabs button.active {
+  background-color: rgba(25, 118, 210, 0.1);
+  color: #1976D2;
+  border-bottom-color: #1976D2;
+  font-weight: 600;
+}
+
+.chart-tabs button.active::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -4px;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
   background-color: #1976D2;
-  color: white;
-  border-color: #1976D2;
+  border-radius: 2px;
+}
+
+/* 添加图表容器样式优化 */
+.chart-container {
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f0f0f0;
+  margin-bottom: 20px;
+}
+
+.chart-container h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 添加响应式设计 */
+@media (max-width: 768px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .date-filter {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .chart-tabs {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  
+  .chart-tabs button {
+    padding: 8px 12px;
+    font-size: 13px;
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+  }
+  
+  .chart-tabs button.active::before {
+    display: none;
+  }
+}
+
+/* 添加平滑过渡动画 */
+.chart-content {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 添加加载状态样式 */
+.chart-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  color: #666;
+  font-size: 14px;
+}
+
+.chart-loading::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  margin-left: 10px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #1976D2;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 
@@ -3720,7 +4056,8 @@ small {
 }
 
 /* 搜索按钮 */
-.search-button,.bulkUploadButton, .downloadTemplateButton  {
+.search-button,.bulkUploadButton,
+.downloadUserTemplateButton, .downloadTemplateButton  {
   background-color: #1194AE; /* 主题色 */
   color: white;
   border: none;
@@ -3733,7 +4070,8 @@ small {
   min-width: 100px;
 }
 
-.search-button:hover,.bulkUploadButton:hover, .downloadTemplateButton:hover {
+.search-button:hover,.bulkUploadButton:hover,
+.downloadUserTemplateButton:hover, .downloadTemplateButton:hover {
   background-color: #067a97;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
@@ -3946,6 +4284,23 @@ button:disabled:hover {
   margin-bottom: 20px;
 }
 
+.chart-row .chart-card:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-row .chart-card:first-child h3 {
+  width: 120%;
+}
+
+.chart-row .chart-card:first-child .chart-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
 .chart-card {
   background: white;
   border-radius: 10px;
@@ -3963,6 +4318,7 @@ button:disabled:hover {
 .chart-wrapper {
   position: relative;
   height: 250px;
+  width: 100%;
 }
 
 .quick-actions {
