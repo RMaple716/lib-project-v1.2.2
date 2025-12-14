@@ -369,7 +369,7 @@ export default {
         if (res.status === 200) {
           this.showMessage('登录成功！', 'success', 2000);
 
-           // 🔥 关键修复：添加 token 存储
+           // 🔥 关键修复：添加 token 和 userInfo 存储
           if (data.data && data.data.token) {
             localStorage.setItem('token', data.data.token);
             console.log('✅ token已存储:', data.data.token);
@@ -378,6 +378,12 @@ export default {
             console.error('❌ API返回中没有token:', data);
             this.showMessage('登录失败：未获取到token', 'error', 4000);
             return;
+          }
+
+          // 存储用户信息
+          if (data.data) {
+            localStorage.setItem('userInfo', JSON.stringify(data.data));
+            console.log('✅ userInfo已存储:', data.data);
           }
 
           // 更新登录成功后的跳转逻辑

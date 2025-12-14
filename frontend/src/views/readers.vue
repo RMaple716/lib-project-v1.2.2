@@ -24,42 +24,31 @@
           <li>
             <a href="#" @click.prevent="changePage('feedback')">意见建议</a>
           </li>
+          <li>
+            <a href="#" @click.prevent="changePage('visualization')">图书可视化</a>
+          </li>
         </ul>
 
-        <!-- 登录注册按钮 / 用户头像 -->
+        <!-- 登录按钮 / 用户头像 -->
         <div class="auth-links">
-          <div v-if="isLoggedIn" class="user-menu">
+          <div v-if="isLoggedIn" class="user-menu" @click.stop="toggleUserMenu">
             <img
               v-if="avatarUrl"
               :src="avatarUrl"
-              alt="avatar"
+              alt="用户头像"
               class="user-avatar"
-              @click.prevent="openPersonal"
             />
-            <div
-              v-else
-              class="user-avatar-placeholder"
-              @click.prevent="openPersonal"
-            >
-              {{
-                (user && (user._name || user.name || user._account)) || "用户"
-              }}
+            <div v-else class="user-avatar-placeholder">
+              {{ (userInfo?._name || userInfo?.name || "U").charAt(0).toUpperCase() }}
             </div>
-
-            <div class="user-dropdown">
-              <button class="auth-link" @click.prevent="logout">
-                退出登录
-              </button>
+           <!-- 用户下拉菜单 -->
+            <div class="user-dropdown" v-show="showUserDropdown">
+              <button @click.stop="openPersonal" class="auth-link">个人信息</button>
+              <button @click.stop="handleLogout" class="auth-link">退出登录</button>
             </div>
           </div>
-          <div v-else>
-            <a href="#" class="auth-link" @click.prevent="goToAuth('login')"
-              >登录</a
-            >
-            <span class="auth-divider">|</span>
-            <a href="#" class="auth-link" @click.prevent="goToAuth('register')"
-              >注册</a
-            >
+          <div v-else class="auth-links">
+            <a href="#" @click.prevent="goToAuth('login')" class="auth-link">登录</a>
           </div>
         </div>
       </nav>
@@ -74,13 +63,31 @@
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input
-                type="text"
-                v-model="searchQuery"
-                placeholder="请输入查询内容"
-              />
+              <div class="search-input-wrapper" :class="searchInputClasses">
+                <div class="selected-tags" v-if="selectedCategories.length > 0">
+                  <span 
+                    v-for="(category, index) in selectedCategories" 
+                    :key="index"
+                    class="tag"
+                  >
+                    {{ category.label }}
+                    <span class="tag-close" @click.stop="removeCategory(index)">×</span>
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  v-model="searchQuery"
+                  placeholder="请输入查询内容"
+                  @focus="handleInputFocus"
+                />
+              </div>
               <button @click="gotoSearchResult">检索</button>
             </div>
+            <!-- 搜索状态显示 -->
+            <div class="search-status" v-if="selectedCategories.length > 0 || searchQuery">
+                当前筛选: {{ searchStatusText }}
+                <button @click="clearAllFilters" class="clear-filters-btn">清除所有筛选</button>
+              </div>
 
             <!-- 类别筛选 -->
             <div class="category-filter">
@@ -90,7 +97,7 @@
                 :key="category.value"
                 @click="filterByCategory(category.value)"
                 :class="{
-                  'active-category': currentCategory === category.value,
+                  'active-category': selectedCategories.some(cat => cat.value === category.value),
                 }"
               >
                 {{ category.label }}
@@ -280,9 +287,9 @@
               <button
                 v-for="category in bookCategories"
                 :key="category.value"
-                @click="filterByCategoryInResult(category.value)"
+                @click="filterByCategory(category.value)"
                 :class="{
-                  'active-category': currentCategory === category.value,
+                  'active-category': selectedCategories.some(cat => cat.value === category.value),
                 }"
               >
                 {{ category.label }}
@@ -450,20 +457,6 @@
                   >
                     登录后借阅
                   </button>
-                  <button 
-                    v-if="isLoggedIn"
-                    @click="toggleFavorite(currentBook._bid)"
-                    :class="['favorite-btn', { favorited: isFavorite(currentBook._bid) }]"
-                  >
-                    {{ isFavorite(currentBook._bid) ? '已收藏' : '收藏图书' }}
-                  </button>
-                  <button 
-                    v-else
-                    @click="goToAuth('login')"
-                    class="favorite-btn"
-                  >
-                    登录后收藏
-                  </button>
                 </div>
               </div>
             </div>
@@ -492,7 +485,7 @@
                 :key="category.value"
                 @click="filterByCategory(category.value)"
                 :class="{
-                  'active-category': currentCategory === category.value,
+                  'active-category': selectedCategories.some(cat => cat.value === category.value),
                 }"
               >
                 {{ category.label }}
@@ -595,288 +588,231 @@
                   我的借阅
                 </li>
                 <li
-                  :class="{ active: personalTab === 'collection' }"
-                  @click="personalTab = 'collection'"
+                  :class="{ active: personalTab === 'borrowing_total' }"
+                  @click="personalTab = 'borrowing_total'"
                 >
-                  我的收藏
+                  借阅图谱
+                </li>
+                <li
+                  :class="{ active: personalTab === 'violation_records' }"
+                  @click="personalTab = 'violation_records'"
+                >
+                  违规记录
                 </li>
               </ul>
             </div>
-            <div class="personal-content">
-              <!-- 未登录提示 -->
-              <div v-if="!isLoggedIn" class="login-prompt">
-                <h2>请先登录</h2>
-                <p>您需要登录后才能查看个人信息</p>
-                <button @click="goToAuth('login')" class="login-btn">立即登录</button>
-              </div>
-              
-              <!-- 已登录则显示原有内容 -->
-              <div v-else>
+            <div class="personal-content">        
                 <div v-if="personalTab === 'account'">
                   <h2>账户信息</h2>
-                  <div class="account-info">
-                    <template v-if="!editMode">
-                      <div class="info-item">
-                        <label>姓名：</label>
-                        <span>{{ userInfo?._account || userInfo?.account || "—" }}</span>
-                      </div>
-                      <div class="info-item">
-                        <label>学号：</label>
-                        <span>{{ userInfo?._name || userInfo?.name || "—" }}</span>
-                      </div>
-                      <div class="info-item">
-                        <label>专业：</label>
-                        <span>{{ userInfo?._phone || userInfo?.phone || "未填写" }}</span>
-                      </div>
-                      <div class="info-actions">
-                        <button @click="toggleEdit" class="edit-btn">编辑信息</button>
-                      </div>
-                    </template>
-                    <template v-else>
-                      <!-- 编辑模式内容 -->
-                      <form @submit.prevent="saveEdit">
+                  <!-- 未登录提示 -->
+                  <div v-if="!isLoggedIn" class="login-prompt">
+                    <h2>请先登录</h2>
+                    <p>您需要登录后才能查看个人信息</p>
+                    <button @click="goToAuth('login')" class="login-btn">立即登录</button>
+                  </div>
+                  <!-- 已登录则显示原有内容 -->
+                  <div v-else>
+                    <div class="account-info">
+                      <template v-if="!editMode">
                         <div class="info-item">
                           <label>姓名：</label>
-                          <input v-model="editUser._name" />
+                          <span>{{ userInfo?._name || userInfo?.name || "—" }}</span>
                         </div>
                         <div class="info-item">
                           <label>学号：</label>
-                          <input v-model="editUser._account" disabled />
+                          <span>{{ userInfo?._account || userInfo?.account || "—" }}</span>
+                        </div>
+                        <div class="info-item">
+                          <label>专业：</label>
+                          <span>{{ userInfo?._major || userInfo?.major || "未填写" }}</span>
+                        </div>
+                        <div class="info-item">
+                          <label>学院：</label>
+                          <span>{{ userInfo?._department || userInfo?.department || "未填写" }}</span>
                         </div>
                         <div class="info-item">
                           <label>邮箱：</label>
-                          <input v-model="editUser._email" />
+                          <span>{{ userInfo?._email || userInfo?.email || "未填写" }}</span>
+                        </div>
+                        <div class="info-item">
+                          <label>最大可借：</label>
+                          <span>{{ userInfo?._max_num || userInfo?._max_num || "--" }}</span>
+                        </div>
+                        <div class="info-item">
+                          <label>当前借阅：</label>
+                          <span>{{ userInfo?._lend_num || userInfo?.lend_num || "--" }}</span>
                         </div>
                         <div class="info-actions">
-                          <button type="submit" class="save-btn">保存</button>
-                          <button @click="toggleEdit" class="cancel-btn">取消</button>
+                          <button @click="toggleEdit" class="edit-btn">更换邮箱</button>
                         </div>
-                      </form>
-                    </template>
+                      </template>
+                      <template v-else>
+                        <!-- 编辑模式内容 -->
+                        <form @submit.prevent="saveEdit">
+                          <div class="info-item">
+                            <label>邮箱：</label>
+                            <input v-model="editUser._email" />
+                          </div>
+                          <div class="info-actions">
+                            <button type="submit" class="save-btn">保存</button>
+                            <button @click="toggleEdit" class="cancel-btn">取消</button>
+                          </div>
+                        </form>
+                      </template>
+                    </div>
                   </div>
-                </div>
               </div>
-              <!-- 我的借阅 -->
+             <!-- 我的借阅 -->
               <div v-if="personalTab === 'borrowing'">
                 <h2>我的借阅</h2>
-                <div class="personal-search">
-                  <select v-model="borrowingSearchType" class="search-select">
-                    <option value="book">按图书名称查询</option>
-                    <option value="author">按作者姓名查询</option>
-                    <option value="date">按借阅时间查询</option>
-                  </select>
-                  <template v-if="borrowingSearchType !== 'date'">
-                    <input
-                      type="text"
-                      v-model="borrowingSearchQuery"
-                      placeholder="请输入查询内容"
-                    />
-                  </template>
-                  <template v-else>
-                    <div class="date-range-inputs">
-                      <input
-                        type="date"
-                        v-model="borrowingStartDate"
-                        class="date-input"
-                        :max="borrowingEndDate || today"
-                      />
-                      <span class="date-separator">至</span>
-                      <input
-                        type="date"
-                        v-model="borrowingEndDate"
-                        class="date-input"
-                        :min="borrowingStartDate"
-                        :max="today"
-                      />
-                    </div>
-                  </template>
-                  <button @click="searchBorrowing">检索</button>
+                <!-- 未登录提示 -->
+                <div v-if="!isLoggedIn" class="login-prompt">
+                  <h2>请先登录</h2>
+                  <p>您需要登录后才能查看借阅记录</p>
+                  <button @click="goToAuth('login')" class="login-btn">立即登录</button>
                 </div>
-                <div class="status-tabs">
-                  <button
-                    :class="{ active: borrowingStatus === 'borrowing' }"
-                    @click="borrowingStatus = 'borrowing'"
-                  >
-                    借阅中 ({{ borrowingStats?.borrowing || 0 }})
-                  </button>
-                  <button
-                    :class="{ active: borrowingStatus === 'returned' }"
-                    @click="borrowingStatus = 'returned'"
-                  >
-                    已归还 ({{ borrowingStats?.returned || 0 }})
-                  </button>
-                </div>
-                <table id="borrowing-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th>ISBN</th>
-                      <th>图书名称</th>
-                      <th>借阅日期</th>
-                      <th>截止日期</th>
-                      <th>归还日期</th>
-                      <th>状态</th>
-                      <th v-if="borrowingStatus === 'borrowing'">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="borrowingList.length === 0">
-                      <td
-                        :colspan="borrowingStatus === 'borrowing' ? 9 : 8"
-                        style="text-align: center; padding: 20px"
-                      >
-                        暂无借阅记录
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(record, index) in filteredBorrowingList"
-                      :key="record.id"
+                <!-- 已登录才显示的内容 -->
+                <div v-else>
+                  <div class="personal-search">
+                    <select v-model="borrowingSearchType" class="search-select">
+                      <option value="book">按图书名称查询</option>
+                      <option value="author">按作者姓名查询</option>
+                      <option value="date">按借阅时间查询</option>
+                    </select>
+                    <template v-if="borrowingSearchType !== 'date'">
+                      <input
+                        type="text"
+                        v-model="borrowingSearchQuery"
+                        placeholder="请输入查询内容"
+                      />
+                    </template>
+                    <template v-else>
+                      <div class="date-range-inputs">
+                        <input
+                          type="date"
+                          v-model="borrowingStartDate"
+                          class="date-input"
+                          :max="borrowingEndDate || today"
+                        />
+                        <span class="date-separator">至</span>
+                        <input
+                          type="date"
+                          v-model="borrowingEndDate"
+                          class="date-input"
+                          :min="borrowingStartDate"
+                          :max="today"
+                        />
+                      </div>
+                    </template>
+                    <button @click="searchBorrowing">检索</button>
+                  </div>
+                  <div class="status-tabs">
+                    <button
+                      :class="{ active: borrowingStatus === 'borrowing' }"
+                      @click="borrowingStatus = 'borrowing'"
                     >
-                      <td>{{ index + 1 }}</td>
-                      <td>
-                        <div class="table-cover">
-                          <img
-                            :src="getFullCoverUrl(record.coverUrl)"
-                            :alt="record.bookName"
-                            class="book-img"
-                            @error="handleImgError($event, record)"
-                          />
-                          <div
-                            class="cover-placeholder"
-                            v-if="
-                              !record.coverUrl || imgErrorMap[record.bookId]
+                      借阅中 ({{ borrowingStats?.borrowing || 0 }})
+                    </button>
+                    <button
+                      :class="{ active: borrowingStatus === 'returned' }"
+                      @click="borrowingStatus = 'returned'"
+                    >
+                      已归还 ({{ borrowingStats?.returned || 0 }})
+                    </button>
+                    <button
+                      :class="{ active: borrowingStatus === '_' }"
+                      @click="borrowingStatus = '_'"
+                    >
+                      预约中 ({{ borrowingStats?.returned || 0 }})
+                    </button>
+                  </div>
+                  <table id="borrowing-table">
+                    <thead>
+                      <tr>
+                        <th>序号</th>
+                        <th>ISBN</th>
+                        <th>图书名称</th>
+                        <th>借阅日期</th>
+                        <th>截止日期</th>
+                        <th>归还日期</th>
+                        <th>状态</th>
+                        <th v-if="borrowingStatus === 'borrowing'">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-if="borrowingList.length === 0">
+                        <td
+                          :colspan="borrowingStatus === 'borrowing' ? 9 : 8"
+                          style="text-align: center; padding: 20px"
+                        >
+                          暂无借阅记录
+                        </td>
+                      </tr>
+                      <tr
+                        v-for="(record, index) in filteredBorrowingList"
+                        :key="record.id"
+                      >
+                        <td>{{ index + 1 }}</td>
+                        <td>
+                          <div class="table-cover">
+                            <img
+                              :src="getFullCoverUrl(record.coverUrl)"
+                              :alt="record.bookName"
+                              class="book-img"
+                              @error="handleImgError($event, record)"
+                            />
+                            <div
+                              class="cover-placeholder"
+                              v-if="
+                                !record.coverUrl || imgErrorMap[record.bookId]
+                              "
+                            >
+                              {{ record.bookName.substring(0, 2) }}
+                            </div>
+                          </div>
+                        </td>
+                        <td>{{ record.bookName }}</td>
+                        <td>{{ record.author }}</td>
+                        <td>{{ record.borrowDate }}</td>
+                        <td>{{ record.dueDate }}</td>
+                        <td>
+                          <span
+                            class="status-tag"
+                            :class="
+                              record.status === 'borrowing'
+                                ? 'borrowing'
+                                : 'returned'
                             "
                           >
-                            {{ record.bookName.substring(0, 2) }}
-                          </div>
-                        </div>
-                      </td>
-                      <td>{{ record.bookName }}</td>
-                      <td>{{ record.author }}</td>
-                      <td>{{ record.borrowDate }}</td>
-                      <td>{{ record.dueDate }}</td>
-                      <td>
-                        <span
-                          class="status-tag"
-                          :class="
-                            record.status === 'borrowing'
-                              ? 'borrowing'
-                              : 'returned'
-                          "
-                        >
-                          {{
-                            record.status === "borrowing" ? "借阅中" : "已归还"
-                          }}
-                        </span>
-                      </td>
-                      <td v-if="borrowingStatus === 'borrowing'">
-                        <button
-                          v-if="record.status === 'borrowing'"
-                          class="return-btn"
-                          @click="returnBook(record.id)"
-                        >
-                          还书
-                        </button>
-                        <button
-                          v-if="record.status === 'borrowing'"
-                          class="delay-btn"
-                          @click="renewBook(record.id)"
-                        >
-                          续借
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!-- 我的收藏 -->
-              <div v-if="personalTab === 'collection'">
-                <h2>我的收藏</h2>
-                <div class="personal-search">
-                  <select v-model="collectionSearchType" class="search-select">
-                    <option value="book">按图书名称查询</option>
-                    <option value="author">按作者姓名查询</option>
-                    <option value="date">按收藏时间查询</option>
-                  </select>
-                  <template v-if="collectionSearchType !== 'date'">
-                    <input
-                      type="text"
-                      v-model="collectionSearchQuery"
-                      placeholder="请输入查询内容"
-                    />
-                  </template>
-                  <template v-else>
-                    <div class="date-range-inputs">
-                      <input
-                        type="date"
-                        v-model="collectionStartDate"
-                        class="date-input"
-                        :max="collectionEndDate || today"
-                      />
-                      <span class="date-separator">至</span>
-                      <input
-                        type="date"
-                        v-model="collectionEndDate"
-                        class="date-input"
-                        :min="collectionStartDate"
-                        :max="today"
-                      />
-                    </div>
-                  </template>
-                  <button @click="searchCollection">检索</button>
-                </div>
-                <div class="collection-grid">
-                  <div
-                    v-if="collectionList.length === 0"
-                    style="
-                      grid-column: 1 / -1;
-                      text-align: center;
-                      padding: 40px;
-                    "
-                  >
-                    暂无收藏记录
-                  </div>
-                  <div
-                    class="collection-item"
-                    v-for="item in filteredCollectionList"
-                    :key="item.id"
-                  >
-                    <div class="book-cover">
-                      <img
-                        :src="getFullCoverUrl(item.coverUrl)"
-                        :alt="item.bookName"
-                        class="book-img"
-                        @error="handleImgError($event, item)"
-                      />
-                      <div
-                        class="cover-placeholder"
-                        v-if="!item.coverUrl || imgErrorMap[item.bookId]"
-                      >
-                        {{ item.bookName.substring(0, 2) }}
-                      </div>
-                    </div>
-                    <div class="collection-info">
-                      <h3 class="book-title">{{ item.bookName }}</h3>
-                      <p class="book-author">{{ item.author }}</p>
-                      <p class="collect-date">
-                        收藏时间: {{ item.collectDate }}
-                      </p>
-                      <div class="collection-actions">
-                        <button
-                          class="borrow-btn"
-                          @click="borrowBook(item.bookId)"
-                        >
-                          借阅
-                        </button>
-                        <button class="cancel-collect-btn">取消收藏</button>
-                      </div>
-                    </div>
-                  </div>
+                            {{
+                              record.status === "borrowing" ? "借阅中" : "已归还"
+                            }}
+                          </span>
+                        </td>
+                        <td v-if="borrowingStatus === 'borrowing'">
+                          <button
+                            v-if="record.status === 'borrowing'"
+                            class="return-btn"
+                            @click="returnBook(record.id)"
+                          >
+                            还书
+                          </button>
+                          <button
+                            v-if="record.status === 'borrowing'"
+                            class="delay-btn"
+                            @click="renewBook(record.id)"
+                          >
+                            续借
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </div> 
 
         <!-- 公告信息 -->
         <div v-if="currentPage === 'aid'">
@@ -973,33 +909,34 @@
             暂无公告信息
           </div>
         </div>
-
-        <!-- 意见建议 -->
-        <div v-if="currentPage === 'feedback'">
-          <div class="search-container">
-            <div class="searchbar">
-              <select v-model="searchType" class="search-select">
-                <option value="book">按图书名称查询</option>
-                <option value="author">按作者姓名查询</option>
-              </select>
-              <input
-                type="text"
-                v-model="searchQuery"
-                placeholder="请输入查询内容"
-              />
-              <button @click="gotoSearchResult">检索</button>
-            </div>
+          <!-- 意见建议 -->
+      <div v-if="currentPage === 'feedback'">
+        <div class="search-container">
+          <div class="searchbar">
+            <select v-model="searchType" class="search-select">
+              <option value="book">按图书名称查询</option>
+              <option value="author">按作者姓名查询</option>
+            </select>
+            <input
+              type="text"
+              v-model="searchQuery"
+              placeholder="请输入查询内容"
+            />
+            <button @click="gotoSearchResult">检索</button>
           </div>
+        </div>
 
-          <div class="feedback-container">
-            <button @click="changePage('search')" class="back-btn">返回</button>
-            <h2>意见建议</h2>
-            <!-- 未登录提示 -->
-            <div v-if="!isLoggedIn" class="login-prompt">
-              <h2>请先登录</h2>
-              <p>您需要登录后才能提交意见建议</p>
-              <button @click="goToAuth('login')" class="login-btn">立即登录</button>
-            </div>
+        <div class="feedback-container">
+          <button @click="changePage('search')" class="back-btn">返回</button>
+          <h2>意见建议</h2>
+          <!-- 未登录提示 -->
+          <div v-if="!isLoggedIn" class="login-prompt">
+            <h2>请先登录</h2>
+            <p>您需要登录后才能提交意见建议</p>
+            <button @click="goToAuth('login')" class="login-btn">立即登录</button>
+          </div>
+          <!-- 已登录才显示的内容 -->
+          <div v-else>
             <div class="feedback-tabs">
               <button
                 :class="{ active: feedbackTab === 'new' }"
@@ -1087,6 +1024,7 @@
                   </div>
                 </div>
               </div>
+            </div>
               <!-- 历史记录分页 -->
               <div class="pagination" v-if="feedbackHistory.length > 0">
                 <span class="total-pages">共{{ totalFeedbackPages }}页</span>
@@ -1205,6 +1143,8 @@ export default {
   data() {
     return {
       clickedSearch: false, // 添加这个标志位来跟踪是否点击了检索按钮或选择了分类
+      showUserDropdown: false, // 控制用户下拉菜单显示状态
+      selectedCategories: [], // 存储已选择的类别
       currentPage: "search",
       pageType: "",
       searchType: "book",
@@ -1216,7 +1156,6 @@ export default {
       borrowingHistory: [],
       announcements: [],
       currentBook: null,
-      favorites: [], // 添加收藏列表
       feedbackName: "",
       feedbackEmail: "",
       feedbackType: "建议",
@@ -1240,12 +1179,9 @@ export default {
       // 用于保存未过滤的借阅记录，用作检索基准
       allBorrowingRecords: [],
       borrowingStats: { total: 0, borrowing: 0, returned: 0 },
-      //collectionList: [],
       borrowingSearchType: "book",
       borrowingSearchQuery: "",
       borrowingStatus: "all",
-      collectionSearchType: "book",
-      collectionSearchQuery: "",
 
       // 意见建议页面相关数据
       feedbackTab: "new", // new 或 history
@@ -1262,9 +1198,6 @@ export default {
       // 我的借阅搜索新增日期范围字段
       borrowingStartDate: "",
       borrowingEndDate: "",
-      // 我的收藏搜索新增日期范围字段
-      collectionStartDate: "",
-      collectionEndDate: "",
       // 公共日期字段
       today: new Date().toISOString().split("T")[0],
       // 公告检索相关
@@ -1291,6 +1224,29 @@ export default {
     };
   },
   computed: {
+    isLoggedIn() {
+      return !!localStorage.getItem("token") && !!this.user;
+    },
+    searchInputClasses() {
+      return {
+        'has-tags': this.selectedCategories.length > 0
+      };
+    },
+    searchStatusText() {
+      const parts = [];
+      if (this.selectedCategories.length > 0) {
+        parts.push(`类别: ${this.selectedCategories.map(cat => cat.label).join(', ')}`);
+      }
+      if (this.searchQuery) {
+        parts.push(`${this.searchType === 'book' ? '书名' : '作者'}: ${this.searchQuery}`);
+      }
+      return parts.length > 0 ? parts.join(' | ') : '全部图书';
+    },
+    avatarUrl() {
+      const u = this.user || this.userInfo;
+      if (!u) return "";
+      return u.avatar || u._avatar || u.avatar_url || u._cover_url || "";
+    },
     // 原有计算属性保持不变
     filteredBooks() {
       let result = [...this.books];
@@ -1609,51 +1565,14 @@ export default {
       // 默认返回全部
       return this.borrowingList;
     },
-    //收藏检索
-    filteredCollectionList() {
-      let result = [...this.collectionList];
-
-      // 根据搜索类型筛选
-      if (this.collectionSearchType === "book" && this.collectionSearchQuery) {
-        result = result.filter((item) =>
-          item.bookName
-            .toLowerCase()
-            .includes(this.collectionSearchQuery.toLowerCase())
-        );
-      } else if (
-        this.collectionSearchType === "author" &&
-        this.collectionSearchQuery
-      ) {
-        result = result.filter((item) =>
-          item.author
-            .toLowerCase()
-            .includes(this.collectionSearchQuery.toLowerCase())
-        );
-      } else if (this.collectionSearchType === "date") {
-        // 按日期范围筛选
-        if (this.collectionStartDate) {
-          result = result.filter(
-            (item) => item.collectDate >= this.collectionStartDate
-          );
-        }
-        if (this.collectionEndDate) {
-          result = result.filter(
-            (item) => item.collectDate <= this.collectionEndDate
-          );
-        }
-      }
-
-      return result;
-    },
+    
     // 当前借阅数量（按借阅记录计数，同一本书借两本计2）
     currentBorrowCount() {
       if (!Array.isArray(this.allBorrowingRecords)) return 0;
       return this.allBorrowingRecords.filter((r) => r.status === "borrowing")
         .length;
     },
-    isLoggedIn() {
-      return !!(localStorage.getItem("token") || this.user);
-    },
+    
     avatarUrl() {
       // 优先使用 user.avatar 或 user._avatar 或 user.avatar_url 等常见字段
       const u =
@@ -1667,45 +1586,35 @@ export default {
   },
   methods: {
     // 原有方法保持不变
+    handleInputFocus() {
+      // 当输入框获得焦点时，不清空输入框内容，因为我们要保留搜索词
+      // 但是可以添加一些视觉提示，表明当前有类别筛选
+      if (this.selectedCategories.length > 0) {
+        // 可以在这里添加一些视觉提示
+      }
+    },
+  // 在这里添加 clearAllFilters 方法
+    clearAllFilters() {
+      this.selectedCategories = [];
+      this.searchQuery = '';
+      this.searchAndRenderBooks();
+    },
+    handleVisibilityChange() {
+      if (!document.hidden) {
+        // 页面变为可见时，重新检查登录状态
+        this.loadUserFromStorage();
+      }
+    },
+     removeCategory(index) {
+      this.selectedCategories.splice(index, 1);
+      // 更新搜索结果
+      this.searchAndRenderBooks();
+    },
 
-    // 切换收藏状态
-    async toggleFavorite(bookId) {
-      if (!bookId) return;
-      
-      try {
-        // 检查是否已收藏
-        const isFavorited = this.isFavorite(bookId);
-        
-        if (isFavorited) {
-          // 取消收藏
-          await axios.delete(`/api/books/${bookId}/favorite`);
-          this.favorites = this.favorites.filter(id => id !== bookId);
-          alert("已取消收藏");
-        } else {
-          // 添加收藏
-          await axios.post(`/api/books/${bookId}/favorite`);
-          this.favorites.push(bookId);
-          alert("收藏成功");
-        }
-      } catch (error) {
-        console.error("收藏操作失败:", error);
-        alert("操作失败: " + (error.response?.data?.message || error.message));
-      }
-    },
-    
-    // 检查是否已收藏
-    isFavorite(bookId) {
-      return this.favorites.includes(bookId);
-    },
-    
-    // 获取用户的收藏列表
-    async loadFavorites() {
-      try {
-        const response = await axios.get("/api/books/favorites");
-        this.favorites = response.data.data.map(book => book._bid);
-      } catch (error) {
-        console.error("加载收藏列表失败:", error);
-      }
+    updateSearchResults() {
+      // 根据选中的类别更新搜索结果
+      this.currentCategory = this.selectedCategories.map(cat => cat.value).join(',');
+      this.searchAndRenderBooks();
     },
     // 清除公告筛选条件
     clearAnnouncementFilter() {
@@ -1746,7 +1655,7 @@ export default {
       document.body.scrollTop = 0;
     },
 
-    // 导航到登录/注册页，保留当前页面用于登录后重定向
+    // 导航到登录页，保留当前页面用于登录后重定向
     goToAuth(type) {
       const redirect = window.location.pathname || "/readers";
       window.location.href = `/HomeView?view=${type}&redirect=${encodeURIComponent(redirect)}`;
@@ -1755,26 +1664,102 @@ export default {
     // 从 localStorage 加载用户信息
     loadUserFromStorage() {
       try {
-        const raw = localStorage.getItem("userInfo");
-        if (raw) {
-          const parsed = JSON.parse(raw);
+        const token = localStorage.getItem("token");
+        const userInfo = localStorage.getItem("userInfo");
+        
+        console.log('loadUserFromStorage - token:', token);
+        console.log('loadUserFromStorage - userInfo:', userInfo);
+        
+        if (!token) {
+          this.user = null;
+          this.userInfo = null;
+          return;
+        }
+        
+        if (userInfo) {
+          const parsed = JSON.parse(userInfo);
           this.user = parsed;
           this.userInfo = parsed;
-        } else {
-          this.user = null;
+          
+          // 强制触发视图更新
+          this.$nextTick(() => {
+            this.$forceUpdate();
+          });
+          
+          console.log('loadUserFromStorage - 用户信息已加载:', parsed);
         }
       } catch (e) {
+        console.error('loadUserFromStorage - 错误:', e);
         this.user = null;
+        this.userInfo = null;
+        localStorage.removeItem("token");
+        localStorage.removeItem("userInfo");
       }
     },
 
     // 注销
-    logout() {
+    handleLogout() {
+      // 先隐藏下拉菜单
+      this.showUserDropdown = false;
+      
+      // 显示确认对话框
+      if (confirm('确定要退出登录吗？')) {
+        // 清除本地存储
+        localStorage.removeItem("token");
+        localStorage.removeItem("userInfo");
+        
+        // 清除内存中的用户信息
+        this.user = null;
+        this.userInfo = null;
+        
+        // 更新登录状态
+        this.isLoggedIn = false;
+        
+        // 清除收藏列表
+        this.favorites = [];
+        
+        // 如果当前在需要登录的页面，则跳转到首页
+        if (['personal', 'feedback'].includes(this.currentPage)) {
+          this.currentPage = 'search';
+        }
+        
+        // 显示退出成功提示
+        alert('已成功退出登录');
+      }
+    },
+
+    performLogout() {
+      // 清除本地存储的用户信息
       localStorage.removeItem("token");
       localStorage.removeItem("userInfo");
+      
+      // 清除内存中的用户信息
       this.user = null;
-      // 重新加载当前页面的数据
+      this.userInfo = null;
+      
+      // 如果当前在需要登录的页面，则跳转到首页
+      if (['personal', 'feedback'].includes(this.currentPage)) {
+        this.currentPage = 'search';
+      }
+       // 重新加载当前页面数据
       this.loadSearchPage();
+      
+      // 显示登出成功的提示消息（可选）
+      // this.$message.success('您已成功退出登录'); // 如果使用了element-ui的消息组件
+      
+      // 或者使用简单的提示
+      console.log("您已成功退出登录");
+    },
+    toggleUserMenu() {
+      this.showUserDropdown = !this.showUserDropdown;
+    },
+    
+    // 点击其他地方隐藏用户菜单
+    handleClickOutside(event) {
+      const userMenu = this.$el.querySelector('.user-menu');
+      if (userMenu && !userMenu.contains(event.target)) {
+        this.showUserDropdown = false;
+      }
     },
 
     // 点击头像打开个人信息页
@@ -1846,7 +1831,8 @@ export default {
       // 设置标志位表示用户已点击检索按钮
       this.clickedSearch = true;
 
-      if (!this.searchQuery.trim() && !this.currentCategory) {
+      // 如果没有搜索词且没有选中的类别，提示用户
+      if (!this.searchQuery.trim() && this.selectedCategories.length === 0) {
         alert("请输入搜索内容或选择图书类别");
         return;
       }
@@ -1854,26 +1840,47 @@ export default {
       this.currentPage = "searchResult";
       this.currentSearchResultPageNum = 1;
 
-      // 如果还没有加载过图书数据，则先加载
-      if (this.books.length === 0) {
-        this.loadSearchPage();
-      }
+      // 执行搜索
+      this.searchAndRenderBooks();
     },
+
 
     // 在搜索结果页面中按类别筛选
     filterByCategory(category) {
-      this.currentCategory = category;
-      this.currentPageNum = 1;
-      // 将分类名称添加到搜索框中
-      if (category) {
-        const categoryLabel =
-          this.bookCategories.find((cat) => cat.value === category)?.label ||
-          category;
-        this.searchQuery = categoryLabel;
+      // 如果点击的是"全部"，清空所有选中
+      if (category === "") {
+        this.selectedCategories = [];
+        this.currentCategory = "";
+        this.currentPageNum = 1;
+        this.searchAndRenderBooks();
+        return;
       }
-      // 设置标志位表示用户已通过分类进行了筛选
-      this.clickedSearch = true;
+
+      // 查找类别对象
+      const categoryObj = this.bookCategories.find(cat => cat.value === category);
+      
+      if (categoryObj) {
+        // 检查是否已经选中
+        const existingIndex = this.selectedCategories.findIndex(cat => cat.value === category);
+        
+        if (existingIndex === -1) {
+          // 如果未选中，添加到数组
+          this.selectedCategories.push(categoryObj);
+        } else {
+          // 如果已选中，从数组中移除
+          this.selectedCategories.splice(existingIndex, 1);
+        }
+      }
+      
+      // 更新当前类别为所有选中类别的组合
+      this.currentCategory = this.selectedCategories.map(cat => cat.value).join(',');
+      this.currentPageNum = 1;
+      
+      // 触发搜索
+      this.searchAndRenderBooks();
     },
+
+
 
     filterByCategoryInResult(category) {
       this.currentCategory = category;
@@ -1898,30 +1905,25 @@ export default {
 
     async loadPersonalData() {
       try {
-        // 获取当前用户信息
+        console.log('loadPersonalData - 开始加载个人数据');
         const response = await axios.get("/api/auth/current-user");
-        const payload =
-          (response &&
-            response.data &&
-            (response.data.data || response.data)) ||
-          null;
-        this.userInfo = payload;
-        // 同步到本地存储，便于刷新或其他页面使用
+        const payload = response?.data?.data || response?.data || null;
+        
+        console.log('loadPersonalData - 服务器响应:', payload);
+        
         if (payload) {
-          try {
-            localStorage.setItem("userInfo", JSON.stringify(payload));
-            this.user = payload;
-          } catch (e) {}
+          this.userInfo = payload;
+          this.user = payload;
+          localStorage.setItem("userInfo", JSON.stringify(payload));
+          
+          console.log('loadPersonalData - 个人数据已更新:', payload);
         }
       } catch (error) {
-        console.error(
-          "加载个人数据失败:",
-          (error && error.response && error.response.data) || error.message
-        );
-        alert("加载个人信息失败，请重新登录");
-        // 可以在这里跳转到登录页
+        console.error("加载个人数据失败:", error);
+        this.handleLogout();
       }
     },
+
 
     // 切换编辑模式
     toggleEdit() {
@@ -1985,8 +1987,6 @@ export default {
         this.loadUserFromStorage();
         if (localStorage.getItem("token")) {
           this.loadPersonalData();
-        } else {
-          this.userInfo = null;
         }
       }
     },
@@ -1997,36 +1997,37 @@ export default {
     },
 
     // 修改：原搜索方法改为只更新数据不跳转
-    async searchAndRenderBooks() {
+   async searchAndRenderBooks() {
       try {
         // 构建查询参数
         const params = {};
+        
+        // 如果有选中的类别，添加到参数中
+        if (this.selectedCategories.length > 0) {
+          params.categories = this.selectedCategories.map(cat => cat.value).join(',');
+        }
+        
+        // 如果有搜索词，添加到参数中
         if (this.searchQuery) {
           params.query = this.searchQuery;
-        }
-        if (this.currentCategory) {
-          // 假设类别筛选使用 category 参数，currentCategory 存储的是 category.value
-          params.category = this.currentCategory;
+          params.type = this.searchType; // book 或 author
         }
 
         const response = await axios.get("/api/books", { params });
-        // 兼容后端返回结构：data.booklist 或 data
         const payload = response && response.data && response.data.data;
         this.books = Array.isArray(payload && payload.booklist)
           ? payload.booklist
           : Array.isArray(payload)
           ? payload
           : [];
+        
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {
         console.error("搜索图书失败:", error.response?.data || error.message);
-        alert(
-          "搜索图书失败: " + (error.response?.data?.message || error.message)
-        );
+        alert("搜索图书失败: " + (error.response?.data?.message || error.message));
       }
     },
-
     // 从后端加载图书类别列表并映射为 {label,value} 格式
     async loadBookCategories() {
       try {
@@ -2120,14 +2121,6 @@ export default {
       }
     },
 
-    searchCollection() {
-      console.log(
-        "搜索收藏记录:",
-        this.collectionSearchType,
-        this.collectionSearchQuery
-      );
-      // 这里可以实现收藏记录的搜索逻辑
-    },
 
     filterNewAndHotBooks() {
       // 新书推荐：按添加时间排序，取最新的30本
@@ -2139,15 +2132,6 @@ export default {
       this.hotBooks = [...this.books]
         .sort((a, b) => b._times - a._times)
         .slice(0, 30);
-    },
-
-    filterByCategory(category) {
-      this.currentCategory = category;
-      this.currentPageNum = 1;
-      // 如果当前在搜索页面，执行搜索
-      if (this.currentPage === "search") {
-        this.searchAndRenderBooks();
-      }
     },
 
     async borrowBook(bookId) {
@@ -2557,35 +2541,146 @@ export default {
     },
   },
   async mounted() {
+    // 添加全局点击监听器来关闭用户菜单
+    document.addEventListener('click', this.handleClickOutside);
+    
+    // 启动轮播
     this.startCarousel();
-    // 先加载分类以便筛选控件显示正确
+    
+    // 加载分类信息
     await this.loadBookCategories();
+    
+    // 加载图书数据
     await this.loadSearchPage();
-    // 加载本地用户信息以显示头像
+    
+    // 加载本地用户信息
     this.loadUserFromStorage();
-    // 如果已登录，尝试从后端拉取最新个人信息
-    if (localStorage.getItem("token")) {
-      this.loadPersonalData();
-    }
-    // 监听 storage 事件以在其它标签/窗口登录时同步
+    
+    // 监听 storage 事件
     if (typeof window !== "undefined" && window.addEventListener) {
       window.addEventListener("storage", this.onStorageChange);
     }
-    // 加载收藏列表
-    if (localStorage.getItem('token')) {
-      await this.loadFavorites();
+    
+    // 添加页面可见性监听
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
+    
+    // 只有在已登录时才加载需要登录的数据
+    if (this.isLoggedIn) {
+      await this.loadPersonalData();
+      //await this.loadFavorites();
+    }
+    
+    // 添加定时检查登录状态 - 改为更短的时间间隔
+    this.checkLoginStatus = setInterval(() => {
+      this.loadUserFromStorage();
+    }, 500); // 减少到500毫秒
   },
+
+
+
   beforeDestroy() {
     this.stopCarousel();
+    document.removeEventListener('click', this.handleClickOutside);
     if (typeof window !== "undefined" && window.removeEventListener) {
       window.removeEventListener("storage", this.onStorageChange);
+    }
+    
+    // 移除页面可见性监听
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    }
+    
+    // 清除定时器
+    if (this.checkLoginStatus) {
+      clearInterval(this.checkLoginStatus);
     }
   },
 };
 </script>
 
 <style>
+
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.selected-tags {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border-radius: 16px;
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+.tag-close {
+  cursor: pointer;
+  font-weight: bold;
+  margin-left: 4px;
+}
+
+.tag-close:hover {
+  color: #0d47a1;
+}
+
+.searchbar input {
+  padding: 16px 20px;
+  flex: 1;
+  border: none;
+  font-size: 16px;
+  outline: none;
+}
+
+/* 当有标签时，调整输入框的左边距 */
+.search-input-wrapper:has(.selected-tags) input {
+  padding-left: 120px;
+}
+ /* 搜索状态 */
+.search-status {
+  margin: 10px 0;
+  padding: 8px 16px;
+  background-color: #f0f7ff;
+  border-radius: 4px;
+  color: #1976d2;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.clear-filters-btn {
+  background: none;
+  border: none;
+  color: #1976d2;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+}
+
+.clear-filters-btn:hover {
+  color: #0d47a1;
+}
+
 
 /* 重置默认样式 - 统一页面元素的外边距、内边距和盒模型 */
 * {
@@ -2698,8 +2793,8 @@ h2 {
   vertical-align: middle;
 }
 
-/* 登录注册 */
-/* 登录注册链接容器样式 - 设置弹性布局和对齐 */
+/* 登录 */
+/* 登录链接容器样式 - 设置弹性布局和对齐 */
 .auth-links {
   margin-left: auto;
   display: flex;
@@ -2708,7 +2803,7 @@ h2 {
   padding-right: 20px;
 }
 
-/* 登录注册链接样式 - 设置颜色、装饰线和过渡效果 */
+/* 登录链接样式 - 设置颜色、装饰线和过渡效果 */
 .auth-link {
   color: white;
   text-decoration: none;
@@ -2719,16 +2814,10 @@ h2 {
   padding: 3px 6px;
 }
 
-/* 登录注册链接悬停效果 */
+/* 登录链接悬停效果 */
 .auth-link:hover {
   color: #f0f0f0;
   text-decoration: underline;
-}
-
-/* 登录注册分割线样式 - 设置颜色和字体大小 */
-.auth-divider {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 18px;
 }
 
 /* 用户头像样式 - 设置尺寸、圆角和边框 */
@@ -2757,39 +2846,55 @@ h2 {
   margin-right: 8px;
 }
 
-/* 用户菜单样式 - 设置相对定位 */
+/* 用户菜单样式 */
 .user-menu {
   position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 
-/* 用户下拉菜单样式 - 设置隐藏、定位和阴影 */
+/* 用户下拉菜单样式 */
 .user-dropdown {
-  display: none;
   position: absolute;
+  top: 100%;
   right: 0;
-  top: calc(100% + 8px);
-  background: #fff;
-  color: #333;
-  padding: 8px;
-  border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-  min-width: 100px;
-  z-index: 300;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 8px 0;
+  min-width: 120px;
+  z-index: 1000;
+  margin-top: 5px;
 }
 
-/* 用户下拉菜单悬停显示 */
-.user-menu:hover .user-dropdown {
-  display: block;
+.user-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 20px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid white;
 }
 
-/* 用户下拉菜单链接样式 - 设置颜色、背景色和光标 */
 .user-dropdown .auth-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
   color: #333;
   background: transparent;
   border: none;
-  padding: 6px 8px;
   cursor: pointer;
   font-size: 14px;
+  text-decoration: none;
+}
+
+.user-dropdown .auth-link:hover {
+  background-color: #f5f5f5;
 }
 
 /* 搜索框 */
@@ -3159,30 +3264,6 @@ button:hover {
   cursor: not-allowed;
 }
 
-/* 收藏 */
-/* 收藏按钮默认样式 */
-.favorite-btn {
-    background-color: #f39c12;
-    padding: 10px 20px;
-    font-size: 16px;
-  }
-  
-/* 收藏按钮悬停效果 */
-.favorite-btn:hover {
-    background-color: #e67e22;
-  }
-  
-/* 已收藏按钮样式 */
-.favorited-btn {
-    background-color: #f1c40f;
-    padding: 10px 20px;
-    font-size: 16px;
-  }
-  
-/* 已收藏按钮悬停效果 */
-.favorited-btn:hover {
-    background-color: #f39c12;
-  }
 
 /* 归还 */
 /* 归还按钮样式 - 设置背景色 */
@@ -3604,63 +3685,6 @@ footer {
 /* 警告文本样式 - 设置橙色 */
 .text-warning {
   color: orange;
-}
-
-/* 我的收藏样式 */
-/* 收藏网格样式 - 设置网格布局和间距 */
-.collection-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
-
-/* 收藏项样式 - 设置弹性布局和过渡效果 */
-.collection-item {
-  display: flex;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-/* 收藏项悬停效果 */
-.collection-item:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-/* 收藏项图书封面样式 - 设置尺寸 */
-.collection-item .book-cover {
-  width: 100px;
-  height: 150px;
-  margin-bottom: 0;
-}
-
-/* 收藏信息样式 - 设置弹性增长和对齐 */
-.collection-info {
-  flex: 1;
-  padding: 15px;
-  text-align: left;
-}
-
-/* 收藏日期样式 - 设置字体大小和颜色 */
-.collect-date {
-  font-size: 12px;
-  color: #888;
-  margin: 5px 0;
-}
-
-/* 收藏操作样式 - 设置上边距和弹性布局 */
-.collection-actions {
-  margin-top: 15px;
-  display: flex;
-  gap: 10px;
-}
-
-/* 取消收藏按钮样式 - 设置背景色 */
-.cancel-collect-btn {
-  background-color: #e74c3c;
 }
 
 /* 公告 */
