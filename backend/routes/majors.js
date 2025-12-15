@@ -1,6 +1,6 @@
 const express = require('express');
 const { Department, Major, Class } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const router = express.Router();
 
 /**
@@ -56,7 +56,12 @@ const router = express.Router();
  *       401:
  *         description: 未授权访问
  */
-router.get('/', authenticate, async (req, res) => {
+/**
+ * 获取专业列表 - 需要major.view权限
+ * @description 获取系统中所有专业的信息
+ * @requiresPermission major.view
+ */
+router.get('/', authenticate, requirePermission('major.view'), async (req, res) => {
   try {
     const majors = await Major.findAll({
       include: [
@@ -140,7 +145,12 @@ router.get('/', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.post('/', authenticate, async (req, res) => {
+/**
+ * 创建专业 - 需要major.create权限
+ * @description 创建一个新的专业，需要管理员权限
+ * @requiresPermission major.create
+ */
+router.post('/', authenticate, requirePermission('major.create'), async (req, res) => {
   try {
     const { name, department_id } = req.body;
 
@@ -264,7 +274,12 @@ router.post('/', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.put('/:id', authenticate, async (req, res) => {
+/**
+ * 更新专业 - 需要major.edit权限
+ * @description 更新指定专业的信息，需要管理员权限
+ * @requiresPermission major.edit
+ */
+router.put('/:id', authenticate, requirePermission('major.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, department_id } = req.body;
@@ -374,7 +389,12 @@ router.put('/:id', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.delete('/:id', authenticate, async (req, res) => {
+/**
+ * 删除专业 - 需要major.delete权限
+ * @description 删除指定的专业，需要管理员权限
+ * @requiresPermission major.delete
+ */
+router.delete('/:id', authenticate, requirePermission('major.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 

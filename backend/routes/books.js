@@ -7,7 +7,7 @@ const { Op } = require('sequelize');
 const { Sequelize } = require('sequelize');
 const router = express.Router();
 const { Book, BorrowRecord, User, Category, sequelize } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 // 配置multer（在路由定义之前添加）
 const storage = multer.diskStorage({
@@ -49,7 +49,13 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB
   }
 });
-
+/*记住API的排列顺序：
+  1.具体路径（/user/profile)(不会带任何参数)
+  2.特定功能（/users/search)(后面一般带查询参数）
+  3.子资源（/users/:id/orders）（参数后面带其他路径）
+  4.单个资源（/users/:id)(参数后面不带其他路径）
+  5.资源集合（/users)(不带参数，一般只有一层）
+  6.通用路由（比如/:resource)(只有一个参数）*/ 
 /**
  * @swagger
  * tags:
@@ -160,21 +166,15 @@ const upload = multer({
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
-
-
-// 批量上传图书 - 添加在现有路由之后
-router.post('/bulk-upload', authenticate, upload.single('file'), async (req, res) => {
+/**
+ * 批量上传图书 - 需要book.bulk_upload权限
+ * @description 通过CSV或Excel文件批量上传图书
+ * @requiresPermission book.bulk_upload
+ */
+router.post('/bulk-upload', authenticate, requirePermission('book.bulk_upload'), upload.single('file'), async (req, res) => {
   console.log('开始处理批量上传');
   try {
-    // 检查用户权限
-    if (!req.user._utype.includes('admin')) {
-      console.log('没有权限批量上传图书', req.user._utype);
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
+    // 权限检查已在中间件中完成
 
     if (!req.file) {
       return res.status(400).json({
@@ -288,19 +288,14 @@ router.post('/bulk-upload', authenticate, upload.single('file'), async (req, res
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
-
-
-// 下载模板 - 添加在现有路由之后
-router.get('/bulk-upload/template', authenticate, async (req, res) => {
+/**
+ * 下载批量上传模板 - 需要book.template_download权限
+ * @description 下载CSV格式的图书批量上传模板文件
+ * @requiresPermission book.template_download
+ */
+router.get('/bulk-upload/template', authenticate, requirePermission('book.template_download'), async (req, res) => {
   try {
-    // 检查用户权限
-    if (!req.user._utype.includes('admin')) {
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
+    // 权限检查已在中间件中完成
 
     const templateContent = generateCSVTemplate();
     const fileName = '图书批量上传模板.csv';
@@ -323,7 +318,6 @@ router.get('/bulk-upload/template', authenticate, async (req, res) => {
     });
   }
 });
-
 
 // 批量插入图书的辅助函数
 // 在 bulkInsertBooks 函数中添加更多日志
@@ -402,9 +396,6 @@ async function bulkInsertBooks(booksData) {
   }
 }
 
-
-
-
 /**
  * @swagger
  * /api/books/rank:
@@ -446,7 +437,7 @@ async function bulkInsertBooks(booksData) {
  */
 
 // 图书借阅排名
-router.get('/rank', authenticate, async (req, res) => {
+router.get('/rank', async (req, res) => {
   try {
     const topBooks = await Book.findAll({
       order: [['_times', 'DESC']],
@@ -468,579 +459,6 @@ router.get('/rank', authenticate, async (req, res) => {
 
   } catch (error) {
     console.error('获取图书排名错误:', error);
-    res.status(500).json({
-      success: false,
-      errorCode: 'SERVER_ERROR',
-      message: '服务器内部错误'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/books:
- *   get:
- *     summary: 获取图书列表
- *     description: 获取图书列表，支持按关键词搜索和按分类筛选
- *     tags: [Books]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: query
- *         schema:
- *           type: string
- *         description: 搜索关键词（图书名称、作者、出版社）
- *         example: "JavaScript"
- *       - in: query
- *         name: category
- *         schema:
- *           type: integer
- *         description: 分类ID
- *         example: 1
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *         description: 页码
- *         example: 1
- *       - in: query
- *         name: pageSize
- *         schema:
- *           type: integer
- *         description: 每页数量
- *         example: 20
- *     responses:
- *       200:
- *         description: 获取图书列表成功
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/BookListResponse'
- *             examples:
- *               success:
- *                 $ref: '#/components/examples/BookListSuccess'
- *       401:
- *         description: 未授权访问
- *         content:
- *           application/json:
- *             examples:
- *               unauthorized:
- *                 $ref: '#/components/examples/UnauthorizedError'
- *       500:
- *         description: 服务器内部错误
- *         content:
- *           application/json:
- *             examples:
- *               server_error:
- *                 $ref: '#/components/examples/ServerError'
- */
-
-// 获取图书列表（需要认证）
-router.get('/', authenticate, async (req, res) => {
-  try {
-    const { query, category } = req.query;
-    
-    console.log('查询图书:', { query, category, user: req.user });
-    
-    let whereCondition = {};
-    
-    // 搜索条件
-    if (query) {
-      whereCondition = {
-        [Op.or]: [
-          { _book_name: { [Op.like]: `%${query}%` } },
-          { _author: { [Op.like]: `%${query}%` } },
-          { _press: { [Op.like]: `%${query}%` } }
-        ]
-      };
-    }
-    
-    // 分类筛选
-    if (category) {
-      whereCondition._tid = category;
-    }
-
-    const books = await Book.findAll({
-      where: whereCondition,
-      include: [{
-        model: Category,
-        as: 'category',
-        attributes: ['_type_name']
-      }],
-    });
-    
-    const formattedBooks = books.map(book => {
-    const bookData = book.toJSON();
-      return {
-        ...bookData,
-        _type_name: bookData.category ? bookData.category._type_name : null,
-        category: undefined // 删除category对象
-      };
-    });
-
-
-    res.json({
-      success: true,
-      message: '获取图书列表成功',
-      data: {
-        booklist: formattedBooks
-      }
-    });
-
-  } catch (error) {
-    console.error('获取图书列表错误:', error);
-    res.status(500).json({
-      success: false,
-      errorCode: 'SERVER_ERROR',
-      message: '服务器内部错误'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/books:
- *   post:
- *     summary: 新增图书
- *     description: 添加新图书，需要管理员权限
- *     tags: [Books]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CreateBookRequest'
- *           examples:
- *             computerBook:
- *               summary: 计算机图书
- *               value:
- *                 _book_name: "JavaScript高级程序设计"
- *                 _isbn: "9787115275790"
- *                 _num: 10
- *                 _author: "Nicholas C. Zakas"
- *                 _press: "人民邮电出版社"
- *                 _tid: 1
- *                 _cover_url: "https://example.com/cover.jpg"
- *             literatureBook:
- *               summary: 文学图书
- *               value:
- *                 _book_name: "三体"
- *                 _isbn: "9787536692930"
- *                 _num: 5
- *                 _author: "刘慈欣"
- *                 _press: "重庆出版社"
- *                 _tid: 2
- *                 _cover_url: "https://example.com/cover2.jpg"
- *     responses:
- *       200:
- *         description: 图书添加成功
- *         content:
- *           application/json:
- *             examples:
- *               success:
- *                 $ref: '#/components/examples/CreateBookSuccess'
- *       400:
- *         description: 请求参数错误
- *         content:
- *           application/json:
- *             examples:
- *               missingFields:
- *                 $ref: '#/components/examples/MissingFieldsError'
- *       403:
- *         description: 权限不足
- *         content:
- *           application/json:
- *             examples:
- *               permissionDenied:
- *                 $ref: '#/components/examples/PermissionDeniedError'
- *       500:
- *         description: 服务器内部错误
- *         content:
- *           application/json:
- *             examples:
- *               server_error:
- *                 $ref: '#/components/examples/ServerError'
- */
-// 新增图书（管理员功能）
-router.post('/', authenticate, async (req, res) => {
-  try {
-    // 检查用户权限
-    if (!req.user._utype.includes('admin')) {
-      console.log('没有权限添加图书', req.user._utype);
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
-
-    const { _book_name, _isbn, _num, _author, _press, _tid, _cover_url } = req.body;
-    
-    // 输入验证
-    if (!_book_name || !_isbn || !_num || !_author || !_press || !_tid) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'MISSING_FIELDS',
-        message: '请提供完整的图书信息'
-      });
-    }
-
-    const book = await Book.create({
-      _book_name,
-      _isbn,
-      _num,
-      _author,
-      _press,
-      _tid,
-      _cover_url
-    });
-
-    res.json({
-      success: true,
-      message: '图书添加成功',
-      data: book
-    });
-
-  } catch (error) {
-    console.error('添加图书错误:', error);
-    res.status(500).json({
-      success: false,
-      errorCode: 'SERVER_ERROR',
-      message: '服务器内部错误'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/books/{id}:
- *   get:
- *     summary: 获取图书详情
- *     description: 根据图书ID获取图书的详细信息
- *     tags: [Books]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *           minimum: 1
- *         description: 图书ID
- *         example: 1
- *     responses:
- *       200:
- *         description: 获取图书详情成功
- *         content:
- *           application/json:
- *             examples:
- *               success:
- *                 $ref: '#/components/examples/BookDetailSuccess'
- *       404:
- *         description: 图书不存在
- *         content:
- *           application/json:
- *             examples:
- *               bookNotFound:
- *                 $ref: '#/components/examples/BookNotFoundError'
- *       401:
- *         description: 未授权访问
- *         content:
- *           application/json:
- *             examples:
- *               unauthorized:
- *                 $ref: '#/components/examples/UnauthorizedError'
- *       500:
- *         description: 服务器内部错误
- *         content:
- *           application/json:
- *             examples:
- *               server_error:
- *                 $ref: '#/components/examples/ServerError'
- */
-// 获取图书详情
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const book = await Book.findByPk(id, {
-      include: [{
-        model: Category,
-        as: 'category',
-        attributes: ['_type_name']
-      }]
-    });
-
-    if (!book) {
-      return res.status(404).json({
-        success: false,
-        errorCode: 'BOOK_NOT_FOUND',
-        message: '图书不存在'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: '成功获取图书详情',
-      data: book
-    });
-
-  } catch (error) {
-    console.error('获取图书详情错误:', error);
-    res.status(500).json({
-      success: false,
-      errorCode: 'SERVER_ERROR',
-      message: '服务器内部错误'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/books/{id}:
- *   put:
- *     summary: 更新图书信息
- *     description: 根据图书ID更新图书信息，需要管理员权限
- *     tags: [Books]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *           minimum: 1
- *         description: 图书ID
- *         example: 1
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UpdateBookRequest'
- *           examples:
- *             updateExample:
- *               summary: 更新图书信息
- *               value:
- *                 _book_name: "更新后的图书名称"
- *                 _isbn: "9787115275790"
- *                 _num: 8
- *                 _author: "Nicholas C. Zakas"
- *                 _press: "人民邮电出版社"
- *                 _tid: 1
- *                 _cover_url: "https://example.com/updated-cover.jpg"
- *     responses:
- *       200:
- *         description: 图书信息更新成功
- *         content:
- *           application/json:
- *             examples:
- *               success:
- *                 $ref: '#/components/examples/UpdateBookSuccess'
- *       400:
- *         description: 请求参数错误
- *         content:
- *           application/json:
- *             examples:
- *               missingFields:
- *                 $ref: '#/components/examples/MissingFieldsError'
- *       403:
- *         description: 权限不足
- *         content:
- *           application/json:
- *             examples:
- *               permissionDenied:
- *                 $ref: '#/components/examples/PermissionDeniedError'
- *       404:
- *         description: 图书不存在
- *         content:
- *           application/json:
- *             examples:
- *               bookNotFound:
- *                 $ref: '#/components/examples/BookNotFoundError'
- *       500:
- *         description: 服务器内部错误
- *         content:
- *           application/json:
- *             examples:
- *               server_error:
- *                 $ref: '#/components/examples/ServerError'
- */
-// 更新图书信息
-router.put('/:id', authenticate, async (req, res) => {
-  try {
-    // 检查用户权限
-    if (!req.user._utype.includes('admin')) {
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
-
-    const { id } = req.params;
-    const { _book_name, _isbn, _num, _author, _press, _tid, _cover_url } = req.body;
-    
-    const book = await Book.findByPk(id);
-    
-    if (!book) {
-      return res.status(404).json({
-        success: false,
-        errorCode: 'BOOK_NOT_FOUND',
-        message: '图书不存在'
-      });
-    }
-
-    // 输入验证
-    if (!_book_name || !_isbn || !_num || !_author || !_press || !_tid) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'MISSING_FIELDS',
-        message: '请提供完整的图书信息'
-      });
-    }
-
-    await book.update({
-      _book_name,
-      _isbn,
-      _num,
-      _author,
-      _press,
-      _tid,
-      _cover_url
-    });
-
-    res.json({
-      success: true,
-      message: '图书信息更新成功',
-      data: book
-    });
-
-  } catch (error) {
-    console.error('更新图书错误:', error);
-    res.status(500).json({
-      success: false,
-      errorCode: 'SERVER_ERROR',
-      message: '服务器内部错误'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/books/{id}:
- *   delete:
- *     summary: 删除图书
- *     description: 根据图书ID删除图书，需要管理员权限。如果图书有未归还的借阅记录，则无法删除。
- *     tags: [Books]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *           minimum: 1
- *         description: 图书ID
- *         example: 1
- *     responses:
- *       200:
- *         description: 图书删除成功
- *         content:
- *           application/json:
- *             examples:
- *               success:
- *                 $ref: '#/components/examples/DeleteBookSuccess'
- *       403:
- *         description: 权限不足
- *         content:
- *           application/json:
- *             examples:
- *               permissionDenied:
- *                 $ref: '#/components/examples/PermissionDeniedError'
- *       404:
- *         description: 图书不存在
- *         content:
- *           application/json:
- *             examples:
- *               bookNotFound:
- *                 $ref: '#/components/examples/BookNotFoundError'
- *       400:
- *         description: 图书有未归还的借阅记录
- *         content:
- *           application/json:
- *             examples:
- *               bookHasBorrowRecords:
- *                 $ref: '#/components/examples/BookHasBorrowRecordsError'
- *       500:
- *         description: 服务器内部错误
- *         content:
- *           application/json:
- *             examples:
- *               server_error:
- *                 $ref: '#/components/examples/ServerError'
- */
-// 删除图书
-router.delete('/:id', authenticate, async (req, res) => {
-  try {
-    // 检查用户权限
-    if (!req.user._utype.includes('admin')) {
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
-
-    const { id } = req.params;
-    
-    const book = await Book.findByPk(id);
-    
-    if (!book) {
-      return res.status(404).json({
-        success: false,
-        errorCode: 'BOOK_NOT_FOUND',
-        message: '图书不存在'
-      });
-    }
-
-    // 检查是否有借阅记录
-    const borrowRecords = await BorrowRecord.count({
-      where: { 
-        _bid: id,
-        _status: 1 // 借出状态
-      }
-    });
-
-    if (borrowRecords > 0) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'BOOK_HAS_BORROW_RECORDS',
-        message: '该书有未归还的借阅记录，无法删除'
-      });
-    }
-
-    await book.destroy();
-
-    res.json({
-      success: true,
-      message: '图书删除成功',
-      data: book
-    });
-
-  } catch (error) {
-    console.error('删除图书错误:', error);
     res.status(500).json({
       success: false,
       errorCode: 'SERVER_ERROR',
@@ -1115,10 +533,18 @@ router.delete('/:id', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 借阅图书 - 需要book.borrow权限
+ * @description 借阅指定图书，会检查库存、用户借阅限制等条件
+ * @requiresPermission book.borrow
+ */
 // 借阅图书
-router.post('/:id/borrow', authenticate, async (req, res) => {
+router.post('/:id/borrow', authenticate, requirePermission('book.borrow'), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params.bookid;
+    //console.log("请求",req);
+
+    console.log('借阅图书ID:', id);
     const userId = req.user._uid;
     
     const book = await Book.findByPk(id);
@@ -1272,8 +698,13 @@ router.post('/:id/borrow', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 归还图书 - 需要book.return权限
+ * @description 归还借阅的图书
+ * @requiresPermission book.return
+ */
 // 归还图书
-router.put('/:hid/return', authenticate, async (req, res) => {
+router.put('/:hid/return', authenticate, requirePermission('book.return'), async (req, res) => {
   try {
     const { hid } = req.params;
     const userId = req.user._uid;
@@ -1391,8 +822,13 @@ router.put('/:hid/return', authenticate, async (req, res) => {
  *               serverError:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 续借图书 - 需要book.renew权限
+ * @description 续借已借阅的图书，延长归还日期30天
+ * @requiresPermission book.renew
+ */
 // 续借图书
-router.put('/:hid/renew', authenticate, async (req, res) => {
+router.put('/:hid/renew', authenticate, requirePermission('book.renew'), async (req, res) => {
   try {
     const { hid } = req.params;
     const userId = req.user._uid;
@@ -1446,6 +882,584 @@ router.put('/:hid/renew', authenticate, async (req, res) => {
   }
 });
 
+router.post('/:bid/favorites', authenticate, async (req, res) => {
+//待开发
+});
+router.delete('/:bid/favorites', authenticate, async (req, res) => {
+//待开发
+});
 
+router.get('/favorites', authenticate, async (req, res) => {
+//待开发
+});
+
+/**
+ * @swagger
+ * /api/books/{id}:
+ *   get:
+ *     summary: 获取图书详情
+ *     description: 根据图书ID获取图书的详细信息
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 图书ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 获取图书详情成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BookDetailSuccess'
+ *       404:
+ *         description: 图书不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookNotFound:
+ *                 $ref: '#/components/examples/BookNotFoundError'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+// 获取图书详情
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const book = await Book.findByPk(id, {
+      include: [{
+        model: Category,
+        as: 'category',
+        attributes: ['_type_name']
+      }]
+    });
+
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        errorCode: 'BOOK_NOT_FOUND',
+        message: '图书不存在'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '成功获取图书详情',
+      data: book
+    });
+
+  } catch (error) {
+    console.error('获取图书详情错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/books/{id}:
+ *   put:
+ *     summary: 更新图书信息
+ *     description: 根据图书ID更新图书信息，需要管理员权限
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 图书ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateBookRequest'
+ *           examples:
+ *             updateExample:
+ *               summary: 更新图书信息
+ *               value:
+ *                 _book_name: "更新后的图书名称"
+ *                 _isbn: "9787115275790"
+ *                 _num: 8
+ *                 _author: "Nicholas C. Zakas"
+ *                 _press: "人民邮电出版社"
+ *                 _tid: 1
+ *                 _cover_url: "https://example.com/updated-cover.jpg"
+ *     responses:
+ *       200:
+ *         description: 图书信息更新成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/UpdateBookSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       404:
+ *         description: 图书不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookNotFound:
+ *                 $ref: '#/components/examples/BookNotFoundError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+/**
+ * 更新图书信息 - 需要book.edit权限
+ * @description 根据图书ID更新图书信息，需要管理员权限
+ * @requiresPermission book.edit
+ */
+// 更新图书信息
+router.put('/:id', authenticate, requirePermission('book.edit'), async (req, res) => {
+  try {
+    // 权限检查已在中间件中完成
+
+    const { id } = req.params;
+    const { _book_name, _isbn, _num, _author, _press, _tid, _cover_url } = req.body;
+    
+    const book = await Book.findByPk(id);
+    
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        errorCode: 'BOOK_NOT_FOUND',
+        message: '图书不存在'
+      });
+    }
+
+    // 输入验证
+    if (!_book_name || !_isbn || !_num || !_author || !_press || !_tid) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_FIELDS',
+        message: '请提供完整的图书信息'
+      });
+    }
+
+    await book.update({
+      _book_name,
+      _isbn,
+      _num,
+      _author,
+      _press,
+      _tid,
+      _cover_url
+    });
+
+    res.json({
+      success: true,
+      message: '图书信息更新成功',
+      data: book
+    });
+
+  } catch (error) {
+    console.error('更新图书错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/books/{id}:
+ *   delete:
+ *     summary: 删除图书
+ *     description: 根据图书ID删除图书，需要管理员权限。如果图书有未归还的借阅记录，则无法删除。
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 图书ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: 图书删除成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/DeleteBookSuccess'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       404:
+ *         description: 图书不存在
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookNotFound:
+ *                 $ref: '#/components/examples/BookNotFoundError'
+ *       400:
+ *         description: 图书有未归还的借阅记录
+ *         content:
+ *           application/json:
+ *             examples:
+ *               bookHasBorrowRecords:
+ *                 $ref: '#/components/examples/BookHasBorrowRecordsError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+/**
+ * 删除图书 - 需要book.delete权限
+ * @description 根据图书ID删除图书，需要管理员权限。如果图书有未归还的借阅记录，则无法删除。
+ * @requiresPermission book.delete
+ */
+// 删除图书
+router.delete('/:id', authenticate, requirePermission('book.delete'), async (req, res) => {
+  try {
+    // 权限检查已在中间件中完成
+
+    const { id } = req.params;
+    
+    const book = await Book.findByPk(id);
+    
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        errorCode: 'BOOK_NOT_FOUND',
+        message: '图书不存在'
+      });
+    }
+
+    // 检查是否有借阅记录
+    const borrowRecords = await BorrowRecord.count({
+      where: { 
+        _bid: id,
+        _status: 1 // 借出状态
+      }
+    });
+
+    if (borrowRecords > 0) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'BOOK_HAS_BORROW_RECORDS',
+        message: '该书有未归还的借阅记录，无法删除'
+      });
+    }
+
+    await book.destroy();
+
+    res.json({
+      success: true,
+      message: '图书删除成功',
+      data: book
+    });
+
+  } catch (error) {
+    console.error('删除图书错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/* @swagger
+ * /api/books:
+ *   get:
+ *     summary: 获取图书列表
+ *     description: 获取图书列表，支持按关键词搜索和按分类筛选
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         description: 搜索关键词（图书名称、作者、出版社）
+ *         example: "JavaScript"
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: integer
+ *         description: 分类ID
+ *         example: 1
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *         example: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *         example: 20
+ *     responses:
+ *       200:
+ *         description: 获取图书列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/BookListResponse'
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/BookListSuccess'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+
+/**
+ * 获取图书列表 - 需要book.view权限
+ * @description 获取图书列表，支持按关键词搜索和按分类筛选
+ * @requiresPermission book.view
+ */
+router.get('/', authenticate, requirePermission('book.view'), async (req, res) => {
+  try {
+    const { query, category } = req.query;
+    
+    console.log('查询图书:', { query, category, user: req.user });
+    
+    let whereCondition = {};
+    
+    // 搜索条件
+    if (query) {
+      whereCondition = {
+        [Op.or]: [
+          { _book_name: { [Op.like]: `%${query}%` } },
+          { _author: { [Op.like]: `%${query}%` } },
+          { _press: { [Op.like]: `%${query}%` } }
+        ]
+      };
+    }
+    
+    // 分类筛选
+    if (category) {
+      whereCondition._tid = category;
+    }
+
+    const books = await Book.findAll({
+      where: whereCondition,
+      include: [{
+        model: Category,
+        as: 'category',
+        attributes: ['_type_name']
+      }],
+    });
+    
+    const formattedBooks = books.map(book => {
+    const bookData = book.toJSON();
+      return {
+        ...bookData,
+        _type_name: bookData.category ? bookData.category._type_name : null,
+        category: undefined // 删除category对象
+      };
+    });
+
+
+    res.json({
+      success: true,
+      message: '获取图书列表成功',
+      data: {
+        booklist: formattedBooks
+      }
+    });
+
+  } catch (error) {
+    console.error('获取图书列表错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/books:
+ *   post:
+ *     summary: 新增图书
+ *     description: 添加新图书，需要管理员权限
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateBookRequest'
+ *           examples:
+ *             computerBook:
+ *               summary: 计算机图书
+ *               value:
+ *                 _book_name: "JavaScript高级程序设计"
+ *                 _isbn: "9787115275790"
+ *                 _num: 10
+ *                 _author: "Nicholas C. Zakas"
+ *                 _press: "人民邮电出版社"
+ *                 _tid: 1
+ *                 _cover_url: "https://example.com/cover.jpg"
+ *             literatureBook:
+ *               summary: 文学图书
+ *               value:
+ *                 _book_name: "三体"
+ *                 _isbn: "9787536692930"
+ *                 _num: 5
+ *                 _author: "刘慈欣"
+ *                 _press: "重庆出版社"
+ *                 _tid: 2
+ *                 _cover_url: "https://example.com/cover2.jpg"
+ *     responses:
+ *       200:
+ *         description: 图书添加成功
+ *         content:
+ *           application/json:
+ *             examples:
+ *               success:
+ *                 $ref: '#/components/examples/CreateBookSuccess'
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingFields:
+ *                 $ref: '#/components/examples/MissingFieldsError'
+ *       403:
+ *         description: 权限不足
+ *         content:
+ *           application/json:
+ *             examples:
+ *               permissionDenied:
+ *                 $ref: '#/components/examples/PermissionDeniedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+// 新增图书（管理员功能）
+/**
+ * 新增图书 - 需要book.add权限
+ * @description 添加新图书，需要管理员权限
+ * @requiresPermission book.add
+ */
+router.post('/', authenticate, requirePermission('book.add'), async (req, res) => {
+  try {
+    // 权限检查已在中间件中完成
+
+    const { _book_name, _isbn, _num, _author, _press, _tid, _cover_url } = req.body;
+    
+    // 输入验证
+    if (!_book_name || !_isbn || !_num || !_author || !_press || !_tid) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_FIELDS',
+        message: '请提供完整的图书信息'
+      });
+    }
+
+    const book = await Book.create({
+      _book_name,
+      _isbn,
+      _num,
+      _author,
+      _press,
+      _tid,
+      _cover_url
+    });
+
+    res.json({
+      success: true,
+      message: '图书添加成功',
+      data: book
+    });
+
+  } catch (error) {
+    console.error('添加图书错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const express = require('express');
 const { WorkDepartment } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const router = express.Router();
 
 /**
@@ -44,7 +44,12 @@ const router = express.Router();
  *       401:
  *         description: 未授权访问
  */
-router.get('/', authenticate, async (req, res) => {
+/**
+ * 获取工作部门列表 - 需要workDepartment.view权限
+ * @description 获取系统中所有工作部门的信息
+ * @requiresPermission workDepartment.view
+ */
+router.get('/', authenticate, requirePermission('workDepartment.view'), async (req, res) => {
   try {
     const workDepartments = await WorkDepartment.findAll();
 
@@ -111,7 +116,12 @@ router.get('/', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.post('/', authenticate, async (req, res) => {
+/**
+ * 创建工作部门 - 需要workDepartment.create权限
+ * @description 创建新的工作部门，需要管理员权限
+ * @requiresPermission workDepartment.create
+ */
+router.post('/', authenticate, requirePermission('workDepartment.create'), async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -306,7 +316,12 @@ router.put('/:id', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.delete('/:id', authenticate, async (req, res) => {
+/**
+ * 删除工作部门 - 需要workDepartment.delete权限
+ * @description 删除指定的工作部门，需要管理员权限
+ * @requiresPermission workDepartment.delete
+ */
+router.delete('/:id', authenticate, requirePermission('workDepartment.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 

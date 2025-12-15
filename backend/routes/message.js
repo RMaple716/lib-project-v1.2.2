@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Message, User } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 /**
@@ -75,8 +75,13 @@ const { Op } = require('sequelize');
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取消息列表 - 需要message.view权限
+ * @description 获取当前登录用户的消息列表，按创建时间倒序排列
+ * @requiresPermission message.view
+ */
 // 获取当前用户的消息列表
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, requirePermission('message.view'), async (req, res) => {
   try {
     const { page = 1, limit = 10, status, type } = req.query;
     const offset = (page - 1) * limit;
@@ -257,8 +262,13 @@ router.get('/unread/count', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取消息详情 - 需要message.view权限
+ * @description 根据消息ID获取消息的详细信息
+ * @requiresPermission message.view
+ */
 // 获取消息详情
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, requirePermission('message.view'), async (req, res) => {
   try {
     const { id } = req.params;
     const message = await Message.findOne({
@@ -350,8 +360,13 @@ router.get('/:id', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 标记消息为已读 - 需要message.edit权限
+ * @description 将指定消息标记为已读状态
+ * @requiresPermission message.edit
+ */
 // 标记消息为已读
-router.put('/:id/read', authenticate, async (req, res) => {
+router.put('/:id/read', authenticate, requirePermission('message.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const message = await Message.findOne({
@@ -436,8 +451,13 @@ router.put('/:id/read', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 标记所有消息为已读 - 需要message.edit权限
+ * @description 将当前用户的所有未读消息标记为已读状态
+ * @requiresPermission message.edit
+ */
 // 标记所有消息为已读
-router.put('/read-all', authenticate, async (req, res) => {
+router.put('/read-all', authenticate, requirePermission('message.edit'), async (req, res) => {
   try {
     const [updatedCount] = await Message.update(
       {
@@ -535,8 +555,13 @@ router.put('/read-all', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 发送消息 - 需要message.create权限
+ * @description 向指定用户发送消息
+ * @requiresPermission message.create
+ */
 // 发送消息
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requirePermission('message.create'), async (req, res) => {
   try {
     const { _receiver_id, _title, _content, _type = 4 } = req.body;
 

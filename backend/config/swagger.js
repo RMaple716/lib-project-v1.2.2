@@ -558,6 +558,99 @@ const options = {
             }
           }
         },
+        AdminListResponse: {
+          type: "object",
+          properties: {
+            adminlist: {
+              type: "array",
+              items: {
+                $ref: "#/components/schemas/Admin"
+              },
+              description: "管理员列表"
+            }
+          }
+        },
+        Admin: {
+          type: "object",
+          properties: {
+            _uid: {
+              type: "integer",
+              description: "管理员ID",
+              example: 100
+            },
+            _utype: {
+              type: "string",
+              enum: ["admin_t", "admin_n"],
+              description: "管理员类型",
+              example: "admin_n"
+            },
+            _account: {
+              type: "string",
+              description: "账号",
+              example: "admin_n"
+            },
+            _name: {
+              type: "string",
+              description: "姓名",
+              example: "普通管理员"
+            },
+            _email: {
+              type: "string",
+              description: "邮箱",
+              example: "admin_n@library.com"
+            },
+            _max_num: {
+              type: "integer",
+              description: "最大借书数量",
+              example: 50
+            },
+            lend_num: {
+              type: "integer",
+              description: "当前借书数量",
+              example: 5
+            },
+            _access: {
+              type: "integer",
+              description: "访问权限",
+              example: 1
+            },
+            _create_time: {
+              type: "string",
+              format: "date-time",
+              description: "创建时间",
+              example: "2024-01-15T10:30:00.000Z"
+            },
+            roles: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  _rid: {
+                    type: "integer",
+                    description: "角色ID",
+                    example: 1
+                  },
+                  _rname: {
+                    type: "string",
+                    description: "角色名称",
+                    example: "图书管理员"
+                  },
+                  _rcode: {
+                    type: "string",
+                    description: "角色代码",
+                    example: "book_admin"
+                  },
+                  _rdesc: {
+                    type: "string",
+                    description: "角色描述",
+                    example: "负责图书管理的管理员"
+                  }
+                }
+              },
+              description: "管理员拥有的角色"
+            }
+          }
+        },
         Announcement: {
           type: "object",
           properties: {
@@ -2337,6 +2430,264 @@ MessageListSuccess: {
         page: 1,
         limit: 10,
         totalPages: 1
+      }
+    }
+  }
+},
+// 管理员相关模式
+AdminListResponse: {
+  type: "object",
+  properties: {
+    adminlist: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Admin"
+      },
+      description: "管理员列表"
+    }
+  }
+},
+Admin: {
+  type: "object",
+  properties: {
+    _uid: {
+      type: "integer",
+      description: "管理员ID",
+      example: 100
+    },
+    _utype: {
+      type: "string",
+      enum: ["admin_t", "admin_n"],
+      description: "管理员类型",
+      example: "admin_n"
+    },
+    _account: {
+      type: "string",
+      description: "账号",
+      example: "admin_n"
+    },
+    _name: {
+      type: "string",
+      description: "姓名",
+      example: "普通管理员"
+    },
+    _email: {
+      type: "string",
+      description: "邮箱",
+      example: "admin_n@library.com"
+    },
+    _max_num: {
+      type: "integer",
+      description: "最大借书数量",
+      example: 50
+    },
+    lend_num: {
+      type: "integer",
+      description: "当前借书数量",
+      example: 5
+    },
+    _access: {
+      type: "integer",
+      description: "访问权限",
+      example: 1
+    },
+    _create_time: {
+      type: "string",
+      description: "创建时间",
+      example: "2024-01-15T10:30:00.000Z"
+    },
+    roles: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Role"
+      },
+      description: "管理员拥有的角色"
+    }
+  }
+},
+AdminListSuccess: {
+  summary: "获取管理员列表成功",
+  value: {
+    success: true,
+    message: "获取管理员列表成功",
+    data: {
+      adminlist: [
+        {
+          _uid: 100,
+          _utype: "admin_t",
+          _account: "admin_t",
+          _name: "终端管理员",
+          _email: "admin_t@library.com",
+          _max_num: 100,
+          lend_num: 10,
+          _access: 1,
+          _create_time: "2024-01-15T10:30:00.000Z",
+          roles: [
+            {
+              _rid: 1,
+              _rname: "系统管理员",
+              _rcode: "system_admin",
+              _rdesc: "拥有所有权限的系统管理员"
+            }
+          ]
+        },
+        {
+          _uid: 101,
+          _utype: "admin_n",
+          _account: "admin_n",
+          _name: "普通管理员",
+          _email: "admin_n@library.com",
+          _max_num: 50,
+          lend_num: 5,
+          _access: 1,
+          _create_time: "2024-01-10T08:15:00.000Z",
+          roles: [
+            {
+              _rid: 2,
+              _rname: "图书管理员",
+              _rcode: "book_admin",
+              _rdesc: "负责图书管理的管理员"
+            }
+          ]
+        }
+      ]
+    }
+  }
+},
+AdminDetailSuccess: {
+  summary: "获取管理员详情成功",
+  value: {
+    success: true,
+    message: "成功获取管理员详情",
+    data: {
+      _uid: 101,
+      _utype: "admin_n",
+      _account: "admin_n",
+      _name: "普通管理员",
+      _email: "admin_n@library.com",
+      _max_num: 50,
+      lend_num: 5,
+      _access: 1,
+      _create_time: "2024-01-10T08:15:00.000Z",
+      roles: [
+        {
+          _rid: 2,
+          _rname: "图书管理员",
+          _rcode: "book_admin",
+          _rdesc: "负责图书管理的管理员",
+          permissions: [
+            {
+              _pid: 1,
+              _pname: "查看图书列表",
+              _pcode: "book.view",
+              _pdesc: "查看图书列表和详情",
+              _pmodule: "book"
+            },
+            {
+              _pid: 2,
+              _pname: "添加图书",
+              _pcode: "book.add",
+              _pdesc: "添加新图书",
+              _pmodule: "book"
+            }
+          ]
+        }
+      ]
+    }
+  }
+},
+UpdateAdminSuccess: {
+  summary: "更新管理员信息成功",
+  value: {
+    success: true,
+    message: "管理员信息更新成功",
+    data: {
+      _uid: 101,
+      _utype: "admin_n",
+      _account: "admin_n",
+      _name: "普通管理员（已更新）",
+      _email: "admin_n_updated@library.com",
+      _max_num: 50,
+      lend_num: 5,
+      _access: 1,
+      _create_time: "2024-01-10T08:15:00.000Z"
+    }
+  }
+},
+DeleteAdminSuccess: {
+  summary: "删除管理员成功",
+  value: {
+    success: true,
+    message: "管理员删除成功",
+    data: {
+      _uid: 101,
+      _utype: "admin_n",
+      _account: "admin_n",
+      _name: "普通管理员",
+      _email: "admin_n@library.com",
+      _max_num: 50,
+      lend_num: 0,
+      _access: 1,
+      _create_time: "2024-01-10T08:15:00.000Z"
+    }
+  }
+},
+AdminNotFoundError: {
+  summary: "管理员不存在",
+  value: {
+    success: false,
+    errorCode: "ADMIN_NOT_FOUND",
+    message: "管理员不存在"
+  }
+},
+CreateAdminRequest: {
+  type: "object",
+  required: ["_account", "_name", "_password", "_email", "_utype"],
+  properties: {
+    _account: {
+      type: "string",
+      description: "管理员账号",
+      example: "admin_n_001"
+    },
+    _name: {
+      type: "string",
+      description: "管理员姓名",
+      example: "新普通管理员"
+    },
+    _password: {
+      type: "string",
+      description: "管理员密码",
+      example: "Admin123!"
+    },
+    _email: {
+      type: "string",
+      description: "管理员邮箱",
+      example: "admin_n_001@example.com"
+    },
+    _utype: {
+      type: "string",
+      enum: ["admin_t", "admin_n"],
+      description: "管理员类型",
+      example: "admin_n"
+    }
+  }
+},
+CreateAdminSuccess: {
+  summary: "创建管理员成功",
+  value: {
+    success: true,
+    message: "管理员创建成功",
+    data: {
+      r_add: {
+        _uid: 102,
+        _utype: "admin_n",
+        _account: "admin_n_001",
+        _name: "新普通管理员",
+        _email: "admin_n_001@example.com",
+        _max_num: 50,
+        lend_num: 0,
+        _access: 1,
+        _create_time: "2024-01-20T14:25:00.000Z"
       }
     }
   }

@@ -136,9 +136,19 @@ User.associate = function(models) {
     foreignKey: 'work_department_id',
     as: 'workDepartment'
   });
+  
+  // 用户与借阅记录的关联
   User.hasMany(models.BorrowRecord, {
     foreignKey: '_uid',
     as: 'borrowRecords'
+  });
+  
+  // 用户与角色的关联（RBAC权限系统）
+  User.belongsToMany(models.Role, {
+    through: models.UserRole,
+    foreignKey: '_uid',
+    otherKey: '_rid',
+    as: 'roles'
   });
 };
 

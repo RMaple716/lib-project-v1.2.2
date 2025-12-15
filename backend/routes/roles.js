@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Permission, Role, RolePermission, User, UserRole } = require('../models');
-const { authenticate, requireTerminalAdmin } = require('../middleware/auth');
+const { authenticate, requireTerminalAdmin, requirePermission } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 /**
@@ -56,8 +56,13 @@ const { Op } = require('sequelize');
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取角色列表 - 需要role.view权限
+ * @description 获取系统中所有角色的列表
+ * @requiresPermission role.view
+ */
 // 获取角色列表
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, requirePermission('role.view'), async (req, res) => {
   try {
     const roles = await Role.findAll({
       include: [
@@ -146,8 +151,13 @@ router.get('/', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 创建角色 - 需要role.create权限
+ * @description 创建一个新的角色，需要终端管理员权限
+ * @requiresPermission role.create
+ */
 // 创建角色
-router.post('/', authenticate, requireTerminalAdmin, async (req, res) => {
+router.post('/', authenticate, requirePermission('role.create'), async (req, res) => {
   try {
     const { _rname, _rcode, _rdesc, permissionIds } = req.body;
 
@@ -299,8 +309,13 @@ router.post('/', authenticate, requireTerminalAdmin, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 更新角色 - 需要role.edit权限
+ * @description 更新角色信息，需要终端管理员权限
+ * @requiresPermission role.edit
+ */
 // 更新角色
-router.put('/:id', authenticate, requireTerminalAdmin, async (req, res) => {
+router.put('/:id', authenticate, requirePermission('role.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { _rname, _rcode, _rdesc, permissionIds } = req.body;
@@ -459,8 +474,13 @@ router.put('/:id', authenticate, requireTerminalAdmin, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 删除角色 - 需要role.delete权限
+ * @description 删除角色，需要终端管理员权限
+ * @requiresPermission role.delete
+ */
 // 删除角色
-router.delete('/:id', authenticate, requireTerminalAdmin, async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('role.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 

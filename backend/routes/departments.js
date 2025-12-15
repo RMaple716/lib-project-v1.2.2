@@ -1,6 +1,6 @@
 const express = require('express');
 const { Department, Major, Class, WorkDepartment } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const router = express.Router();
 
 /**
@@ -44,7 +44,12 @@ const router = express.Router();
  *       401:
  *         description: 未授权访问
  */
-router.get('/', authenticate, async (req, res) => {
+/**
+ * 获取院系列表 - 需要department.view权限
+ * @description 获取系统中所有院系的信息
+ * @requiresPermission department.view
+ */
+router.get('/', authenticate, requirePermission('department.view'), async (req, res) => {
   try {
     const departments = await Department.findAll({
       include: [
@@ -124,7 +129,12 @@ router.get('/', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.post('/', authenticate, async (req, res) => {
+/**
+ * 创建院系 - 需要department.create权限
+ * @description 创建新的院系，需要管理员权限
+ * @requiresPermission department.create
+ */
+router.post('/', authenticate, requirePermission('department.create'), async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -225,7 +235,12 @@ router.post('/', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.put('/:id', authenticate, async (req, res) => {
+/**
+ * 更新院系 - 需要department.edit权限
+ * @description 更新指定的院系信息，需要管理员权限
+ * @requiresPermission department.edit
+ */
+router.put('/:id', authenticate, requirePermission('department.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name } = req.body;
@@ -319,7 +334,12 @@ router.put('/:id', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.delete('/:id', authenticate, async (req, res) => {
+/**
+ * 删除院系 - 需要department.delete权限
+ * @description 删除指定的院系，需要管理员权限
+ * @requiresPermission department.delete
+ */
+router.delete('/:id', authenticate, requirePermission('department.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 

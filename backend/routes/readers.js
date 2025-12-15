@@ -2,7 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const router = express.Router();
 const { User, BorrowRecord, Book } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 /**
  * @swagger
@@ -57,8 +57,13 @@ const { authenticate } = require('../middleware/auth');
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取读者列表 - 需要user.view权限
+ * @description 获取读者列表，支持按关键词搜索
+ * @requiresPermission user.view
+ */
 // 获取读者列表
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, requirePermission('user.view'), async (req, res) => {
   try {
     const { query } = req.query;
 
@@ -66,7 +71,7 @@ router.get('/', authenticate, async (req, res) => {
 
     let whereCondition = {
       _utype: {
-        [Op.notIn]: []
+        [Op.notIn]: ['admin_t', 'admin_n']
       }
     };
 
@@ -214,17 +219,15 @@ router.get('/', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 新增读者 - 需要user.add权限
+ * @description 创建新读者，需要管理员权限
+ * @requiresPermission user.add
+ */
 // 新增读者
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requirePermission('user.add'), async (req, res) => {
   try {
-    // 检查用户权限（只有管理员可以新增读者）
-    if (!req.user._utype.includes('admin')) {
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
+    // 权限检查已在中间件中完成
 
     const { _account, _name, _password, _utype, _email } = req.body;
 
@@ -238,11 +241,11 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     // 验证用户类型只能是学生或教师
-    if (!['student', 'teacher'].includes(_utype)) {
+    if (!['student', 'teacher','tempworker'].includes(_utype)) {
       return res.status(400).json({
         success: false,
         errorCode: 'INVALID_USER_TYPE',
-        message: '用户类型只能是student或teacher'
+        message: '用户类型只能是student、teacher或tempworker'
       });
     }
 
@@ -351,8 +354,13 @@ router.post('/', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取读者详情 - 需要user.view权限
+ * @description 根据读者ID获取读者的详细信息
+ * @requiresPermission user.view
+ */
 // 获取读者详情
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, requirePermission('user.view'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -504,17 +512,15 @@ router.get('/:id', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 更新读者信息 - 需要user.edit权限
+ * @description 根据读者ID更新读者信息，需要管理员权限
+ * @requiresPermission user.edit
+ */
 // 更新读者信息
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, requirePermission('user.edit'), async (req, res) => {
   try {
-    // 检查用户权限（只有管理员可以更新读者信息）
-    if (!req.user._utype.includes('admin_t')&&req.user._utype.includes('admin')) {
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
+    // 权限检查已在中间件中完成
 
     const { id } = req.params;
     const { _account, _name, _email } = req.body;
@@ -647,17 +653,15 @@ router.put('/:id', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 删除读者 - 需要user.delete权限
+ * @description 根据读者ID删除读者，需要管理员权限。如果读者有未归还的图书，则无法删除。
+ * @requiresPermission user.delete
+ */
 // 删除读者
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('user.delete'), async (req, res) => {
   try {
-    // 检查用户权限（只有管理员可以删除读者）
-    if (!req.user._utype.includes('admin')) {
-      return res.status(403).json({
-        success: false,
-        errorCode: 'PERMISSION_DENIED',
-        message: '没有权限执行此操作'
-      });
-    }
+    // 权限检查已在中间件中完成
 
     const { id } = req.params;
 
