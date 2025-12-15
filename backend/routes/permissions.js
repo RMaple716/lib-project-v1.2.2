@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Permission, Role, RolePermission, User, UserRole } = require('../models');
-const { authenticate, requireTerminalAdmin } = require('../middleware/auth');
+const { authenticate, requireTerminalAdmin, requirePermission } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 /**
@@ -63,8 +63,13 @@ const { Op } = require('sequelize');
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取权限列表 - 需要permission.view权限
+ * @description 获取系统中所有权限的列表，支持按模块筛选
+ * @requiresPermission permission.view
+ */
 // 获取权限列表
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, requirePermission('permission.view'), async (req, res) => {
   try {
     const { module: moduleName } = req.query;
     let whereCondition = {};
@@ -154,8 +159,13 @@ router.get('/', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 创建新权限 - 需要permission.create权限
+ * @description 创建一个新的权限，需要终端管理员权限
+ * @requiresPermission permission.create
+ */
 // 创建权限
-router.post('/', authenticate, requireTerminalAdmin, async (req, res) => {
+router.post('/', authenticate, requirePermission('permission.create'), async (req, res) => {
   try {
     const { _pname, _pcode, _pdesc, _pmodule } = req.body;
 
@@ -277,8 +287,13 @@ router.post('/', authenticate, requireTerminalAdmin, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 更新权限 - 需要permission.edit权限
+ * @description 更新权限信息，需要终端管理员权限
+ * @requiresPermission permission.edit
+ */
 // 更新权限
-router.put('/:id', authenticate, requireTerminalAdmin, async (req, res) => {
+router.put('/:id', authenticate, requirePermission('permission.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { _pname, _pcode, _pdesc, _pmodule } = req.body;
@@ -397,8 +412,13 @@ router.put('/:id', authenticate, requireTerminalAdmin, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 删除权限 - 需要permission.delete权限
+ * @description 删除权限，需要终端管理员权限
+ * @requiresPermission permission.delete
+ */
 // 删除权限
-router.delete('/:id', authenticate, requireTerminalAdmin, async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('permission.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 

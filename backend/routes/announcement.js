@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Announcement } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 
 
@@ -53,8 +53,13 @@ const { authenticate } = require('../middleware/auth');
  *                 $ref: '#/components/examples/ServerError'
  */
 
+/**
+ * 获取公告列表 - 需要announcement.view权限
+ * @description 获取公告列表，按发布日期倒序排列
+ * @requiresPermission announcement.view
+ */
 // 获取公告列表
-router.get('/', authenticate, async (req, res) => {
+router.get('/', requirePermission('announcement.view'), async (req, res) => {
   try {
     const announcements = await Announcement.findAll({
       attributes: ['_aid', '_title', '_content', '_publisher', '_date','_status'],
@@ -136,8 +141,13 @@ router.get('/', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 创建公告 - 需要announcement.create权限
+ * @description 创建新公告，需要认证
+ * @requiresPermission announcement.create
+ */
 // 新增公告
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requirePermission('announcement.create'), async (req, res) => {
   try {
     const { _title, _content,_status} = req.body;
     
@@ -213,8 +223,13 @@ router.post('/', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取公告详情 - 需要announcement.view权限
+ * @description 根据公告ID获取公告详情
+ * @requiresPermission announcement.view
+ */
 // 获取公告详情
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, requirePermission('announcement.view'), async (req, res) => {
   try {
     const { id } = req.params;
     const announcement = await Announcement.findByPk(id);
@@ -303,8 +318,13 @@ router.get('/:id', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 更新公告 - 需要announcement.edit权限
+ * @description 根据公告ID更新公告信息
+ * @requiresPermission announcement.edit
+ */
 // 更新公告
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, requirePermission('announcement.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { _title, _content , _status} = req.body;
@@ -387,8 +407,13 @@ router.put('/:id', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 删除公告 - 需要announcement.delete权限
+ * @description 根据公告ID删除公告
+ * @requiresPermission announcement.delete
+ */
 // 删除公告
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('announcement.delete'), async (req, res) => {
   try {
     const { id } = req.params;
     const announcement = await Announcement.findByPk(id);

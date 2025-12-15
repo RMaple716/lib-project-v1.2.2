@@ -62,4 +62,25 @@ const Role = sequelize.define('Role', {
   ]
 });
 
+/**
+ * 添加关联方法
+ */
+Role.associate = function(models) {
+  // 角色与权限的关联
+  Role.belongsToMany(models.Permission, {
+    through: models.RolePermission,
+    foreignKey: '_rid',
+    otherKey: '_pid',
+    as: 'permissions'
+  });
+  
+  // 角色与用户的关联
+  Role.belongsToMany(models.User, {
+    through: models.UserRole,
+    foreignKey: '_rid',
+    otherKey: '_uid',
+    as: 'users'
+  });
+};
+
 module.exports = Role;

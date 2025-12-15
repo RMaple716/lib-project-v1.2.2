@@ -6,6 +6,7 @@ const winston = require('winston');
 const { testConnection } = require('./config/database');
 const { syncDatabase } = require('./models');
 const swaggerSpecs = require('./config/swagger');
+const { isPublicEndpoint } = require('./middleware/rbac');
 
 // 路由导入
 const authRoutes = require('./routes/auth');
@@ -25,6 +26,7 @@ const adminAuthRoutes = require('./routes/adminAuth');
 const permissionRoutes = require('./routes/permissions');
 const roleRoutes = require('./routes/roles');
 const userRoleRoutes = require('./routes/userRoles');
+const adminRoutes = require('./routes/admins');
 
 // 创建统一的日志记录器
 const logger = winston.createLogger({
@@ -86,6 +88,7 @@ app.use('/api/admin-auth', adminAuthRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/user-roles', userRoleRoutes);
+app.use('/api/admins', adminRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {

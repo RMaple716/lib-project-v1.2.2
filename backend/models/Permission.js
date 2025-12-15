@@ -69,4 +69,17 @@ const Permission = sequelize.define('Permission', {
   ]
 });
 
+/**
+ * 添加关联方法
+ */
+Permission.associate = function(models) {
+  // 权限与角色的关联
+  Permission.belongsToMany(models.Role, {
+    through: models.RolePermission,
+    foreignKey: '_pid',
+    otherKey: '_rid',
+    as: 'roles'
+  });
+};
+
 module.exports = Permission;

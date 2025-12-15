@@ -1,4 +1,5 @@
 const { verifyToken } = require('../utils/jwt');
+const { checkUserPermission } = require('../utils/permissions');
 
 /**
  * JWT Token 认证中间件
@@ -100,8 +101,49 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+/**
+ * 检查用户是否有特定权限的中间件
+ * @param {string} permissionCode - 权限代码
+ * @returns {Function} Express中间件函数
+ */
+function requirePermission(permissionCode) {
+  return async (req, res, next) => {
+    try {
+      // 检查用户是否已认证
+      if (!req.user || !req.user._uid) {
+        return res.status(401).json({
+          success: false,
+          errorCode: 'UNAUTHORIZED',
+          message: '用户未认证'
+        });
+      }
+
+      // 检查用户是否有特定权限
+      const hasPermission = await checkUserPermission(req.user._uid, permissionCode);
+      
+      if (!hasPermission) {
+        return res.status(403).json({
+          success: false,
+          errorCode: 'PERMISSION_DENIED',
+          message: `没有权限执行此操作，需要权限: ${permissionCode}`
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('权限检查错误:', error);
+      res.status(500).json({
+        success: false,
+        errorCode: 'SERVER_ERROR',
+        message: '服务器内部错误'
+      });
+    }
+  };
+}
+
 module.exports = {
   authenticate,
   requireTerminalAdmin,
-  requireAdmin
+  requireAdmin,
+  requirePermission  // 导出新中间件
 };

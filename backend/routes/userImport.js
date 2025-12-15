@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
-const { User, Department, Major, Class, WorkDepartment } = require('../models');
+const { User, Department, Major, Class, WorkDepartment, Role } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { 
   parseUserFile, 
@@ -281,7 +281,7 @@ router.post('/students', authenticate, upload.single('file'), async (req, res) =
         const classRecord = await getOrCreateClassWithHierarchy(student.className);
 
         // 创建学生用户
-        await User.create({
+        const newUser = await User.create({
           _utype: 'student',
           _account: student.account,
           _name: student.name,
@@ -292,6 +292,12 @@ router.post('/students', authenticate, upload.single('file'), async (req, res) =
           lend_num: 0,
           _access: 1
         });
+        
+        // 为学生分配读者角色
+        const readerRole = await Role.findOne({ where: { _rcode: 'reader' } });
+        if (readerRole) {
+          await newUser.addRole(readerRole);
+        }
 
         importedCount++;
       } catch (error) {
@@ -432,7 +438,7 @@ router.post('/teachers', authenticate, upload.single('file'), async (req, res) =
         const department = await findOrCreateDepartment(teacher.departmentName);
 
         // 创建教师用户
-        await User.create({
+        const newUser = await User.create({
           _utype: 'teacher',
           _account: teacher.account,
           _name: teacher.name,
@@ -443,6 +449,12 @@ router.post('/teachers', authenticate, upload.single('file'), async (req, res) =
           lend_num: 0,
           _access: 1
         });
+        
+        // 为教师分配读者角色
+        const readerRole = await Role.findOne({ where: { _rcode: 'reader' } });
+        if (readerRole) {
+          await newUser.addRole(readerRole);
+        }
 
         importedCount++;
       } catch (error) {
@@ -583,7 +595,7 @@ router.post('/tempworkers', authenticate, upload.single('file'), async (req, res
         const workDepartment = await findOrCreateWorkDepartment(tempWorker.workDepartmentName);
 
         // 创建临时工用户
-        await User.create({
+        const newUser = await User.create({
           _utype: 'tempworker',
           _account: tempWorker.account,
           _name: tempWorker.name,
@@ -594,6 +606,12 @@ router.post('/tempworkers', authenticate, upload.single('file'), async (req, res
           lend_num: 0,
           _access: 1
         });
+        
+        // 为临时工分配读者角色
+        const readerRole = await Role.findOne({ where: { _rcode: 'reader' } });
+        if (readerRole) {
+          await newUser.addRole(readerRole);
+        }
 
         importedCount++;
       } catch (error) {

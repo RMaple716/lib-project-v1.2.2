@@ -440,6 +440,15 @@ const createDefaultAdmin = async () => {
   }
 };
 
+Category.hasMany(BorrowRecord, { 
+  foreignKey: '_tid',
+  sourceKey: '_tid'
+});
+BorrowRecord.belongsTo(Category, {
+  foreignKey: '_tid',
+  targetKey: '_tid'
+});
+
 module.exports = {
   sequelize,
   User,

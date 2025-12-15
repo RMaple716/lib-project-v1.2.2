@@ -76,7 +76,6 @@ const captchaStore = new Map();
  *                 $ref: '#/components/examples/ServerError'
  */
 
-
 // 用户登录
 router.post('/login', async (req, res) => {
   try {
@@ -125,6 +124,8 @@ router.post('/login', async (req, res) => {
       _utype: user._utype,
       _account: user._account
     });
+
+    console.log(`登陆成功：用户：`, user._name, '，类型：', user._utype);
 
     res.status(200).json({
       success: true,
@@ -368,7 +369,6 @@ router.post('/register', async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
-
 
 // 重置密码
 router.put('/password', async (req, res) => {
@@ -673,6 +673,7 @@ router.get('/current-user', async (req, res) => {
       });
     }
 
+    console.log(`获取当前用户信息成功：用户：`, user._name, '，类型：', user._utype);
     res.status(200).json({
       success: true,
       message: '获取用户信息成功',

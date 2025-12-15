@@ -1,6 +1,6 @@
 const express = require('express');
 const { Department, Major, Class } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const router = express.Router();
 
 /**
@@ -65,7 +65,12 @@ const router = express.Router();
  *       401:
  *         description: 未授权访问
  */
-router.get('/', authenticate, async (req, res) => {
+/**
+ * 获取班级列表 - 需要class.view权限
+ * @description 获取系统中所有班级的信息
+ * @requiresPermission class.view
+ */
+router.get('/', authenticate, requirePermission('class.view'), async (req, res) => {
   try {
     const classes = await Class.findAll({
       include: [
@@ -151,7 +156,12 @@ router.get('/', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.post('/', authenticate, async (req, res) => {
+/**
+ * 创建班级 - 需要class.create权限
+ * @description 创建一个新的班级，需要管理员权限
+ * @requiresPermission class.create
+ */
+router.post('/', authenticate, requirePermission('class.create'), async (req, res) => {
   try {
     const { name, major_id } = req.body;
 
@@ -275,7 +285,12 @@ router.post('/', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.put('/:id', authenticate, async (req, res) => {
+/**
+ * 更新班级 - 需要class.edit权限
+ * @description 更新指定班级的信息，需要管理员权限
+ * @requiresPermission class.edit
+ */
+router.put('/:id', authenticate, requirePermission('class.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, major_id } = req.body;
@@ -385,7 +400,12 @@ router.put('/:id', authenticate, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.delete('/:id', authenticate, async (req, res) => {
+/**
+ * 删除班级 - 需要class.delete权限
+ * @description 删除指定的班级，需要管理员权限
+ * @requiresPermission class.delete
+ */
+router.delete('/:id', authenticate, requirePermission('class.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Permission, Role, RolePermission, User, UserRole } = require('../models');
-const { authenticate, requireTerminalAdmin } = require('../middleware/auth');
+const { authenticate, requireTerminalAdmin, requirePermission } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 /**
@@ -74,8 +74,13 @@ const { Op } = require('sequelize');
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 获取用户的角色 - 需要role.view权限
+ * @description 获取指定用户的角色列表
+ * @requiresPermission role.view
+ */
 // 获取用户的角色
-router.get('/:userId', authenticate, async (req, res) => {
+router.get('/:userId', authenticate, requirePermission('role.view'), async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -170,12 +175,6 @@ router.get('/:userId', authenticate, async (req, res) => {
  *                   success: false
  *                   errorCode: "ROLE_NOT_FOUND"
  *                   message: "角色不存在"
- *               adminRoleAssignment:
- *                 summary: 不能给管理员分配角色
- *                 value:
- *                   success: false
- *                   errorCode: "ADMIN_ROLE_ASSIGNMENT"
- *                   message: "不能给管理员分配角色"
  *       401:
  *         description: 未授权访问
  *         content:
@@ -198,8 +197,13 @@ router.get('/:userId', authenticate, async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 为用户分配角色 - 需要role.assign权限
+ * @description 为用户分配角色，需要终端管理员权限
+ * @requiresPermission role.assign
+ */
 // 为用户分配角色
-router.post('/:userId', authenticate, requireTerminalAdmin, async (req, res) => {
+router.post('/:userId', authenticate, requirePermission('role.assign'), async (req, res) => {
   try {
     const { userId } = req.params;
     const { roleIds } = req.body;
@@ -224,18 +228,9 @@ router.post('/:userId', authenticate, requireTerminalAdmin, async (req, res) => 
       });
     }
 
-    // 检查用户是否是管理员
-    if (user._utype.includes('admin')) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'ADMIN_ROLE_ASSIGNMENT',
-        message: '不能给管理员分配角色'
-      });
-    }
-
     // 验证角色ID是否存在
     const roles = await Role.findAll({
-      where: { id: { [Op.in]: roleIds } }
+      where: { _rid: { [Op.in]: roleIds } }
     });
 
     if (roles.length !== roleIds.length) {
@@ -350,8 +345,13 @@ router.post('/:userId', authenticate, requireTerminalAdmin, async (req, res) => 
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
+/**
+ * 移除用户的角色 - 需要role.assign权限
+ * @description 从用户移除角色，需要终端管理员权限
+ * @requiresPermission role.assign
+ */
 // 移除用户的角色
-router.delete('/:userId', authenticate, requireTerminalAdmin, async (req, res) => {
+router.delete('/:userId', authenticate, requirePermission('role.assign'), async (req, res) => {
   try {
     const { userId } = req.params;
     const { roleId } = req.query;
@@ -389,7 +389,7 @@ router.delete('/:userId', authenticate, requireTerminalAdmin, async (req, res) =
 
     // 检查用户是否被分配了该角色
     const userRole = await UserRole.findOne({
-      where: { user_id: userId, role_id: roleId }
+      where: { _uid: userId, _rid: roleId }
     });
 
     if (!userRole) {
