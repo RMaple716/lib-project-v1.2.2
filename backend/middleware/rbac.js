@@ -15,11 +15,13 @@ function requirePermission(permissionCode) {
     try {
       // 如果用户是终端管理员，直接通过
       if (req.user && req.user._utype === 'admin_t') {
+        console.log('终端管理员访问受保护资源');
         return next();
       }
 
       // 检查用户是否已登录
       if (!req.user) {
+        console.log('未登录用户尝试访问受保护的资源');
         return res.status(401).json({
           success: false,
           errorCode: 'UNAUTHORIZED',

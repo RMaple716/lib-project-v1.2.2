@@ -59,7 +59,7 @@ const { authenticate, requirePermission } = require('../middleware/auth');
  * @requiresPermission announcement.view
  */
 // 获取公告列表
-router.get('/', requirePermission('announcement.view'), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const announcements = await Announcement.findAll({
       attributes: ['_aid', '_title', '_content', '_publisher', '_date','_status'],

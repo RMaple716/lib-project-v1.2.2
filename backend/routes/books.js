@@ -4,11 +4,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { Op } = require('sequelize');
-const { Sequelize } = require('sequelize');
 const router = express.Router();
 const { Book, BorrowRecord, User, Category, sequelize } = require('../models');
 const { authenticate, requirePermission } = require('../middleware/auth');
-
 // 配置multer（在路由定义之前添加）
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -173,9 +171,10 @@ const upload = multer({
  */
 router.post('/bulk-upload', authenticate, requirePermission('book.bulk_upload'), upload.single('file'), async (req, res) => {
   console.log('开始处理批量上传');
+  let transaction;
   try {
     // 权限检查已在中间件中完成
-
+    const dbConnection = { sequelize, Book, Category };
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -184,19 +183,26 @@ router.post('/bulk-upload', authenticate, requirePermission('book.bulk_upload'),
       });
     }
 
-        // 解析文件
+   
+
+    // 开始事务
+    transaction = await sequelize.transaction();
+
+    // 解析文件
     const fileExt = path.extname(req.file.originalname).toLowerCase().substring(1);
-    console.log('解析文件:', req.file.path);
-    const booksData = await parseFile(req.file.path, fileExt);
-    console.log('解析后的数据:', booksData);
+    //console.log('解析文件:', req.file.path);
+    const booksData = await parseFile(req.file.path, fileExt, dbConnection);
+    //console.log('解析后的数据:', booksData);
 
     // 验证数据
     console.log('开始验证图书数据');
-    const validationResult = await validateBooks(booksData,sequelize);
+    const validationResult = await validateBooks(booksData, dbConnection);
     console.log('验证结果:', validationResult);
-    console.log("验证属实吗？",validationResult.valid);
+    console.log("验证属实吗？", validationResult.valid);
+
     if (!validationResult.valid) {
       console.log('数据验证失败:', validationResult.errors);
+      await transaction.rollback();
       cleanupTempFile(req.file.path);
       return res.status(400).json({
         success: false,
@@ -208,10 +214,14 @@ router.post('/bulk-upload', authenticate, requirePermission('book.bulk_upload'),
       });
     }
     
-    // 批量插入（保留原来的bulkInsertBooks函数）
+    // 批量插入
     console.log('开始批量插入图书');
-    const insertResult = await bulkInsertBooks(validationResult.validBooks);
+    console.log('传递给 bulkInsertBooks 的 dbConnection:', dbConnection); // 添加调试日志
+    const insertResult = await bulkInsertBooks(validationResult.validBooks, dbConnection);
     console.log('插入结果:', insertResult);
+
+    // 提交事务
+    await transaction.commit();
 
     cleanupTempFile(req.file.path);
     
@@ -220,15 +230,20 @@ router.post('/bulk-upload', authenticate, requirePermission('book.bulk_upload'),
       message: '批量上传完成',
       data: {
         total: booksData.length,
-        inserted: insertResult.insertedCount,
-        updated: insertResult.updatedCount,
-        skipped: insertResult.skippedCount,
-        errors: insertResult.errors,
+        inserted: insertResult.data.inserted,
+        updated: insertResult.data.updated,
+        skipped: insertResult.data.skipped,
+        errors: insertResult.data.results.filter(r => r.action === 'error'),
         newCategories: insertResult.newCategories || []
       }
     });
   } catch (error) {
     console.error('批量上传错误:', error);
+    
+    // 回滚事务
+    if (transaction) {
+      await transaction.rollback();
+    }
     
     // 确保删除上传的文件
     if (req.file && fs.existsSync(req.file.path)) {
@@ -321,80 +336,98 @@ router.get('/bulk-upload/template', authenticate, requirePermission('book.templa
 
 // 批量插入图书的辅助函数
 // 在 bulkInsertBooks 函数中添加更多日志
-async function bulkInsertBooks(booksData) {
-  console.log('开始批量插入图书，输入数据:', booksData);
+async function bulkInsertBooks(validBooks, dbConnection) {
+  // 参数验证
+  if (!validBooks || !Array.isArray(validBooks)) {
+    throw new Error('无效的图书数据');
+  }
   
-  try {
-    const transaction = await sequelize.transaction();
-    let results = [];
-    let errors = [];
+  if (!dbConnection || !dbConnection.sequelize || !dbConnection.Book) {
+    console.error('数据库连接对象:', dbConnection); // 添加调试日志
+    throw new Error('数据库连接或模型未正确初始化');
+  }
 
-    for (const bookData of booksData) {
+  const results = [];
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  try {
+    for (const book of validBooks) {
       try {
-        console.log('\n处理图书数据:', bookData);
-        
-        // 检查图书是否已存在
-        const existingBook = await Book.findOne({
-          where: { _isbn: bookData._isbn },
-          transaction
+        // 检查是否已存在相同ISBN的图书
+        const existingBook = await dbConnection.Book.findOne({
+          where: { _isbn: book._isbn }
         });
-        
-        console.log('查找现有图书结果:', existingBook);
-        
+
         if (existingBook) {
-          console.log('更新已存在的图书:', existingBook._book_name);
-          const updatedBook = await existingBook.update(bookData, { transaction });
-          results.push({
-            ...updatedBook.toJSON(),
-            action: 'updated'
+          // 更新现有图书
+          await existingBook.update({
+            _book_name: book._book_name,
+            _num: book._num,
+            _author: book._author,
+            _press: book._press,
+            _cover_url: book._cover_url,
+            _tid: book._tid
           });
+
+          results.push({
+            isbn: book._isbn,
+            action: 'updated',
+            book: existingBook
+          });
+          updated++;
         } else {
-          console.log('创建新图书:', bookData._book_name);
-          const newBook = await Book.create(bookData, { transaction });
-          results.push({
-            ...newBook.toJSON(),
-            action: 'inserted'
+          // 创建新图书
+          const newBook = await dbConnection.Book.create({
+            _book_name: book._book_name,
+            _isbn: book._isbn,
+            _num: book._num,
+            _author: book._author,
+            _press: book._press,
+            _cover_url: book._cover_url,
+            _tid: book._tid,
+            _times: 0,
+            _create_time: new Date()
           });
+
+          results.push({
+            isbn: book._isbn,
+            action: 'created',
+            book: newBook
+          });
+          inserted++;
         }
-      } catch (error) {
-        console.error('处理图书失败:', error);
-        errors.push({
-          isbn: bookData._isbn,
-          title: bookData._book_name,
-          error: error.message
+      } catch (bookError) {
+        console.error(`处理图书 ${book._isbn} 时出错:`, bookError);
+        results.push({
+          isbn: book._isbn,
+          action: 'error',
+          error: bookError.message
         });
+        skipped++;
       }
     }
-    
-    console.log('\n准备提交事务，处理结果:', results);
-    await transaction.commit();
-    
-    const result = {
-      success: errors.length === 0,
-      message: errors.length === 0 ? "批量上传成功" : "批量上传完成，但部分记录处理失败",
+
+    return {
+      success: true,
+      message: '批量上传成功',
       data: {
-        total: booksData.length,
-        inserted: results.filter(r => r.action === 'inserted').length,
-        updated: results.filter(r => r.action === 'updated').length,
-        skipped: booksData.length - results.length,
-        processed: results.length,
-        errors: errors,
-        results: results.map(r => ({
-          _bid: r._bid,
-          _book_name: r._book_name,
-          _isbn: r._isbn,
-          action: r.action
-        }))
+        total: validBooks.length,
+        inserted,
+        updated,
+        skipped,
+        processed: inserted + updated,
+        results
       }
     };
-    
-    console.log('\n批量插入最终结果:', result);
-    return result;
   } catch (error) {
-    console.error('批量插入失败:', error);
+    console.error('批量插入图书时出错:', error);
     throw error;
   }
 }
+
+
 
 /**
  * @swagger
@@ -1288,7 +1321,7 @@ router.delete('/:id', authenticate, requirePermission('book.delete'), async (req
  * @description 获取图书列表，支持按关键词搜索和按分类筛选
  * @requiresPermission book.view
  */
-router.get('/', authenticate, requirePermission('book.view'), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { query, category } = req.query;
     

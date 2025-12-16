@@ -1667,8 +1667,8 @@ export default {
         const token = localStorage.getItem("token");
         const userInfo = localStorage.getItem("userInfo");
         
-        console.log('loadUserFromStorage - token:', token);
-        console.log('loadUserFromStorage - userInfo:', userInfo);
+        //console.log('loadUserFromStorage - token:', token);
+       // console.log('loadUserFromStorage - userInfo:', userInfo);
         
         if (!token) {
           this.user = null;

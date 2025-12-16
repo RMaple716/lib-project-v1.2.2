@@ -450,7 +450,8 @@ router.delete('/:id', authenticate, requirePermission('category.delete'), async 
  * @requiresPermission category.view
  */
 // 获取分类列表
-router.get('/', requirePermission('category.view'), async (req, res) => {
+router.get('/', async (req, res) => {
+  console.log('处理获取分类列表请求');
   try {
     const categories = await Category.findAll({
       order: [['_tid', 'ASC']],
