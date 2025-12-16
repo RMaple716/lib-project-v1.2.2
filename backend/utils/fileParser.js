@@ -3,14 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const ExcelJS = require('exceljs');
 
-
-/**
- * 解析上传的文件
+/* 解析上传的文件
  * @param {string} filePath - 文件路径
  * @param {string} fileType - 文件类型 (csv, xlsx, xls)
+ * @param {Object} dbConnection - 数据库连接对象
  * @returns {Promise<Array>} 解析后的数据数组
  */
-async function parseFile(filePath, fileType) {
+async function parseFile(filePath, fileType, dbConnection) {
   try {
     console.log('开始解析文件:', filePath);
     console.log('文件类型:', fileType);
@@ -26,12 +25,12 @@ async function parseFile(filePath, fileType) {
     switch (fileType.toLowerCase()) {
       case 'csv':
         console.log('使用原生方法解析CSV文件');
-        result = await parseCSV(filePath);
+        result = await parseCSV(filePath, dbConnection);
         break;
       case 'xlsx':
       case 'xls':
         console.log('使用原生方法解析Excel文件');
-        result = await parseExcel(filePath);
+        result = await parseExcel(filePath, dbConnection);
         break;
       default:
         throw new Error(`不支持的文件类型: ${fileType}`);
@@ -43,10 +42,101 @@ async function parseFile(filePath, fileType) {
   }
 }
 
+
+/**
+ * 标准化行字段名
+ */
+async function standardizeRowFields(row, dbConnection) {
+  console.log('标准化行字段，输入行:', row);
+  if (!row || typeof row !== 'object') {
+    return {
+      _book_name: '',
+      _isbn: '',
+      _num: '',
+      _author: '',
+      _press: '',
+      _tid: null,
+      _cover_url: ''
+    };
+  }
+  
+  const fieldMappings = {
+    '_book_name': ['图书名称', '书名', '名称', 'title', 'book_name', '_book_name'],
+    '_isbn': ['ISBN', '书号', 'isbn', '_isbn'],
+    '_num': ['库存', '数量', '库存数量', 'stock', 'num', '_num'],
+    '_author': ['作者', '著者', 'author', '_author'],
+    '_press': ['出版社', '出版单位', 'press', 'publisher', '_press'],
+    '_type_name': ['分类名称', '类型名称', '类别名称', '图书类别', '分类', '类别', 'category_name', '_type_name'],
+    '_cover_url': ['封面URL', '封面地址', '图片URL', 'cover', 'cover_url', '_cover_url']
+  };
+  
+  let standardizedRow = {};
+  Object.keys(fieldMappings).forEach(dbField => {
+    console.log(`处理字段: ${dbField}`);
+    const possibleNames = fieldMappings[dbField];
+    let found = false;
+    
+    for (const name of possibleNames) {
+      if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+        standardizedRow[dbField] = String(row[name]).trim();
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      standardizedRow[dbField] = '';
+    }
+  });
+  // 处理分类ID转换
+  console.log('处理分类ID转换，当前行:', standardizedRow._type_name);
+  console.log('数据库连接状态:', dbConnection ? '已连接' : '未连接');
+  if (standardizedRow._type_name && dbConnection) {
+    console.log("开始处理分类名称转储为ID")
+    try {
+      // 确保默认分类存在
+      console.log("开始查找或创建分类");
+      // 查找或创建分类
+      const [category] = await dbConnection.Category.findOrCreate({
+        where: { _type_name: standardizedRow._type_name },
+        defaults: {
+          _type_name: standardizedRow._type_name
+        }
+      });
+      console.log(`###分类 "${standardizedRow._type_name}" 的ID:`, category._tid);
+      // 设置分类ID
+      standardizedRow._tid = category._tid;
+      delete standardizedRow._type_name;
+
+    } catch (error) {
+      console.error('处理分类时出错:', error);
+      throw new Error(`处理分类 "${standardizedRow._type_name}" 时出错: ${error.message}`);
+    }
+  } else if (!standardizedRow._type_name && dbConnection) {
+    try {
+      // 如果没有指定分类，使用默认分类
+      const [defaultCategory] = await dbConnection.Category.findOrCreate({
+        where: { _type_name: '默认分类' },
+        defaults: {
+          _type_name: '默认分类'
+        }
+      });
+      standardizedRow._tid = defaultCategory._tid;
+    } catch (error) {
+      console.error('获取默认分类时出错:', error);
+      throw new Error(`获取默认分类时出错: ${error.message}`);
+    }
+  }
+  
+  return standardizedRow;
+}
+
+
+
 /**
  * 解析CSV文件 - 使用原生JavaScript实现
  */
-function parseCSV(filePath) {
+function parseCSV(filePath, dbConnection) {
   return new Promise((resolve, reject) => {
     console.log('开始解析CSV文件:', filePath);
     
@@ -132,7 +222,7 @@ function parseCSV(filePath) {
           row[header] = values[index] || '';
         });
         console.log('创建的行对象:', row);  // 添加这行查看行对象
-        const standardizedRow = standardizeRowFields(row);
+        const standardizedRow = standardizeRowFields(row, dbConnection);
         console.log('标准化后的行:', standardizedRow);
         if (Object.values(standardizedRow).some(v => v !== '')) {
           console.log('添加有效行到结果');
@@ -188,10 +278,8 @@ function parseCSVLine(line) {
 /**
  * 解析Excel文件 
  */
-/**
- * 解析Excel文件 
- */
-async function parseExcel(filePath) {
+
+async function parseExcel(filePath, dbConnection) {
   try {
     console.log('开始解析Excel文件:', filePath);
     const workbook = new ExcelJS.Workbook();
@@ -199,7 +287,7 @@ async function parseExcel(filePath) {
     const worksheet = workbook.worksheets[0];
     let data = [];
     
-    console.log('Excel文件总行数:', worksheet.rowCount);
+   // console.log('Excel文件总行数:', worksheet.rowCount);
     
     // 跳过开头的注释行，找到真正的标题行
     let headerRowIndex = 1;
@@ -263,7 +351,7 @@ async function parseExcel(filePath) {
       throw new Error('未找到有效的标题行');
     }
     
-    console.log('找到标题行在第:', headerRowIndex, '行');
+    //console.log('找到标题行在第:', headerRowIndex, '行');
     
     // 获取标题行
     const headerRow = worksheet.getRow(headerRowIndex);
@@ -271,30 +359,30 @@ async function parseExcel(filePath) {
     headerRow.eachCell((cell, colNumber) => {
       const value = cell.value ? String(cell.value).replace(/^#/, '').trim() : '';
       headers.push(value);
-      console.log(`标题列 ${colNumber}:`, value);
+      //console.log(`标题列 ${colNumber}:`, value);
     });
     
-    console.log('解析后的标题:', headers);
+    //console.log('解析后的标题:', headers);
     
     // 处理数据行
     for (let rowNumber = headerRowIndex + 1; rowNumber <= worksheet.rowCount; rowNumber++) {
       try {
         const row = worksheet.getRow(rowNumber);
-        console.log(`\n处理第 ${rowNumber} 行:`);
+        //console.log(`\n处理第 ${rowNumber} 行:`);
         
         // 获取第一个单元格的值
         const firstCell = row.getCell(1).value;
-        console.log('第一个单元格的值:', firstCell);
+        //console.log('第一个单元格的值:', firstCell);
         
         // 检查是否是注释行
         if (firstCell && String(firstCell).startsWith('#')) {
-          console.log('跳过注释行');
+          //console.log('跳过注释行');
           continue;
         }
         
         // 检查是否是注意事项行
         if (firstCell && (String(firstCell).includes('注意') || String(firstCell).includes('说明'))) {
-          console.log('跳过说明行');
+          //console.log('跳过说明行');
           continue;
         }
         
@@ -303,7 +391,7 @@ async function parseExcel(filePath) {
           value !== null && value !== undefined && value !== ''
         );
         if (!hasData) {
-          console.log('跳过空行');
+          //console.log('跳过空行');
           continue;
         }
         
@@ -314,30 +402,37 @@ async function parseExcel(filePath) {
           if (header) {
             const value = cell.value ? String(cell.value).trim() : '';
             rowData[header] = value;
-            console.log(`列 ${colNumber} (${header}):`, value);
+            //console.log(`列 ${colNumber} (${header}):`, value);
           }
         });
         
+        //console.log('原始行数据:', rowData);
+        
+        // 标准化行字段，等待异步操作完成
+
+
+
         console.log('原始行数据:', rowData);
-        
-        // 标准化行字段
-        const standardizedRow = standardizeRowFields(rowData);
+        const standardizedRow = await standardizeRowFields(rowData, dbConnection);
         console.log('标准化后的行:', standardizedRow);
+
+
+        //console.log('标准化后的行:', standardizedRow);
         
-        // 检查标准化后的行是否有效
+        // 检查标准化后的行是否有效(标准化后出现问题)
         if (Object.values(standardizedRow).some(v => v !== '')) {
-          console.log('添加有效行到结果');
+          //console.log('添加有效行到结果');
           data.push(standardizedRow);
         } else {
-          console.log('跳过无效行');
+          //console.log('跳过无效行');
         }
       } catch (rowError) {
-        console.error(`处理第 ${rowNumber} 行时出错:`, rowError);
+        //console.error(`处理第 ${rowNumber} 行时出错:`, rowError);
         continue;
       }
     }
     
-    console.log('\nExcel解析完成，处理的数据：', data);
+    //console.log('\nExcel解析完成，处理的数据：', data);
     return {
       data,
       meta: {
@@ -346,59 +441,13 @@ async function parseExcel(filePath) {
       }
     };
   } catch (error) {
-    console.error('Excel解析错误:', error);
+    //console.error('Excel解析错误:', error);
     throw new Error(`Excel文件解析失败: ${error.message}`);
   }
 }
 
 
 
-/**
- * 标准化行字段名
- */
-function standardizeRowFields(row) {
-  if (!row || typeof row !== 'object') {
-    return {
-      _book_name: '',
-      _isbn: '',
-      _num: '',
-      _author: '',
-      _press: '',
-      _tid: '',
-      _cover_url: ''
-    };
-  }
-  
-  const fieldMappings = {
-    '_book_name': ['图书名称', '书名', '名称', 'title', 'book_name', '_book_name'],
-    '_isbn': ['ISBN', '书号', 'isbn', '_isbn'],
-    '_num': ['库存', '数量', '库存数量', 'stock', 'num', '_num'],
-    '_author': ['作者', '著者', 'author', '_author'],
-    '_press': ['出版社', '出版单位', 'press', 'publisher', '_press'],
-    '_tid': ['分类ID', '类型ID', '类别ID', '图书类别', '分类', '类别', 'tid', 'category_id', '_tid'],
-    '_cover_url': ['封面URL', '封面地址', '图片URL', 'cover', 'cover_url', '_cover_url']
-  };
-  
-  let standardizedRow = {};
-  Object.keys(fieldMappings).forEach(dbField => {
-    const possibleNames = fieldMappings[dbField];
-    let found = false;
-    
-    for (const name of possibleNames) {
-      if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
-        standardizedRow[dbField] = String(row[name]).trim();
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      standardizedRow[dbField] = '';
-    }
-  });
-  
-  return standardizedRow;
-}
 
 /**
  * 验证图书数据
@@ -406,247 +455,61 @@ function standardizeRowFields(row) {
 async function validateBooks(booksData, dbConnection) {
   console.log('开始验证图书数据，输入数据:', booksData);
   
+  // 检查必要的模型和连接
+  if (!dbConnection || !dbConnection.sequelize || !dbConnection.Book) {
+    throw new Error('数据库连接或模型未正确初始化');
+  }
+
   const errors = [];
   const validBooks = [];
-  const newCategories = new Set();
   
-  // 创建事务
-  const transaction = await dbConnection.transaction();
-  
-  try {
-    // 分批处理，每批1000条
-    const batchSize = 1000;
-    const batches = [];
-    for (let i = 0; i < booksData.length; i += batchSize) {
-      batches.push(booksData.slice(i, i + batchSize));
-    }
-
-    // 一次性获取所有ISBN对应的图书
-    const allIsbns = booksData.map(book => book._isbn).filter(Boolean);
-    const existingBooks = await dbConnection.models.Book.findAll({
-      where: {
-        _isbn: allIsbns
-      },
-      attributes: ['_isbn', '_num', '_tid'],
-      transaction
-    });
+  // 处理图书数据
+  for (const [index, book] of booksData.entries()) {
+    const bookErrors = [];
+    const lineNumber = index + 1;
     
-    // 创建图书映射
-    const existingBooksMap = new Map();
-    existingBooks.forEach(book => {
-      existingBooksMap.set(book._isbn, {
-        num: book._num,
-        tid: book._tid
+    // 验证必填字段
+    if (!book._book_name?.trim()) bookErrors.push('图书名称不能为空');
+    if (!book._isbn?.trim()) bookErrors.push('ISBN不能为空');
+    if (!book._author?.trim()) bookErrors.push('作者不能为空');
+    if (!book._press?.trim()) bookErrors.push('出版社不能为空');
+    
+    // 验证分类ID
+    if (!book._tid) {
+      bookErrors.push('未指定有效的分类ID');
+    }
+    
+    // 只有在没有错误的情况下才格式化数据
+    if (bookErrors.length === 0) {
+      const formattedBook = {
+        _book_name: book._book_name.trim(),
+        _isbn: book._isbn.trim(),
+        _num: parseInt(book._num) || 0,
+        _author: book._author.trim(),
+        _press: book._press.trim(),
+        _cover_url: book._cover_url?.trim() || null,
+        _tid: book._tid,
+        _times: 0,
+        _create_time: new Date()
+      };
+      validBooks.push(formattedBook);
+    } else {
+      errors.push({
+        line: lineNumber,
+        isbn: book._isbn?.trim() || '未知',
+        title: book._book_name?.trim() || '未知',
+        errors: bookErrors
       });
-    });
-
-    // 处理每个批次
-    for (const batch of batches) {
-      // 处理当前批次
-      for (const [index, book] of batch.entries()) {
-        const lineNumber = (batches.indexOf(batch) * batchSize) + index + 1;
-        const bookErrors = [];
-        
-        console.log(`\n处理第 ${lineNumber} 本图书:`, book);
-        
-        const getStringValue = (value) => {
-          if (value === null || value === undefined) return '';
-          return String(value).trim();
-        };
-        
-        const getIntValue = (value) => {
-          if (value === null || value === undefined || value === '') return 0;
-          const num = parseInt(String(value));
-          return isNaN(num) ? 0 : num;
-        };
-        
-        // 必填字段检查
-        const bookName = getStringValue(book._book_name);
-        if (!bookName) {
-          bookErrors.push('图书名称不能为空');
-        }
-        
-        const isbn = getStringValue(book._isbn);
-        if (!isbn) {
-          bookErrors.push('ISBN不能为空');
-        }
-        
-        const author = getStringValue(book._author);
-        if (!author) {
-          bookErrors.push('作者不能为空');
-        }
-        
-        const press = getStringValue(book._press);
-        if (!press) {
-          bookErrors.push('出版社不能为空');
-        }
-        
-        // 数值字段验证
-        const num = getIntValue(book._num);
-        if (num < 0) {
-          bookErrors.push('库存数量必须是非负整数');
-        }
-        
-        // 检查ISBN是否已存在
-        if (isbn && existingBooksMap.has(isbn)) {
-          const existingBook = existingBooksMap.get(isbn);
-          console.log('发现已存在的图书:', {
-            isbn,
-            existingNum: existingBook.num,
-            newNum: num
-          });
-          
-          // 更新库存数量
-          const updatedNum = existingBook.num + num;
-          
-          // 准备更新数据
-          const updateData = {
-            _num: updatedNum,
-            _update_time: new Date()
-          };
-          
-          // 批量更新操作
-          if (!batch.updates) batch.updates = [];
-          batch.updates.push({
-            where: { _isbn: isbn },
-            updateData
-          });
-          
-          // 记录更新信息
-          validBooks.push({
-            ...book,
-            _num: updatedNum,
-            _tid: existingBook.tid,
-            _update_time: new Date(),
-            isUpdate: true
-          });
-          
-          console.log('准备更新图书库存');
-          continue;
-        }
-        
-        // 处理分类
-        let categoryId;
-        try {
-          const categoryValue = getStringValue(book._tid);
-          
-          if (categoryValue) {
-            const numericId = getIntValue(categoryValue);
-            if (numericId > 0) {
-              categoryId = numericId;
-            } else {
-              // 批量查找或创建分类
-              if (!batch.categories) batch.categories = new Set();
-              batch.categories.add(categoryValue);
-            }
-          }
-        } catch (error) {
-          console.error('分类处理错误:', error);
-          bookErrors.push('分类处理失败: ' + error.message);
-        }
-        
-        // 格式化数据
-        const formattedBook = {
-          _book_name: bookName,
-          _isbn: isbn,
-          _num: num,
-          _author: author,
-          _press: press,
-          _tid: categoryId || 1,
-          _cover_url: getStringValue(book._cover_url) || null,
-          _times: 0,
-          _create_time: new Date(),
-          isUpdate: false
-        };
-        
-        if (bookErrors.length === 0) {
-          // 准备新建数据
-          if (!batch.creates) batch.creates = [];
-          batch.creates.push(formattedBook);
-          validBooks.push(formattedBook);
-        } else {
-          errors.push({
-            line: lineNumber,
-            isbn: isbn || '未知',
-            title: bookName || '未知',
-            errors: bookErrors
-          });
-        }
-      }
-
-      // 批量处理分类
-      if (batch.categories && batch.categories.size > 0) {
-        const categoryNames = Array.from(batch.categories);
-        const categories = await Promise.all(
-          categoryNames.map(async (name) => {
-            const [category, created] = await dbConnection.models.Category.findOrCreate({
-              where: { _type_name: name },
-              defaults: { _type_name: name },
-              transaction
-            });
-            return category;
-          })
-        );
-        
-        // 创建分类名称到ID的映射
-        const categoryMap = new Map();
-        categories.forEach(cat => {
-          categoryMap.set(cat._type_name, cat._tid);
-        });
-        
-        // 更新图书的分类ID
-        batch.creates.forEach(book => {
-          if (typeof book._tid === 'string') {
-            const categoryId = categoryMap.get(book._tid);
-            if (categoryId) {
-              book._tid = categoryId;
-              newCategories.add(book._tid);
-            }
-          }
-        });
-      }
-
-      // 批量执行更新操作
-      if (batch.updates && batch.updates.length > 0) {
-        await Promise.all(batch.updates.map(update => 
-          dbConnection.models.Book.update(update.updateData, {
-            where: update.where,
-            transaction
-          })
-        ));
-      }
-
-      // 批量执行创建操作
-      if (batch.creates && batch.creates.length > 0) {
-        await dbConnection.models.Book.bulkCreate(batch.creates, {
-          transaction
-        });
-      }
     }
-    
-    // 提交事务
-    await transaction.commit();
-    
-    const result = {
-      valid: errors.length === 0,
-      validBooks,
-      errors,
-      validCount: validBooks.length,
-      invalidCount: errors.length,
-      newCategories: Array.from(newCategories),
-      updateCount: validBooks.filter(book => book.isUpdate).length,
-      newCount: validBooks.filter(book => !book.isUpdate).length
-    };
-    
-    console.log('\n验证结果:', result);
-    return result;
-    
-  } catch (error) {
-    // 如果出错，回滚事务
-    await transaction.rollback();
-    console.error('验证过程中出错:', error);
-    throw error;
   }
+
+  return {
+    valid: errors.length === 0,
+    validBooks,
+    errors,
+    validCount: validBooks.length,
+    invalidCount: errors.length
+  };
 }
 
 

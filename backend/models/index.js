@@ -339,7 +339,7 @@ const syncDatabase = async () => {
         name: 'book_category_tid_fkey',
         references: {
           table: 't_category',
-          field: 'id'
+          field: '_tid'
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE'

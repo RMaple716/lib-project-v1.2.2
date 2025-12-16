@@ -124,7 +124,7 @@ router.post('/login', async (req, res) => {
       _utype: user._utype,
       _account: user._account
     });
-
+    console.log('生成的token：', token);
     console.log(`登陆成功：用户：`, user._name, '，类型：', user._utype);
 
     res.status(200).json({

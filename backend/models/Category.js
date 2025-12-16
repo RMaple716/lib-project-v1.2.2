@@ -36,6 +36,10 @@ const Category = sequelize.define('Category', {
     }
   ]
 });
+
+
+
+
 /**
  * 模型关联方法
  * @param {Object} models - 所有模型对象

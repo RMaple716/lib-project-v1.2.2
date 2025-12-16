@@ -1826,7 +1826,7 @@ export default {
         }).join(''));
         
         const tokenData = JSON.parse(jsonPayload);
-        
+        console.log('解析的Token数据:', tokenData);
         // 使用_uid获取完整用户信息
         const response = await fetch(`/api/readers?query=${tokenData._uid}`, {
           method: 'GET',
