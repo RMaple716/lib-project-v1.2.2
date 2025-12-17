@@ -152,7 +152,7 @@ router.get('/', authenticate, requirePermission('major.view'), async (req, res) 
  */
 router.post('/', authenticate, requirePermission('major.create'), async (req, res) => {
   try {
-    const { name, department_id } = req.body;
+    const { name, _did } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -161,7 +161,7 @@ router.post('/', authenticate, requirePermission('major.create'), async (req, re
       });
     }
 
-    if (!department_id) {
+    if (!_did) {
       return res.status(400).json({
         success: false,
         message: '所属院系不能为空'
@@ -169,7 +169,7 @@ router.post('/', authenticate, requirePermission('major.create'), async (req, re
     }
 
     // 检查院系是否存在
-    const department = await Department.findByPk(department_id);
+    const department = await Department.findByPk(_did);
     if (!department) {
       return res.status(400).json({
         success: false,
@@ -179,7 +179,7 @@ router.post('/', authenticate, requirePermission('major.create'), async (req, re
 
     // 检查专业是否已存在
     const existingMajor = await Major.findOne({
-      where: { name }
+      where: { _mname: name }
     });
 
     if (existingMajor) {
@@ -192,7 +192,7 @@ router.post('/', authenticate, requirePermission('major.create'), async (req, re
     // 创建专业
     const major = await Major.create({
       name,
-      department_id
+      _did
     });
 
     res.status(201).json({
@@ -282,7 +282,7 @@ router.post('/', authenticate, requirePermission('major.create'), async (req, re
 router.put('/:id', authenticate, requirePermission('major.edit'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, department_id } = req.body;
+    const { name, _did } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -291,7 +291,7 @@ router.put('/:id', authenticate, requirePermission('major.edit'), async (req, re
       });
     }
 
-    if (!department_id) {
+    if (!_did) {
       return res.status(400).json({
         success: false,
         message: '所属院系不能为空'
@@ -309,7 +309,7 @@ router.put('/:id', authenticate, requirePermission('major.edit'), async (req, re
     }
 
     // 检查院系是否存在
-    const department = await Department.findByPk(department_id);
+    const department = await Department.findByPk(_did);
     if (!department) {
       return res.status(400).json({
         success: false,
@@ -320,8 +320,8 @@ router.put('/:id', authenticate, requirePermission('major.edit'), async (req, re
     // 检查专业名称是否已被其他专业使用
     const existingMajor = await Major.findOne({
       where: { 
-        name,
-        id: { [require('sequelize').Op.ne]: id }
+        _mname: name,
+        _mid: { [require('sequelize').Op.ne]: id }
       }
     });
 
@@ -333,7 +333,7 @@ router.put('/:id', authenticate, requirePermission('major.edit'), async (req, re
     }
 
     // 更新专业
-    await major.update({ name, department_id });
+    await major.update({ _mname: name, _mid });
 
     res.json({
       success: true,
@@ -410,7 +410,7 @@ router.delete('/:id', authenticate, requirePermission('major.delete'), async (re
 
     // 检查专业下是否有班级
     const classCount = await Class.count({
-      where: { major_id: id }
+      where: { _mid: id }
     });
 
     if (classCount > 0) {

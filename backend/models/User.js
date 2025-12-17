@@ -15,6 +15,9 @@ const bcrypt = require('bcryptjs');
  * @property {number} lend_num - 当前借书数量
  * @property {number} _access - 访问权限
  * @property {Date} _create_time - 创建时间
+ * @property {number} [_cid] - 班级ID（学生使用）
+ * @property {number} [_did] - 院系ID（教师使用）
+ * @property {number} [_wdid] - 工作部门ID（临时工使用）
  */
 
 const User = sequelize.define('User', {
@@ -72,22 +75,22 @@ const User = sequelize.define('User', {
     defaultValue: DataTypes.NOW
   },
   // 学生相关字段
-  class_id: {
+  _cid: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    field: 'class_id'
+    field: '_cid'
   },
   // 教师相关字段
-  department_id: {
+  _did: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    field: 'department_id'
+    field: '_did'
   },
   // 临时工相关字段
-  work_department_id: {
+  _wdid: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    field: 'work_department_id'
+    field: '_wdid'
   }
 }, {
   tableName: 't_user',
@@ -102,7 +105,39 @@ const User = sequelize.define('User', {
       if (user.changed('_password')) {
         user._password = await bcrypt.hash(user._password, 12);
       }
+    },
+
+    afterCreate: async(user) => {
+  // 只对非管理员用户分配角色
+  if (!user._utype.includes('admin')) {
+    const Role = require('./Role');
+    const UserRole = require('./UserRole');
+    
+    try {
+      // 查找读者角色
+      const role = await Role.findOne({ 
+        where: { _rcode: 'reader' }
+      });
+
+      // 如果是新创建的角色，为其分配预设权限
+     if (role) {
+        await UserRole.findOrCreate({
+          where: {
+            _uid: user._uid,
+            _rid: role._rid
+          }
+        });
+        console.log(`已为用户 ${user._uid} 分配读者角色`);
+      } else {
+        console.warn('未找到读者角色，请确保系统已初始化');
+      }
+    } catch (error) {
+      console.error('分配角色时出错:', error);
     }
+  }
+}
+
+
   }
 });
 
@@ -121,19 +156,19 @@ User.prototype.validatePassword = async function(password) {
 User.associate = function(models) {
   // 学生与班级的关联
   User.belongsTo(models.Class, {
-    foreignKey: 'class_id',
+    foreignKey: '_cid',
     as: 'class'
   });
 
   // 教师与院系的关联
   User.belongsTo(models.Department, {
-    foreignKey: 'department_id',
+    foreignKey: '_did',
     as: 'department'
   });
 
   // 临时工与工作部门的关联
   User.belongsTo(models.WorkDepartment, {
-    foreignKey: 'work_department_id',
+    foreignKey: '_wdid',
     as: 'workDepartment'
   });
   

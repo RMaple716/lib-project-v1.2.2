@@ -136,9 +136,9 @@ router.get('/', authenticate, requirePermission('department.view'), async (req, 
  */
 router.post('/', authenticate, requirePermission('department.create'), async (req, res) => {
   try {
-    const { name } = req.body;
+    const { _dname } = req.body;
 
-    if (!name) {
+    if (!_dname) {
       return res.status(400).json({
         success: false,
         message: '院系名称不能为空'
@@ -147,7 +147,7 @@ router.post('/', authenticate, requirePermission('department.create'), async (re
 
     // 检查院系是否已存在
     const existingDepartment = await Department.findOne({
-      where: { name }
+      where: { _dname }
     });
 
     if (existingDepartment) {
@@ -159,7 +159,7 @@ router.post('/', authenticate, requirePermission('department.create'), async (re
 
     // 创建院系
     const department = await Department.create({
-      name
+      _dname
     });
 
     res.status(201).json({
@@ -243,9 +243,9 @@ router.post('/', authenticate, requirePermission('department.create'), async (re
 router.put('/:id', authenticate, requirePermission('department.edit'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name } = req.body;
+    const { _dname } = req.body;
 
-    if (!name) {
+    if (!_dname) {
       return res.status(400).json({
         success: false,
         message: '院系名称不能为空'
@@ -265,8 +265,8 @@ router.put('/:id', authenticate, requirePermission('department.edit'), async (re
     // 检查院系名称是否已被其他院系使用
     const existingDepartment = await Department.findOne({
       where: { 
-        name,
-        id: { [require('sequelize').Op.ne]: id }
+        _dname,
+        _did: { [require('sequelize').Op.ne]: id }
       }
     });
 
@@ -278,7 +278,7 @@ router.put('/:id', authenticate, requirePermission('department.edit'), async (re
     }
 
     // 更新院系
-    await department.update({ name });
+    await department.update({ _dname });
 
     res.json({
       success: true,
@@ -355,7 +355,7 @@ router.delete('/:id', authenticate, requirePermission('department.delete'), asyn
 
     // 检查院系下是否有专业
     const majorCount = await Major.count({
-      where: { department_id: id }
+      where: { _did: id }
     });
 
     if (majorCount > 0) {
@@ -368,7 +368,7 @@ router.delete('/:id', authenticate, requirePermission('department.delete'), asyn
     // 检查院系下是否有教师
     const teacherCount = await require('../models').User.count({
       where: { 
-        department_id: id,
+        _did: id,
         _utype: 'teacher'
       }
     });

@@ -134,7 +134,7 @@ router.post('/', authenticate, requirePermission('workDepartment.create'), async
 
     // 检查工作部门是否已存在
     const existingWorkDepartment = await WorkDepartment.findOne({
-      where: { name }
+      where: {_wdname:name }
     });
 
     if (existingWorkDepartment) {
@@ -146,7 +146,7 @@ router.post('/', authenticate, requirePermission('workDepartment.create'), async
 
     // 创建工作部门
     const workDepartment = await WorkDepartment.create({
-      name
+      _wdname: name
     });
 
     res.status(201).json({
@@ -247,8 +247,8 @@ router.put('/:id', authenticate, async (req, res) => {
     // 检查工作部门名称是否已被其他工作部门使用
     const existingWorkDepartment = await WorkDepartment.findOne({
       where: { 
-        name,
-        id: { [require('sequelize').Op.ne]: id }
+        _wdname: name,
+        _wdid: { [require('sequelize').Op.ne]: id }
       }
     });
 
@@ -260,7 +260,7 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 
     // 更新工作部门
-    await workDepartment.update({ name });
+    await workDepartment.update({ _wdname: name });
 
     res.json({
       success: true,
@@ -338,7 +338,7 @@ router.delete('/:id', authenticate, requirePermission('workDepartment.delete'), 
     // 检查工作部门下是否有临时工
     const tempWorkerCount = await require('../models').User.count({
       where: { 
-        work_department_id: id,
+        _wdid: id,
         _utype: 'tempworker'
       }
     });

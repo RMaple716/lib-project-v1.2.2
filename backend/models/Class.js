@@ -3,24 +3,28 @@ const { sequelize } = require('../config/database');
 
 /**
  * 班级数据模型
+ * @typedef {Object} ClassAttributes
+ * @property {number} _cid - 班级ID
+ * @property {string} _cname - 班级名称
+ * @property {number} _mid - 所属专业ID
  */
 const Class = sequelize.define('Class', {
-  id: {
+  _cid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
-    field: 'id'
+    field: '_cid'
   },
-  name: {
+  _cname: {
     type: DataTypes.STRING(100),
     allowNull: false,
     unique: true,
-    field: 'name'
+    field: '_cname'
   },
-  major_id: {
+  _mid: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'major_id'
+    field: '_mid'
   }
 }, {
   tableName: 't_class',

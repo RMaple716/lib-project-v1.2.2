@@ -3,19 +3,22 @@ const { sequelize } = require('../config/database');
 
 /**
  * 院系数据模型
+ * @typedef {Object} DepartmentAttributes
+ * @property {number} _did - 院系ID
+ * @property {string} _dname - 院系名称
  */
 const Department = sequelize.define('Department', {
-  id: {
+  _did: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
-    field: 'id'
+    field: '_did'
   },
-  name: {
+  _dname: {
     type: DataTypes.STRING(100),
     allowNull: false,
     unique: true,
-    field: 'name'
+    field: '_dname'
   }
 }, {
   tableName: 't_department',

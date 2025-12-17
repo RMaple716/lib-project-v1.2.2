@@ -84,7 +84,7 @@ const defineAssociations = () => {
     // User 与 Department 的关联
     User.belongsTo(Department, {
       foreignKey: {
-        name: 'department_id',
+        name: '_did',
         allowNull: true
       },
       as: 'department',
@@ -94,7 +94,7 @@ const defineAssociations = () => {
     // User 与 Major 的关联
     User.belongsTo(Major, {
       foreignKey: {
-        name: 'major_id',
+        name: '_mid',
         allowNull: true
       },
       as: 'major',
@@ -104,7 +104,7 @@ const defineAssociations = () => {
     // User 与 Class 的关联
     User.belongsTo(Class, {
       foreignKey: {
-        name: 'class_id',
+        name: '_cid',
         allowNull: true
       },
       as: 'class',
@@ -114,7 +114,7 @@ const defineAssociations = () => {
     // User 与 WorkDepartment 的关联
     User.belongsTo(WorkDepartment, {
       foreignKey: {
-        name: 'work_department_id',
+        name: '_wdid',
         allowNull: true
       },
       as: 'workDepartment',
@@ -124,7 +124,7 @@ const defineAssociations = () => {
     // 院系关联
     Department.hasMany(Major, {
       foreignKey: {
-        name: 'department_id',
+        name: '_did',
         allowNull: false
       },
       as: 'majors',
@@ -134,7 +134,7 @@ const defineAssociations = () => {
 
     Department.hasMany(User, {
       foreignKey: {
-        name: 'department_id',
+        name: '_did',
         allowNull: true
       },
       as: 'teachers',
@@ -145,7 +145,7 @@ const defineAssociations = () => {
     // 专业关联
     Major.belongsTo(Department, {
       foreignKey: {
-        name: 'department_id',
+        name: '_did',
         allowNull: false
       },
       as: 'department',
@@ -154,7 +154,7 @@ const defineAssociations = () => {
 
     Major.hasMany(Class, {
       foreignKey: {
-        name: 'major_id',
+        name: '_cid',
         allowNull: false
       },
       as: 'classes',
@@ -165,7 +165,7 @@ const defineAssociations = () => {
     // 班级关联
     Class.belongsTo(Major, {
       foreignKey: {
-        name: 'major_id',
+        name: '_mid',
         allowNull: false
       },
       as: 'major',
@@ -174,7 +174,7 @@ const defineAssociations = () => {
 
     Class.hasMany(User, {
       foreignKey: {
-        name: 'class_id',
+        name: '_cid',
         allowNull: true
       },
       as: 'students',
@@ -185,7 +185,7 @@ const defineAssociations = () => {
     // 工作部门关联
     WorkDepartment.hasMany(User, {
       foreignKey: {
-        name: 'work_department_id',
+        name: '_wdid',
         allowNull: true
       },
       as: 'tempWorkers',
@@ -254,79 +254,79 @@ const syncDatabase = async () => {
     
     // 手动创建外键约束，确保约束被正确应用
     try {
-      // 为User表的department_id字段创建外键约束
+      // 为User表的_did字段创建外键约束
       await sequelize.getQueryInterface().addConstraint('t_user', {
-        fields: ['department_id'],
+        fields: ['_did'],
         type: 'foreign key',
-        name: 'user_department_id_fkey',
+        name: 'user_did_fkey',
         references: {
           table: 't_department',
-          field: 'id'
+          field: '_did'
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE'
       });
       
-      // 为User表的major_id字段创建外键约束
+      // 为User表的_mid字段创建外键约束
       await sequelize.getQueryInterface().addConstraint('t_user', {
-        fields: ['major_id'],
+        fields: ['_mid'],
         type: 'foreign key',
-        name: 'user_major_id_fkey',
+        name: 'user_mid_fkey',
         references: {
           table: 't_major',
-          field: 'id'
+          field: '_mid'
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE'
       });
       
-      // 为User表的class_id字段创建外键约束
+      // 为User表的_cid字段创建外键约束
       await sequelize.getQueryInterface().addConstraint('t_user', {
-        fields: ['class_id'],
+        fields: ['_cid'],
         type: 'foreign key',
-        name: 'user_class_id_fkey',
+        name: 'user_cid_fkey',
         references: {
           table: 't_class',
-          field: 'id'
+          field: '_cid'
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE'
       });
       
-      // 为User表的work_department_id字段创建外键约束
+      // 为User表的_wdid字段创建外键约束
       await sequelize.getQueryInterface().addConstraint('t_user', {
-        fields: ['work_department_id'],
+        fields: ['_wdid'],
         type: 'foreign key',
-        name: 'user_work_department_id_fkey',
+        name: 'user_wdid_fkey',
         references: {
           table: 't_work_department',
-          field: 'id'
+          field: '_wdid'
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE'
       });
       
-      // 为Major表的department_id字段创建外键约束
+      // 为Major表的_did字段创建外键约束
       await sequelize.getQueryInterface().addConstraint('t_major', {
-        fields: ['department_id'],
+        fields: ['_did'],
         type: 'foreign key',
-        name: 'major_department_id_fkey',
+        name: 'major_did_fkey',
         references: {
           table: 't_department',
-          field: 'id'
+          field: '_did'
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE'
       });
       
-      // 为Class表的major_id字段创建外键约束
+      // 为Class表的_mid字段创建外键约束
       await sequelize.getQueryInterface().addConstraint('t_class', {
-        fields: ['major_id'],
+        fields: ['_mid'],
         type: 'foreign key',
-        name: 'class_major_id_fkey',
+        name: 'class_mid_fkey',
         references: {
           table: 't_major',
-          field: 'id'
+          field: '_mid'
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE'
@@ -431,7 +431,8 @@ const createDefaultAdmin = async () => {
         _max_num: 100,
         lend_num: 0,
         access: 1,
-        _create_time: new Date()
+        _create_time: new Date(),
+        _wdid: 1
       });
       console.log(' 默认管理员账户创建成功 (账号: admin_t, 密码: admin123)');
     }
