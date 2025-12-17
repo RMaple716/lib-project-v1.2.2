@@ -55,7 +55,8 @@
       </div>
       
       <div class="main-container">
-        <!-- 侧边导航栏 -->
+
+         <!-- 侧边导航栏 -->
         <div id="sidebar">
           <ul class="nav">
             <li>
@@ -70,16 +71,30 @@
                 <span>图书管理</span>
               </a>
             </li>
-            <li>
-              <a href="#" @click.prevent="changePage('user_admin')">
+            <li class="has-submenu">
+              <a href="#" @click.prevent="toggleUserMenu">
                 <i class="fas fa-users"></i>
                 <span>用户管理</span>
               </a>
+              <ul class="sub-menu" :class="{ show: showUserSubMenu }">
+                <li>
+                  <a href="#" @click.stop.prevent="changePage('user_reader')">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>读者管理</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#" @click.stop.prevent="changePage('user_admin')">
+                    <i class="fas fa-user-cog"></i>
+                    <span>管理员管理</span>
+                  </a>
+                </li>               
+              </ul>
             </li>
             <li>
-              <a href="#" @click.prevent="changePage('booktype_admin')">
+              <a href="#" @click.prevent="changePage('category_admin')">
                 <i class="fas fa-tags"></i>
-                <span>图书分类管理</span>
+                <span>分类管理</span>
               </a>
             </li>
             <li>
@@ -108,6 +123,7 @@
             </li>
           </ul>
         </div>
+
         
         <!-- 内容区域 -->
         <div id="content">
@@ -364,12 +380,13 @@
               </div>
             </div>
 
-            <!-- 用户管理 -->
-            <div v-show="currentPage === 'user_admin'" class="page">
+        
+            <!-- 读者管理 -->
+            <div v-show="currentPage === 'user_reader'" class="page">
               <form class="search-form">
                 <select id="userSearchType" class="search-select" v-model="userSearchType">
                   <option value="_uid">用户ID</option>
-                  <option value="_account">账号</option> 
+                  <option value="_account">账号</option>
                   <option value="_name">用户名</option>
                 </select>
                 <input type="text" id="userSearchInput" class="search-input" placeholder="请输入查询内容" v-model="userSearchKeyword">
@@ -403,8 +420,6 @@
                       <option value="student">学生</option>
                       <option value="teacher">教师</option>
                       <option value="tempworker">临时工</option>
-                      <option value="admin_t">终端管理员</option>
-                      <option value="admin_n">普通管理员</option>
                     </select>
                     
                     <!-- 根据用户类型动态显示不同字段 -->
@@ -523,6 +538,129 @@
                 </span>
               </div>
             </div>
+
+            <!-- 管理员管理 -->
+            <div v-show="currentPage === 'user_admin'" class="page">
+              <form class="search-form">
+                <select id="adminSearchType" class="search-select" v-model="adminSearchType">
+                  <option value="_uid">用户ID</option>
+                  <option value="_account">账号</option>
+                  <option value="_name">姓名</option>
+                </select>
+                <input type="text" id="adminSearchInput" class="search-input" placeholder="请输入查询内容" v-model="adminSearchKeyword">
+                <button type="button" class="search-button" @click="handleAdminSearch">查询</button>
+                <button type="button" class="reset-button" @click="handleAdminReset">重置</button>
+                <button type="button" class="add-button" @click="showAddAdminModal">
+                  <i class="fas fa-plus"></i> 添加管理员
+                </button>
+              </form>
+
+              <!-- 添加/编辑管理员弹窗 -->
+              <div id="addAdminModal" class="modal" v-if="showAddAdminModalFlag">
+                <div class="modal-content">
+                  <span class="close-button" @click="closeAddAdminModal">&times;</span>
+                  <h2>{{ isEditAdmin ? '编辑管理员' : '添加管理员' }}</h2>
+                  <form @submit.prevent="submitAdminForm">
+                    <label for="adminAccount">账号：</label>
+                    <input type="text" id="adminAccount" v-model="adminForm.account" :placeholder="isEditAdmin ? '请输入账号' : '请输入账号'" required>
+
+                    <label for="adminName">姓名：</label>
+                    <input type="text" id="adminName" v-model="adminForm.name" :placeholder="isEditAdmin ? '请输入姓名' : '请输入姓名'" required>
+
+                    <label for="adminPassword">密码：</label>
+                    <input type="password" id="adminPassword" v-model="adminForm.password" :placeholder="isEditAdmin ? '留空则不修改密码' : '请输入密码'" :required="!isEditAdmin">
+
+                    <label for="adminEmail">邮箱：</label>
+                    <input type="email" id="adminEmail" v-model="adminForm.email" placeholder="请输入邮箱" required>
+                    
+                    <label for="adminType">管理员类型：</label>
+                    <select id="adminType" v-model="adminForm.userType">
+                      <option value="admin_t">终端管理员</option>
+                      <option value="admin_n">普通管理员</option>
+                    </select>
+
+                    <button type="submit" class="submit-button">提交</button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- 分配角色弹窗 -->
+              <div id="assignRoleModal" class="modal" v-if="showAssignRoleModal">
+                <div class="modal-content">
+                  <span class="close-button" @click="closeAssignRoleModal">&times;</span>
+                  <h2>分配角色</h2>
+                  <div class="role-selection">
+                    <div v-for="role in roles" :key="role.id" class="role-checkbox">
+                      <label>
+                        <input 
+                          type="checkbox" 
+                          :value="role.id" 
+                          :checked="selectedRoleIds.includes(role.id)"
+                          @change="handleRoleSelectionChange(role.id)">
+                        {{ role.name }} ({{ role.code }})
+                      </label>
+                      <p v-if="role.description" class="role-description">{{ role.description }}</p>
+                    </div>
+                  </div>
+                  <div class="modal-buttons">
+                    <button type="button" class="cancel-button" @click="closeAssignRoleModal">取消</button>
+                    <button type="button" class="submit-button" @click="submitRoleAssignment">保存</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 管理员表格 -->
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>用户ID</th>
+                    <th>账号</th>
+                    <th>姓名</th>
+                    <th>管理员类型</th>
+                    <th>邮箱</th>
+                    <th>可借数量</th>
+                    <th>已借数量</th>
+                    <th>创建时间</th>
+                    <th>角色</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="admin in paginatedAdmins" :key="admin._uid">
+                    <td>{{ admin._uid }}</td>
+                    <td>{{ admin._account }}</td>
+                    <td>{{ admin._name }}</td>
+                    <td>{{ getAdminTypeText(admin._utype) }}</td>
+                    <td>{{ admin._email }}</td>
+                    <td>{{ admin._max_num }}</td>
+                    <td>{{ admin.lend_num }}</td>
+                    <td>{{ formatDate(admin._create_time) }}</td>
+                    <td>
+                      <div class="admin-roles">
+                        <span v-for="role in admin.roles" :key="role.id" class="role-tag">
+                          {{ role.name }}
+                        </span>
+                        <span v-if="!admin.roles || admin.roles.length === 0" class="no-role">无角色</span>
+                      </div>
+                    </td>
+                    <td>
+                      <button class="action-button edit-button" @click="editAdmin(admin)">编辑</button>
+                      <button class="action-button delete-button" @click="deleteAdmin(admin._uid)">删除</button>
+                      <button class="action-button reset-password-button" @click="resetAdminPassword(admin._uid)">重置密码</button>
+                      <button class="action-button assign-role-button" @click="showAssignRoleModalHandler(admin)">分配角色</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- 分页 -->
+              <div class="pagination">
+                <button @click="adminCurrentPage--" :disabled="adminCurrentPage === 1">上一页</button>
+                <span>{{ adminCurrentPage }} / {{ Math.ceil((filteredAdmins.length > 0 ? filteredAdmins.length : admins.length) / adminRowsPerPage) }}</span>
+                <button @click="adminCurrentPage++" :disabled="adminCurrentPage === Math.ceil((filteredAdmins.length > 0 ? filteredAdmins.length : admins.length) / adminRowsPerPage)">下一页</button>
+              </div>
+            </div>
+             
 
             <!-- 图书分类管理 -->
             <div v-show="currentPage === 'booktype_admin'" class="page">
@@ -934,13 +1072,6 @@
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 export default {
-  // 添加用户类型变化处理函数
-  onUserTypeChange() {
-    // 清除之前可能填写的特定字段
-    this.userForm.class = '';
-    this.userForm.department = '';
-    this.userForm.workDepartment = '';
-  },
   name: 'BooksView',
   data() {
     return {
@@ -953,11 +1084,14 @@ export default {
         _name: '',
         _type: '', // super: 终端管理员, book: 图书管理员, lend: 借阅管理员
         _email: '',
-        _create_time: ''
+        _create_time: '',
+        roles: [],
+        permissions: []
       },
 
       // 页面状态
       currentPage: 'home',
+      showUserSubMenu: false, // 控制用户管理子菜单显示
 
       // 借阅趋势时间筛选
       lendTrendStartDate: '',
@@ -1045,6 +1179,33 @@ export default {
         workDepartment: '' // 临时工工作部门
       },
 
+        
+      // 管理员管理相关
+      admins: [],
+      filteredAdmins: [],
+      adminCurrentPage: 1,
+      adminRowsPerPage: 8,
+      adminSearchType: '_username',
+      adminSearchKeyword: '',
+      showAddAdminModalFlag: false,
+      isEditAdmin: false,
+      currentEditAdminId: null,
+      adminForm: {
+        account: '',
+        name: '',
+        password: '',
+        email: '',
+        userType: 'admin_n'
+      },
+      
+      // 角色和权限相关
+      roles: [],
+      permissions: [],
+      showAssignRoleModal: false,
+      currentAssignAdminId: null,
+      selectedRoleIds: [],
+
+
       // 公告管理相关
       announcements: [],
       announcementCurrentPage: 1,
@@ -1124,19 +1285,49 @@ export default {
       return this.generateVisiblePages(this.lendCurrentPage, this.totalLendPages);
     },
 
-    // 用户分页计算
-    totalUserPages() {
-      const dataSource = this.filteredUsers.length > 0 ? this.filteredUsers : this.users;
-      return Math.ceil(dataSource.length / this.userRowsPerPage) || 1;
+    // 用户分页数据
+    paginatedUsers() {
+      // 只显示读者（学生和教师）
+      const readers = this.filteredUsers.length > 0 ? 
+        this.filteredUsers.filter(u => u._utype === 'student' || u._utype === 'teacher') : 
+        this.users.filter(u => u._utype === 'student' || u._utype === 'teacher');
+      
+      const start = (this.userCurrentPage - 1) * this.userRowsPerPage;
+      const end = start + this.userRowsPerPage;
+      return readers.slice(start, end);
     },
+    
+    // 管理员分页数据
+    paginatedAdmins() {
+      const dataSource = this.filteredAdmins.length > 0 ? this.filteredAdmins : this.admins;
+      const start = (this.adminCurrentPage - 1) * this.adminRowsPerPage;
+      const end = start + this.adminRowsPerPage;
+      return dataSource.slice(start, end);
+    },
+    
+    // 当前页用户数据
     currentPageUsers() {
       const dataSource = this.filteredUsers.length > 0 ? this.filteredUsers : this.users;
       const start = (this.userCurrentPage - 1) * this.userRowsPerPage;
       const end = start + this.userRowsPerPage;
       return dataSource.slice(start, end);
     },
+
+    totalUserPages() {
+      const totalUsers = (this.filteredUsers && this.filteredUsers.length > 0) ? this.filteredUsers.length : (this.users ? this.users.length : 0);
+      return Math.max(1, Math.ceil(totalUsers / this.userRowsPerPage));
+    },
+    
     visibleUserPages() {
       return this.generateVisiblePages(this.userCurrentPage, this.totalUserPages);
+    },
+    
+    // 当前页管理员数据
+    currentPageAdmins() {
+      const dataSource = this.filteredAdmins.length > 0 ? this.filteredAdmins : this.admins;
+      const start = (this.adminCurrentPage - 1) * this.adminRowsPerPage;
+      const end = start + this.adminRowsPerPage;
+      return dataSource.slice(start, end);
     },
 
     // 公告分页计算
@@ -1205,6 +1396,9 @@ export default {
         this.fetchCategories(), 
         this.fetchLends(),
         this.fetchUsers(),
+        this.fetchAdmins(),      // 获取管理员数据
+        this.fetchRoles(),       // 获取角色数据
+        this.fetchPermissions(), // 获取权限数据
         this.fetchAnnouncements()
       ]);
       
@@ -1276,10 +1470,33 @@ export default {
   },
   
   methods: {
-    // 页面切换 - 新增图表重新渲染逻辑
+
+    // 添加用户类型变化处理函数
+    onUserTypeChange() {
+      // 清除之前可能填写的特定字段
+      this.userForm.class = '';
+      this.userForm.department = '';
+      this.userForm.workDepartment = '';
+    },
+    
+    // 控制用户管理子菜单显示
+    toggleUserMenu() {
+      this.showUserSubMenu = !this.showUserSubMenu;
+    },
+    
+    // 页面切换方法
     changePage(page) {
       console.log('切换页面到:', page);
       this.currentPage = page;
+      
+      // 如果切换到用户相关的子页面，展开用户菜单
+      if (page.startsWith('user_')) {
+        this.showUserSubMenu = true;
+      } else {
+        // 如果切换到其他页面，可以考虑关闭用户子菜单（可选）
+        // this.showUserSubMenu = false;
+      }
+      
       console.log("跳转页面：")
       // 当切换回主页时，重新渲染图表
       if (page === 'home') {
@@ -1300,6 +1517,11 @@ export default {
       this.userSearchType = '_username';
       this.userCurrentPage = 1;
       this.filteredUsers = [];
+
+      this.adminSearchKeyword = '';       // 管理员管理
+      this.adminSearchType = '_username';
+      this.adminCurrentPage = 1;
+      this.filteredAdmins = [];
       
       this.categorySearchKeyword = '';   // 分类管理
       this.categorySearchType = '_type_name';
@@ -1329,12 +1551,12 @@ export default {
     },
     
     // 获取管理员类型文本
-    getAdminTypeText(type) {
+    getAdminTypeText(utype) {
       const typeMap = {
-        'super': '终端管理员',
-        'normal': '普通管理员'
+        'admin_t': '终端管理员',
+        'admin_n': '普通管理员'
       };
-      return typeMap[type] || '未知类型';
+      return typeMap[utype] || '未知类型';
     },
 
     // 退出登录
@@ -1644,100 +1866,117 @@ export default {
 
     // 图表相关方法 
     initCharts() {
-      // 销毁现有图表实例
+       // 销毁现有图表实例
       if (this.bookCategoryChart) this.bookCategoryChart.destroy();
       if (this.lendTrendChart) this.lendTrendChart.destroy();
       if (this.userTypeChart) this.userTypeChart.destroy();
+      if (this.borrowStatsChart) this.borrowStatsChart.destroy();
 
       // 初始化日期范围
       this.initDateRange();
       
-      // 图书分类分布图
-      const bookCategoryCtx = document.getElementById('bookCategoryChart');
-      if (bookCategoryCtx) {
-        this.bookCategoryChart = new Chart(bookCategoryCtx, {
-          type: 'doughnut',
-          data: {
-            labels: this.getCategoryNames(),
-            datasets: [{
-              data: this.getCategoryBookCounts(),
-              backgroundColor: [
-                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-                '#9966FF', '#FF9F40', '#8AC926', '#1982C4'
-              ],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: {
-                position: 'right',
+       // 图书分类分布图
+      this.$nextTick(() => {
+        const bookCategoryCtx = document.getElementById('bookCategoryChart');
+        if (bookCategoryCtx) {
+          const ctx = bookCategoryCtx.getContext('2d');
+          if (ctx) {
+            this.bookCategoryChart = new Chart(ctx, {
+              type: 'doughnut',
+              data: {
+                labels: this.getCategoryNames(),
+                datasets: [{
+                  data: this.getCategoryBookCounts(),
+                  backgroundColor: [
+                    '#FF6384',
+                    '#36A2EB',
+                    '#FFCE56',
+                    '#4BC0C0',
+                    '#9966FF',
+                    '#FF9F40',
+                    '#8AC926',
+                    '#1976D2',
+                    '#E91E63',
+                    '#00BCD4'
+                  ],
+                  borderWidth: 1
+                }]
               },
-              title: {
-                display: false
-              }
-            }
-          }
-        });
-      }
-      
-      // 借阅趋势图
-      const lendTrendCtx = document.getElementById('lendTrendChart');
-      if (lendTrendCtx) {
-        this.lendTrendChart = new Chart(lendTrendCtx, {
-          type: 'line',
-          data: {
-            labels: this.getLast7Days(),
-            datasets: [{
-              label: '借阅数量',
-              data: this.getLendTrendData(),
-              borderColor: '#36A2EB',
-              backgroundColor: 'rgba(54, 162, 235, 0.1)',
-              tension: 0.3,
-              fill: true
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  stepSize: 1
+              options: {
+                responsive: true,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                  }
                 }
               }
-            }
+            });
           }
-        });
-      }
+        }
+      
+      // 借阅趋势图
+        const lendTrendCtx = document.getElementById('lendTrendChart');
+        if (lendTrendCtx) {
+          const ctx = lendTrendCtx.getContext('2d');
+          if (ctx) {
+            this.lendTrendChart = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: this.getLast7Days(),
+                datasets: [{
+                  label: '借阅数量',
+                  data: this.getLendTrendData(),
+                  borderColor: '#36A2EB',
+                  backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                  tension: 0.3,
+                  fill: true
+                }]
+              },
+              options: {
+                responsive: true,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      stepSize: 1
+                    }
+                  }
+                }
+              }
+            });
+          }
+        }
       
       // 用户类型分布图
       const userTypeCtx = document.getElementById('userTypeChart');
       if (userTypeCtx) {
-        this.userTypeChart = new Chart(userTypeCtx, {
-          type: 'pie',
-          data: {
-            labels: ['学生', '教师', '终端管理员', '普通管理员', '临时工'],
-            datasets: [{
-              data: this.getUserTypeCounts(),
-              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#8AC926'],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: {
-                position: 'bottom',
+        const ctx = userTypeCtx.getContext('2d');
+        if (ctx) {
+          this.userTypeChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: ['学生', '教师', '终端管理员', '普通管理员', '临时工'],
+              datasets: [{
+                data: this.getUserTypeCounts(),
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#8AC926'],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                }
               }
             }
-          }
-        });
-      }  
+          });
+        }
+      } 
 
       // 创建借阅统计图表
-      this.createBorrowStatsChart();
+        this.createBorrowStatsChart();
+      });
       
       // 初始加载数据
       this.updateLendTrendChart();
@@ -1826,9 +2065,9 @@ export default {
         }).join(''));
         
         const tokenData = JSON.parse(jsonPayload);
-        console.log('解析的Token数据:', tokenData);
-        // 使用_uid获取完整用户信息
-        const response = await fetch(`/api/readers?query=${tokenData._uid}`, {
+    
+        // 使用管理员ID获取完整管理员信息
+        const response = await fetch(`/api/admins/${tokenData._uid}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -1838,25 +2077,41 @@ export default {
 
         if (response.ok) {
           const result = await response.json();
-          if (result.success && result.data.readerlist && result.data.readerlist.length > 0) {
-            const userInfo = result.data.readerlist[0];
+          if (result.success) {
+            const adminInfo = result.data;
             this.currentAdmin = {
-              _uid: userInfo._uid || tokenData._uid || '',
-              _username: userInfo._account || tokenData._account || '',
-              _name: userInfo._name || '',
-              _type: this.mapAdminType(userInfo._utype || tokenData._utype),
-              _email: userInfo._email || '',
-              _create_time: userInfo._create_time || ''
+              _uid: adminInfo._uid || tokenData._uid || '',
+              _username: adminInfo._account || tokenData._account || '',
+              _name: adminInfo._name || tokenData._name || '',
+              _type: this.mapAdminType(adminInfo._utype || tokenData._utype),
+              _email: adminInfo._email || '',
+              _create_time: adminInfo._create_time || '',
+              roles: adminInfo.roles || []
             };
+
+            // 提取权限代码
+            if (adminInfo.roles && Array.isArray(adminInfo.roles)) {
+              const permissions = new Set();
+              adminInfo.roles.forEach(role => {
+                if (role.permissions && Array.isArray(role.permissions)) {
+                  role.permissions.forEach(permission => {
+                    permissions.add(permission._pcode);
+                  });
+                }
+              });
+              this.currentAdmin.permissions = Array.from(permissions);
+            }
           } else {
-            // 如果获取不到用户信息，则使用token中的基本数据
+            // 如果获取不到管理员信息，则使用token中的基本数据
             this.currentAdmin = {
               _uid: tokenData._uid || '',
               _username: tokenData._account || '',
               _name: tokenData._name || '',
               _type: this.mapAdminType(tokenData._utype),
               _email: '',
-              _create_time: ''
+              _create_time: '',
+              roles: [],
+              permissions: []
             };
           }
         } else if (response.status === 401) {
@@ -1864,17 +2119,41 @@ export default {
         }
       } catch (error) {
         console.error('获取管理员信息失败:', error);
+        // 出错时仍然使用token中的基本数据
+        try {
+          const token = localStorage.getItem('token');
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          
+          const tokenData = JSON.parse(jsonPayload);
+          
+          this.currentAdmin = {
+            _uid: tokenData._uid || '',
+            _username: tokenData._account || '',
+            _name: tokenData._name || '',
+            _type: this.mapAdminType(tokenData._utype),
+            _email: '',
+            _create_time: '',
+            roles: [],
+            permissions: []
+          };
+        } catch (e) {
+          console.error('解析token失败:', e);
+        }
       }
     },
 
-     // 映射管理员类型
-      mapAdminType(utype) {
-        const typeMap = {
-          'admin_t': 'super',
-          'admin_n': 'normal'
-        };
-        return typeMap[utype] || utype;
-      },
+      // 映射管理员类型
+    mapAdminType(utype) {
+      const typeMap = {
+        'admin_t': 'admin_t',
+        'admin_n': 'admin_n'
+      };
+      return typeMap[utype] || utype;
+    },
 
     // 图书管理相关方法
     async fetchBooks() {
@@ -2495,13 +2774,12 @@ export default {
     getUserTypeText(utype) {
       const typeMap = {
         'student': '学生',
-        'teacher': '教师', 
-        'admin_t': '终端管理员',
-        'admin_n': '普通管理员',
+        'teacher': '教师',      
         'tempworker': '临时工'
       };
       return typeMap[utype] || '未知类型';
     },
+    
 
     async fetchUsers() {
       const token = localStorage.getItem('token');
@@ -2522,9 +2800,11 @@ export default {
           return;
         }
         const result = await res.json();
+        console.log('用户数据响应:', result); // 添加调试日志
         if (res.status === 200) {
-          this.users = result.data.readerlist || [];
+          this.users = result.data?.readerlist || result.data || [];
           this.filteredUsers = [];
+          console.log('用户数据:', this.users); // 添加调试日志
         } else {
           this.users = [];
           this.filteredUsers = [];
@@ -2553,18 +2833,30 @@ export default {
       
       const actualField = typeMap[this.userSearchType] || '_name';
       const keyword = this.userSearchKeyword.trim();
-      
+    
       if (!keyword) return this.users;
-      
+
       return this.users.filter(user => {
-        const fieldValue = user[actualField] ? user[actualField].toString() : '';
-        return fieldValue.includes(keyword);
+        if (actualField === '_uid') {
+          return String(user._uid).includes(keyword);
+        }
+        return user[actualField] && user[actualField].toLowerCase().includes(keyword.toLowerCase());
       });
     },
-
+    // 用户分页方法
     changeUserPage(page) {
-      if (page < 1 || page > this.totalUserPages) return;
-      this.userCurrentPage = page;
+      const totalPages = this.totalUserPages;
+      if (page >= 1 && page <= totalPages) {
+        this.userCurrentPage = page;
+      }
+    },
+    
+    // 管理员分页方法
+    changeAdminPage(page) {
+      const totalPages = this.totalAdminPages;
+      if (page >= 1 && page <= totalPages) {
+        this.adminCurrentPage = page;
+      }
     },
 
     showAddUserModal() {
@@ -2879,6 +3171,354 @@ export default {
       } catch (error) {
         console.error('批量上传失败:', error);
         this.$message.error('批量上传失败: ' + error.message);
+      }
+    },
+
+
+    // 管理员管理相关方法
+    async fetchAdmins() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
+      try {
+        const res = await fetch('/api/admins', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        // 只在这里处理401
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
+        const result = await res.json();
+        console.log('管理员数据响应:', result); // 添加调试日志
+        if (res.status === 200) {
+          this.admins = result.data?.adminlist || result.data || [];
+          this.filteredAdmins = [];
+        } else {
+          this.admins = [];
+          this.filteredAdmins = [];
+          this.$message.error(result.message || '没有找到管理员');
+        }
+      } catch (err) {
+        console.error(err);
+        this.$message.error('无法获取管理员数据，请稍后再试');
+      }
+    },
+
+    handleAdminSearch() {
+      this.adminCurrentPage = 1;
+      this.filteredAdmins = this.getAdminFilterData();
+      if (this.filteredAdmins.length === 0) {
+        this.$message.error("没有找到相关管理员");
+      }
+    },
+
+    getAdminFilterData() {
+      const typeMap = {
+        '_uid': '_uid',
+        '_account': '_account',
+        '_name': '_name',
+      };
+      
+      const actualField = typeMap[this.adminSearchType] || '_name';
+      const keyword = this.adminSearchKeyword.trim();
+
+      if (!keyword) {
+        return this.admins;
+      }
+
+      return this.admins.filter(admin => {
+        if (actualField === '_uid') {
+          return String(admin[actualField]).includes(keyword);
+        } else {
+          return admin[actualField] && admin[actualField].includes(keyword);
+        }
+      });
+    },
+
+    handleAdminReset() {
+      this.adminSearchKeyword = '';
+      this.adminSearchType = '_username';
+      this.adminCurrentPage = 1;
+      this.filteredAdmins = [];
+    },
+
+    // 添加/编辑管理员模态框相关方法
+    showAddAdminModal() {
+      this.isEditAdmin = false;
+      this.currentEditAdminId = null;
+      this.adminForm = {
+        account: '',
+        name: '',
+        password: '',
+        email: '',
+        userType: 'admin_n'
+      };
+      this.showAddAdminModalFlag = true;
+    },
+
+    closeAddAdminModal() {
+      this.showAddAdminModalFlag = false;
+      this.adminForm = {
+        account: '',
+        name: '',
+        password: '',
+        email: '',
+        userType: 'admin_n'
+      };
+    },
+
+    editAdmin(admin) {
+      this.isEditAdmin = true;
+      this.currentEditAdminId = admin._uid;
+      this.adminForm = {
+        account: admin._account,
+        name: admin._name,
+        password: '', // 编辑时不显示密码
+        email: admin._email,
+        userType: admin._utype
+      };
+      this.showAddAdminModalFlag = true;
+    },
+
+    async submitAdminForm() {
+      const { account, name, password, email, userType } = this.adminForm;
+      
+      if (!account || !name || !email || !userType) {
+        this.$message.error('请填写完整的管理员信息！');
+        return;
+      }
+
+      if (!this.isEditAdmin && !password) {
+        this.$message.error('请设置管理员密码！');
+        return;
+      }
+      
+      const adminData = {
+        _account: account,
+        _name: name,
+        _email: email,
+        _utype: userType
+      };
+
+      // 只在创建时或明确提供了密码时才传递密码
+      if (password) {
+        adminData._password = password;
+      }
+
+      try {
+        let res;
+        if (this.isEditAdmin) {
+          // 更新管理员
+          res = await fetch(`/api/admins/${this.currentEditAdminId}`, {
+            method: 'PUT',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(adminData)
+          });
+        } else {
+          // 创建管理员
+          res = await fetch('/api/admins', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(adminData)
+          });
+        }
+
+        const result = await res.json();
+        if (res.status === 200) {
+          this.$message.success(result.message || (this.isEditAdmin ? '管理员信息更新成功' : '管理员添加成功'));
+          this.showAddAdminModalFlag = false;
+          await this.fetchAdmins();
+        } else {
+          this.$message.error(result.message || (this.isEditAdmin ? '更新失败' : '添加失败'));
+        }
+      } catch (err) {
+        console.error(err);
+        this.$message.error((this.isEditAdmin ? '更新' : '添加') + '管理员失败');
+      }
+    },
+
+    async deleteAdmin(id) {
+      if (!confirm('确定要删除该管理员吗？')) return;
+      
+      try {
+        const res = await fetch(`/api/admins/${id}`, {
+          method: 'DELETE',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        const result = await res.json();
+        if (res.status === 200) {
+          this.$message.success(result.message || '成功删除管理员信息');
+          await this.fetchAdmins();
+        } else {
+          this.$message.error(result.message || '操作失败');
+        }
+      } catch (err) {
+        console.error(err);
+        this.$message.error('删除管理员失败');
+      }
+    },
+
+   
+   // 获取角色列表
+    async fetchRoles() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
+      try {
+        const res = await fetch('/api/roles', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
+        
+        const result = await res.json();
+        if (res.status === 200) {
+          this.roles = result.data?.roles || result.data || [];
+        } else {
+          this.roles = [];
+          this.$message.error(result.message || '没有找到角色信息');
+        }
+      } catch (err) {
+        console.error(err);
+        this.$message.error('无法获取角色数据，请稍后再试');
+      }
+    },
+
+    // 获取权限列表
+    async fetchPermissions() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
+      try {
+        const res = await fetch('/api/permissions', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (res.status === 401) {
+          this.performLogout();
+          return;
+        }
+        
+        const result = await res.json();
+        if (res.status === 200) {
+          this.permissions = result.data?.permissions || result.data || [];
+        } else {
+          this.permissions = [];
+          this.$message.error(result.message || '没有找到权限信息');
+        }
+      } catch (err) {
+        console.error(err);
+        this.$message.error('无法获取权限数据，请稍后再试');
+      }
+    },
+
+    showAssignRoleModalHandler(admin) {
+      this.currentAssignAdminId = admin._uid;
+      // 初始化选中的角色ID列表为当前管理员已拥有的角色
+      this.selectedRoleIds = admin.roles ? admin.roles.map(role => role.id) : [];
+      this.showAssignRoleModal = true;
+    },
+
+    // 关闭分配角色模态框
+    closeAssignRoleModal() {
+      this.showAssignRoleModal = false;
+      this.currentAssignAdminId = null;
+      this.selectedRoleIds = [];
+    },
+
+    // 处理角色选择变化
+    handleRoleSelectionChange(roleId) {
+      const index = this.selectedRoleIds.indexOf(roleId);
+      if (index > -1) {
+        // 如果已选中，则移除
+        this.selectedRoleIds.splice(index, 1);
+      } else {
+        // 如果未选中，则添加
+        this.selectedRoleIds.push(roleId);
+      }
+    },
+
+    // 提交角色分配
+    async submitRoleAssignment() {
+      if (!this.currentAssignAdminId) {
+        this.$message.error('未选择管理员');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/admins/${this.currentAssignAdminId}/roles/assign`, {
+          method: 'POST', // 应该是 POST 而不是 PUT
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            roleIds: this.selectedRoleIds
+          })
+        });
+
+        const result = await res.json();
+        
+        if (res.status === 200) {
+          this.$message.success(result.message || '角色分配成功');
+          this.closeAssignRoleModal();
+          await this.fetchAdmins(); // 重新加载管理员列表以更新角色信息
+        } else {
+          this.$message.error(result.message || '角色分配失败');
+        }
+      } catch (err) {
+        console.error(err);
+        this.$message.error('角色分配失败: ' + err.message);
+      }
+    },
+
+    async deleteRole(id) {
+      if (!confirm('确定要删除该角色吗？注意：这将影响拥有该角色的所有用户。')) return;
+      
+      try {
+        const res = await fetch(`/api/roles/${id}`, {
+          method: 'DELETE',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        const result = await res.json()
+        if (res.status === 200) {
+          this.$message.success(result.message || '成功删除角色信息')
+          await this.fetchRoles();
+        } else {
+          this.$message.error(result.message || '操作失败')
+        }
+      } catch (err) {
+        console.error(err)
+        this.$message.error('删除角色失败')
       }
     },
 
@@ -3424,6 +4064,51 @@ html, body {
   background-color: rgba(231, 76, 60, 0.1);
 }
 
+/* 子菜单样式 */
+.has-submenu {
+  position: relative;
+}
+
+.sub-menu {
+  list-style: none;
+  padding-left: 0;
+  background-color: #1f7a8c;
+  display: none;
+  position: relative;
+  z-index: 1000;
+}
+
+.sub-menu.show {
+  display: block;
+}
+
+.sub-menu li {
+  width: 100%;
+}
+
+.sub-menu li a {
+  padding: 0.5rem 1rem 0.5rem 2rem;
+  color: #e0f7fa;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sub-menu li a:hover,
+.sub-menu li a.active {
+  background-color: #004d40;
+  color: white;
+}
+
+.sub-menu li a i {
+  margin-right: 10px;
+  width: 20px;
+  text-align: center;
+}
+
 /* 可视化表样式优化 */
 
 .chart-header {
@@ -3957,7 +4642,7 @@ small {
 }
 
 /* 重置密码按钮 - 橙色 */
-.reset-password {
+.reset-password,.reset-password-button {
   background-color: #FF9800; /* 橙色 */
   color: white;
   border: none;
@@ -3970,7 +4655,7 @@ small {
   min-width: 80px;
 }
 
-.reset-password:hover {
+.reset-password:hover, .reset-password-button:hover {
   background-color: #F57C00;
   transform: translateY(-1px);
   box-shadow: 0 2px 5px rgba(255, 152, 0, 0.3);
@@ -4036,7 +4721,7 @@ small {
 }
 
 /* 新增按钮 - 使用主题色 */
-.addBookModal, .addCategoryButton, .addUserModal, .addAnnouncementButton {
+.addBookModal, .addCategoryButton, .addUserModal, .addAnnouncementButton,.add-button {
   background-color: #1194AE; /* 主题色 */
   color: white;
   border: none;
@@ -4049,7 +4734,7 @@ small {
   min-width: 120px;
 }
 
-.addBookModal:hover, .addCategoryButton:hover, .addUserModal:hover, .addAnnouncementButton:hover {
+.addBookModal:hover, .addCategoryButton:hover, .addUserModal:hover, .addAnnouncementButton:hover, .add-button:hover {
   background-color: #067a97;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
@@ -4581,6 +5266,58 @@ button:disabled:hover {
   background-color: #067a97;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
+/* 角色分配模态框样式 */
+.role-selection {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.role-checkbox {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.role-checkbox label {
+  display: block;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.role-description {
+  margin: 5px 0 0 20px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.admin-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.no-role {
+  color: #999;
+  font-style: italic;
+}
+
+.assign-role-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.assign-role-button:hover {
+  background-color: #5a6268;
 }
 
 </style>
