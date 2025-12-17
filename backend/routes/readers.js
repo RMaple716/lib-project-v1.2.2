@@ -1,7 +1,7 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const router = express.Router();
-const { User, BorrowRecord, Book } = require('../models');
+const { User, BorrowRecord } = require('../models');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
 /**
@@ -93,19 +93,19 @@ router.get('/', authenticate, requirePermission('user.view'), async (req, res) =
         {
           model: require('../models').Department,
           as: 'department',
-          attributes: ['id', 'name'],
+          attributes: ['_did', '_dname'],
           required: false
         },
         {
           model: require('../models').Major,
           as: 'major',
-          attributes: ['id', 'name'],
+          attributes: ['_mid', '_mname'],
           required: false,
           include: [
             {
               model: require('../models').Department,
               as: 'department',
-              attributes: ['id', 'name'],
+              attributes: ['_did', '_dname'],
               required: false
             }
           ]
@@ -113,17 +113,16 @@ router.get('/', authenticate, requirePermission('user.view'), async (req, res) =
         {
           model: require('../models').Class,
           as: 'class',
-          attributes: ['id', 'name'],
+          attributes: ['_cid', '_cname'],
           required: false
         },
         {
           model: require('../models').WorkDepartment,
           as: 'workDepartment',
-          attributes: ['id', 'name'],
+          attributes: ['_wdid', '_wdname'],
           required: false
         }
-      ],
-      limit: 50,
+      ]
     });
 
     res.status(200).json({
@@ -228,8 +227,7 @@ router.get('/', authenticate, requirePermission('user.view'), async (req, res) =
 router.post('/', authenticate, requirePermission('user.add'), async (req, res) => {
   try {
     // 权限检查已在中间件中完成
-
-    const { _account, _name, _password, _utype, _email } = req.body;
+    const { _account, _name, _password, _utype, _email,_cname,_dname,_wdname } = req.body;
 
     // 输入验证
     if (!_account || !_name || !_password || !_utype || !_email) {
@@ -273,8 +271,41 @@ router.post('/', authenticate, requirePermission('user.add'), async (req, res) =
     }
 
     // 设置默认的最大借书数量
-    const maxNum = _utype === 'student' ? 10 : 20;
+    const maxNum = _utype === 'teacher' ? 20 : 10;
 
+    let _cid = null;
+    let _did = null;
+    let _wdid = null;
+    let _mid = null;
+
+    if(_utype === 'student'){
+      const classInfo = await Class.findOne({
+        where: { _cname: _cname },
+        attributes: ['_cid', '_mid']
+      })
+      if(classInfo) {
+        _cid = classInfo._cid;
+        _mid = classInfo._mid;
+      }
+    }
+    else if(_utype === 'teacher'){
+      const departmentInfo = await Department.findOne({
+        where: { _dname: _dname },
+        attributes: ['_did']
+      })
+      if(departmentInfo) {
+        _did = departmentInfo._did;
+      }
+    }
+    else if(_utype === 'tempworker'){
+      const workDepartmentInfo = await WorkDepartment.findOne({
+        where: { _wdname: _wdname },
+        attributes: ['_wdid']
+      })
+      if(workDepartmentInfo) {
+        _wdid = workDepartmentInfo._wdid;
+      }
+    }
     // 创建读者
     const reader = await User.create({
       _account,
@@ -285,7 +316,11 @@ router.post('/', authenticate, requirePermission('user.add'), async (req, res) =
       _max_num: maxNum,
       lend_num: 0,
       _access: 1,
-      _total: 0
+      _total: 0,
+      _cid,
+      _mid,
+      _did,
+      _wdid
     });
 
     res.json({
@@ -370,19 +405,19 @@ router.get('/:id', authenticate, requirePermission('user.view'), async (req, res
         {
           model: require('../models').Department,
           as: 'department',
-          attributes: ['id', 'name'],
+          attributes: ['_did', '_dname'],
           required: false
         },
         {
           model: require('../models').Major,
           as: 'major',
-          attributes: ['id', 'name'],
+          attributes: ['_mid', '_mname'],
           required: false,
           include: [
             {
               model: require('../models').Department,
               as: 'department',
-              attributes: ['id', 'name'],
+              attributes: ['_did', '_dname'],
               required: false
             }
           ]
@@ -390,13 +425,13 @@ router.get('/:id', authenticate, requirePermission('user.view'), async (req, res
         {
           model: require('../models').Class,
           as: 'class',
-          attributes: ['id', 'name'],
+          attributes: ['_cid', '_cname'],
           required: false
         },
         {
           model: require('../models').WorkDepartment,
           as: 'workDepartment',
-          attributes: ['id', 'name'],
+          attributes: ['_wdid', '_wdname'],
           required: false
         }
       ]
@@ -791,7 +826,7 @@ router.get('/:id/borrow-count', authenticate, async (req, res) => {
     }
 
     // 检查是否为管理员类型
-    if (reader._utype.includes('admim')) {
+    if (reader._utype.includes('admin')) {
       return res.status(404).json({
         success: false,
         errorCode: 'READER_NOT_FOUND',
@@ -876,19 +911,19 @@ router.get('/rank', authenticate, async (req, res) => {
         {
           model: require('../models').Department,
           as: 'department',
-          attributes: ['id', 'name'],
+          attributes: ['_did', '_dname'],
           required: false
         },
         {
           model: require('../models').Major,
           as: 'major',
-          attributes: ['id', 'name'],
+          attributes: ['_mid', '_mname'],
           required: false,
           include: [
             {
               model: require('../models').Department,
               as: 'department',
-              attributes: ['id', 'name'],
+              attributes: ['_did', '_dname'],
               required: false
             }
           ]
@@ -896,13 +931,13 @@ router.get('/rank', authenticate, async (req, res) => {
         {
           model: require('../models').Class,
           as: 'class',
-          attributes: ['id', 'name'],
+          attributes: ['_cid', '_cname'],
           required: false
         },
         {
           model: require('../models').WorkDepartment,
           as: 'workDepartment',
-          attributes: ['id', 'name'],
+          attributes: ['_wid', '_wname'],
           required: false
         }
       ],

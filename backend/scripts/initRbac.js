@@ -159,11 +159,11 @@ async function initRbac() {
     });
 
     const userRole = await Role.findOrCreate({
-      where: { _rcode: 'user' },
+      where: { _rcode: 'reader' },
       defaults: {
-        _rname: '普通用户',
-        _rcode: 'user',
-        _rdesc: '系统的普通用户'
+        _rname: '读者',
+        _rcode: 'reader',
+        _rdesc: '系统的读者'
       }
     });
 

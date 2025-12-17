@@ -163,16 +163,16 @@ router.get('/', authenticate, requirePermission('class.view'), async (req, res) 
  */
 router.post('/', authenticate, requirePermission('class.create'), async (req, res) => {
   try {
-    const { name, major_id } = req.body;
+    const { _cname, _mid } = req.body;
 
-    if (!name) {
+    if (!_cname) {
       return res.status(400).json({
         success: false,
         message: '班级名称不能为空'
       });
     }
 
-    if (!major_id) {
+    if (!_mid) {
       return res.status(400).json({
         success: false,
         message: '所属专业不能为空'
@@ -190,7 +190,7 @@ router.post('/', authenticate, requirePermission('class.create'), async (req, re
 
     // 检查班级是否已存在
     const existingClass = await Class.findOne({
-      where: { name }
+      where: { _cname }
     });
 
     if (existingClass) {
@@ -202,8 +202,8 @@ router.post('/', authenticate, requirePermission('class.create'), async (req, re
 
     // 创建班级
     const newClass = await Class.create({
-      name,
-      major_id
+      _cname,
+      _mid
     });
 
     res.status(201).json({
@@ -293,16 +293,16 @@ router.post('/', authenticate, requirePermission('class.create'), async (req, re
 router.put('/:id', authenticate, requirePermission('class.edit'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, major_id } = req.body;
+    const { _cname, _mid } = req.body;
 
-    if (!name) {
+    if (!_cname) {
       return res.status(400).json({
         success: false,
         message: '班级名称不能为空'
       });
     }
 
-    if (!major_id) {
+    if (!_mid) {
       return res.status(400).json({
         success: false,
         message: '所属专业不能为空'

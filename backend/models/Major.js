@@ -3,24 +3,28 @@ const { sequelize } = require('../config/database');
 
 /**
  * 专业数据模型
+ * @typedef {Object} MajorAttributes
+ * @property {number} _mid - 专业ID
+ * @property {string} _mname - 专业名称
+ * @property {number} _did - 所属院系ID
  */
 const Major = sequelize.define('Major', {
-  id: {
+  _mid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
-    field: 'id'
+    field: '_mid'
   },
-  name: {
+  _mname: {
     type: DataTypes.STRING(100),
     allowNull: false,
     unique: true,
-    field: 'name'
+    field: '_mname'
   },
-  department_id: {
+  _did: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'department_id'
+    field: '_did'
   }
 }, {
   tableName: 't_major',

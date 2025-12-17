@@ -3,19 +3,22 @@ const { sequelize } = require('../config/database');
 
 /**
  * 工作部门数据模型（用于临时工）
+ * @typedef {Object} WorkDepartmentAttributes
+ * @property {number} _wdid - 工作部门ID
+ * @property {string} _wdname - 工作部门名称
  */
 const WorkDepartment = sequelize.define('WorkDepartment', {
-  id: {
+  _wdid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
-    field: 'id'
+    field: '_wdid'
   },
-  name: {
+  _wdname: {
     type: DataTypes.STRING(100),
     allowNull: false,
     unique: true,
-    field: 'name'
+    field: '_wdname'
   }
 }, {
   tableName: 't_work_department',
