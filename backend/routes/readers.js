@@ -1,7 +1,7 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const router = express.Router();
-const { User, BorrowRecord } = require('../models');
+const { User, BorrowRecord, Class} = require('../models');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
 /**
@@ -323,11 +323,56 @@ router.post('/', authenticate, requirePermission('user.add'), async (req, res) =
       _wdid
     });
 
+    // 获取创建的读者及其关联信息
+    const readerWithAssociations = await User.findByPk(reader._uid, {
+      attributes: { exclude: ['_password'] },
+      include: [
+        {
+          model: require('../models').Department,
+          as: 'department',
+          attributes: ['_did', '_dname'],
+          required: false
+        },
+        {
+          model: require('../models').Major,
+          as: 'major',
+          attributes: ['_mid', '_mname'],
+          required: false,
+          include: [
+            {
+              model: require('../models').Department,
+              as: 'department',
+              attributes: ['_did', '_dname'],
+              required: false
+            }
+          ]
+        },
+        {
+          model: require('../models').Class,
+          as: 'class',
+          attributes: ['_cid', '_cname'],
+          required: false
+        },
+        {
+          model: require('../models').WorkDepartment,
+          as: 'workDepartment',
+          attributes: ['_wdid', '_wdname'],
+          required: false
+        },
+        {
+          model: require('../models').Role,
+          as: 'roles',
+          attributes: ['_rid', '_rname', '_rcode'],
+          required: false
+        }
+      ]
+    });
+
     res.json({
       success: true,
       message: '读者添加成功',
       data: {
-        r_add: reader
+        r_add: readerWithAssociations
       }
     });
 

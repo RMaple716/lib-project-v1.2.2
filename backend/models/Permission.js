@@ -4,13 +4,13 @@ const { sequelize } = require('../config/database');
 /**
  * 权限数据模型
  * @typedef {Object} PermissionAttributes
- * @property {number} id - 权限ID
- * @property {string} name - 权限名称
- * @property {string} code - 权限代码
- * @property {string} description - 权限描述
- * @property {string} module - 所属模块
- * @property {Date} created_at - 创建时间
- * @property {Date} updated_at - 更新时间
+ * @property {number} _pid - 权限ID
+ * @property {string} _pname - 权限名称
+ * @property {string} _pcode - 权限代码
+ * @property {string} _pdesc - 权限描述
+ * @property {string} _pmodule - 所属模块
+ * @property {Date} _create_time - 创建时间
+ * @property {Date} _update_time - 更新时间
  */
 
 const Permission = sequelize.define('Permission', {

@@ -4,9 +4,9 @@ const { sequelize } = require('../config/database');
 /**
  * 角色-权限关联模型
  * @typedef {Object} RolePermissionAttributes
- * @property {number} role_id - 角色ID
- * @property {number} permission_id - 权限ID
- * @property {Date} created_at - 创建时间
+ * @property {number} _rid - 角色ID
+ * @property {number} _pid - 权限ID
+ * @property {Date} _create_time - 创建时间
  */
 
 const RolePermission = sequelize.define('RolePermission', {

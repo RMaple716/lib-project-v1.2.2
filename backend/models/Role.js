@@ -4,12 +4,12 @@ const { sequelize } = require('../config/database');
 /**
  * 角色数据模型
  * @typedef {Object} RoleAttributes
- * @property {number} id - 角色ID
- * @property {string} name - 角色名称
- * @property {string} code - 角色代码
- * @property {string} description - 角色描述
- * @property {Date} created_at - 创建时间
- * @property {Date} updated_at - 更新时间
+ * @property {number} _rid - 角色ID
+ * @property {string} _rname - 角色名称
+ * @property {string} _rcode - 角色代码
+ * @property {string} _rdesc - 角色描述
+ * @property {Date} _create_time - 创建时间
+ * @property {Date} _update_time - 更新时间
  */
 
 const Role = sequelize.define('Role', {

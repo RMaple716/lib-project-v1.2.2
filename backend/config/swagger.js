@@ -1086,38 +1086,38 @@ const options = {
         Permission: {
           type: "object",
           properties: {
-            id: {
+            _pid: {
               type: "integer",
               description: "权限ID",
               example: 1
             },
-            name: {
+            _pname: {
               type: "string",
               description: "权限名称",
               example: "查看读者列表"
             },
-            code: {
+            _pcode: {
               type: "string",
               description: "权限代码",
               example: "readers.view"
             },
-            description: {
+            _pdesc: {
               type: "string",
               description: "权限描述",
               example: "查看读者列表和详情"
             },
-            module: {
+            _pmodule: {
               type: "string",
               description: "所属模块",
               example: "readers"
             },
-            created_at: {
+            _create_time: {
               type: "string",
               format: "date-time",
               description: "创建时间",
               example: "2024-01-15T10:30:00.000Z"
             },
-            updated_at: {
+            _update_time: {
               type: "string",
               format: "date-time",
               description: "更新时间",
@@ -1128,33 +1128,33 @@ const options = {
         Role: {
           type: "object",
           properties: {
-            id: {
+            _id: {
               type: "integer",
               description: "角色ID",
               example: 1
             },
-            name: {
+            _rname: {
               type: "string",
               description: "角色名称",
               example: "图书管理员"
             },
-            code: {
+            _rcode: {
               type: "string",
               description: "角色代码",
               example: "librarian"
             },
-            description: {
+            _rdesc: {
               type: "string",
               description: "角色描述",
               example: "负责图书管理的管理员"
             },
-            created_at: {
+            _create_time: {
               type: "string",
               format: "date-time",
               description: "创建时间",
               example: "2024-01-15T10:30:00.000Z"
             },
-            updated_at: {
+            _update_time: {
               type: "string",
               format: "date-time",
               description: "更新时间",
@@ -1171,24 +1171,24 @@ const options = {
         },
         CreatePermissionRequest: {
           type: "object",
-          required: ["name", "code", "module"],
+          required: ["_pname", "_pcode", "_pmodule"],
           properties: {
-            name: {
+            _pname: {
               type: "string",
               description: "权限名称",
               example: "查看读者列表"
             },
-            code: {
+            _pcode: {
               type: "string",
               description: "权限代码",
               example: "readers.view"
             },
-            description: {
+            _pdesc: {
               type: "string",
               description: "权限描述",
               example: "查看读者列表和详情"
             },
-            module: {
+            _pmodule: {
               type: "string",
               description: "所属模块",
               example: "readers"
@@ -1198,22 +1198,22 @@ const options = {
         UpdatePermissionRequest: {
           type: "object",
           properties: {
-            name: {
+            _pname: {
               type: "string",
               description: "权限名称",
               example: "查看读者列表"
             },
-            code: {
+            _pcode: {
               type: "string",
               description: "权限代码",
               example: "readers.view"
             },
-            description: {
+            _pdesc: {
               type: "string",
               description: "权限描述",
               example: "查看读者列表和详情"
             },
-            module: {
+            _pmodule: {
               type: "string",
               description: "所属模块",
               example: "readers"
@@ -1222,19 +1222,19 @@ const options = {
         },
         CreateRoleRequest: {
           type: "object",
-          required: ["name", "code"],
+          required: ["_rname", "_rcode"],
           properties: {
-            name: {
+            _rname: {
               type: "string",
               description: "角色名称",
               example: "图书管理员"
             },
-            code: {
+            _rcode: {
               type: "string",
               description: "角色代码",
               example: "librarian"
             },
-            description: {
+            _rdesc: {
               type: "string",
               description: "角色描述",
               example: "负责图书管理的管理员"
@@ -1252,17 +1252,17 @@ const options = {
         UpdateRoleRequest: {
           type: "object",
           properties: {
-            name: {
+            _rname: {
               type: "string",
               description: "角色名称",
               example: "图书管理员"
             },
-            code: {
+            _rcode: {
               type: "string",
               description: "角色代码",
               example: "librarian"
             },
-            description: {
+            _rdesc: {
               type: "string",
               description: "角色描述",
               example: "负责图书管理的管理员"

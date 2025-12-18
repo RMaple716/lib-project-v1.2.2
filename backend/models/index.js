@@ -403,6 +403,7 @@ const syncDatabase = async () => {
     }
     console.log('数据库表同步成功 =>');
     
+    await createDefaultWorkDepartment();
     // 创建默认管理员账户（如果不存在）
     await createDefaultAdmin();
     
@@ -414,15 +415,24 @@ const syncDatabase = async () => {
   }
 };
 
+
+const createDefaultWorkDepartment = async () => {
+   const department = await WorkDepartment.findOrCreate({ 
+      where: { _wdname: '校图书馆' } 
+    });
+    const wdid = department[0]._wdid;
+    console.log(' 默认工作部门确保存在: 校图书馆 (ID:', wdid + ')');
+}
 // 创建默认管理员
 const createDefaultAdmin = async () => {
   try {
     const existingAdmin = await User.findOne({ 
       where: { _account: 'admin_t' } 
     });
+    const wd = await WorkDepartment.findOne({ where: { _wdname: '校图书馆' } });
     
     if (!existingAdmin) {
-      await User.create({
+      const admint = await User.create({
         _utype: 'admin_t',
         _account: 'admin_t',
         _name: '终端管理员',
@@ -432,7 +442,11 @@ const createDefaultAdmin = async () => {
         lend_num: 0,
         access: 1,
         _create_time: new Date(),
-        _wdid: 1
+        _wdid: wd._wdid
+      });
+      const role = await Role.findOne({ where: { _rname: '终端管理员' } });
+      await UserRole.findOrCreate({
+        where: { _uid: admint._uid, _rid: role._rid }
       });
       console.log(' 默认管理员账户创建成功 (账号: admin_t, 密码: admin123)');
     }

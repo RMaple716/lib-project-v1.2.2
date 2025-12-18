@@ -4,9 +4,9 @@ const { sequelize } = require('../config/database');
 /**
  * 用户-角色关联模型
  * @typedef {Object} UserRoleAttributes
- * @property {number} user_id - 用户ID
- * @property {number} role_id - 角色ID
- * @property {Date} created_at - 创建时间
+ * @property {number} _uid - 用户ID
+ * @property {number} _rid - 角色ID
+ * @property {Date} _create_time - 创建时间
  */
 
 const UserRole = sequelize.define('UserRole', {
