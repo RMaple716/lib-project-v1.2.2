@@ -88,11 +88,17 @@
                     <i class="fas fa-user-cog"></i>
                     <span>管理员管理</span>
                   </a>
+                </li>
+                <li>
+                  <a href="#" @click.stop.prevent="changePage('role_management')">
+                    <i class="fas fa-user-tag"></i>
+                    <span>角色管理</span>
+                  </a>
                 </li>               
               </ul>
             </li>
             <li>
-              <a href="#" @click.prevent="changePage('category_admin')">
+              <a href="#" @click.prevent="changePage('booktype_admin')">
                 <i class="fas fa-tags"></i>
                 <span>分类管理</span>
               </a>
@@ -231,9 +237,9 @@
                     <i class="fas fa-plus"></i>
                     <span>添加图书</span>
                   </button>
-                  <button class="action-btn" @click="changePage('user_admin')">
-                    <i class="fas fa-user-plus"></i>
-                    <span>添加用户</span>
+                  <button class="action-btn" @click="changePage('feedback_admin')">
+                    <i class="fas fa-comments"></i>
+                    <span>意见建议回馈</span>
                   </button>
                   <button class="action-btn" @click="changePage('announcement_admin')">
                     <i class="fas fa-bullhorn"></i>
@@ -486,15 +492,14 @@
                     <th>用户名</th>
                     <th>邮箱</th>
                     <th>用户类型</th>
-                    <th>院系/部门</th>
-                    <th>专业/班级</th>
+                    <th>所属单位</th>
                     <th>注册时间</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="currentPageUsers.length === 0">
-                    <td colspan="9">{{ filteredUsers.length === 0 ? '暂无用户数据' : '没有找到相关用户' }}</td>
+                    <td colspan="8">{{ filteredUsers.length === 0 ? '暂无用户数据' : '没有找到相关用户' }}</td>
                   </tr>
                   <tr v-for="user in currentPageUsers" :key="user._uid">
                     <td>{{ user._uid }}</td>
@@ -503,13 +508,10 @@
                     <td>{{ user._email }}</td>
                     <td>{{ getUserTypeText(user._utype) }}</td>
                     <td>
-                      <span v-if="user.department && user.department.name">{{ user.department.name }}</span>
-                      <span v-else-if="user.workDepartment && user.workDepartment.name">{{ user.workDepartment.name }}</span>
-                      <span v-else>-</span>
-                    </td>
-                    <td>
-                      <span v-if="user.major && user.major.name">{{ user.major.name }}</span>
-                      <span v-else-if="user.class && user.class.name">{{ user.class.name }}</span>
+                      <!-- 根据用户类型显示不同的信息 -->
+                      <span v-if="user._utype === 'student' && user.class && user.class._cname">{{ user.class._cname }}</span>
+                      <span v-else-if="user._utype === 'teacher' && user.department && user.department._dname">{{ user.department._dname }}</span>
+                      <span v-else-if="user._utype === 'tempworker' && user.workDepartment && user.workDepartment._wdname">{{ user.workDepartment._wdname }}</span>
                       <span v-else>-</span>
                     </td>
                     <td>{{ formatDate(user._create_time) }}</td>
@@ -539,21 +541,30 @@
               </div>
             </div>
 
-            <!-- 管理员管理 -->
+             <!-- 管理员管理页面 -->
             <div v-show="currentPage === 'user_admin'" class="page">
               <form class="search-form">
                 <select id="adminSearchType" class="search-select" v-model="adminSearchType">
-                  <option value="_uid">用户ID</option>
+                  <option value="_uid">管理员ID</option>
                   <option value="_account">账号</option>
-                  <option value="_name">姓名</option>
+                  <option value="_name">用户名</option>
                 </select>
-                <input type="text" id="adminSearchInput" class="search-input" placeholder="请输入查询内容" v-model="adminSearchKeyword">
-                <button type="button" class="search-button" @click="handleAdminSearch">查询</button>
-                <button type="button" class="reset-button" @click="handleAdminReset">重置</button>
-                <button type="button" class="add-button" @click="showAddAdminModal">
-                  <i class="fas fa-plus"></i> 添加管理员
+                <input 
+                  type="text" 
+                  id="adminSearchInput" 
+                  class="search-input" 
+                  placeholder="请输入查询内容" 
+                  v-model="adminSearchKeyword"
+                >
+                <button type="button" class="search-button" @click="handleAdminSearch">
+                  <i class="fas fa-search"></i> 查询
                 </button>
+                <button type="button" class="reset-button" @click="handleAdminReset">
+                  <i class="fas fa-sync"></i> 重置
+                </button>
+                <button type="button" class="addAdminModal" @click="showAddAdminModal">添加管理员</button>
               </form>
+
 
               <!-- 添加/编辑管理员弹窗 -->
               <div id="addAdminModal" class="modal" v-if="showAddAdminModalFlag">
@@ -585,82 +596,304 @@
               </div>
 
               <!-- 分配角色弹窗 -->
-              <div id="assignRoleModal" class="modal" v-if="showAssignRoleModal">
-                <div class="modal-content">
+              <div id="assignRoleModal" class="modal" v-if="showAssignRoleModalFlag">
+                <div class="modal-content large">
                   <span class="close-button" @click="closeAssignRoleModal">&times;</span>
-                  <h2>分配角色</h2>
-                  <div class="role-selection">
-                    <div v-for="role in roles" :key="role.id" class="role-checkbox">
-                      <label>
-                        <input 
-                          type="checkbox" 
-                          :value="role.id" 
-                          :checked="selectedRoleIds.includes(role.id)"
-                          @change="handleRoleSelectionChange(role.id)">
-                        {{ role.name }} ({{ role.code }})
-                      </label>
-                      <p v-if="role.description" class="role-description">{{ role.description }}</p>
+                  <h2>为 "{{ currentAssignAdminName }}" 分配角色</h2>
+                  <form @submit.prevent="submitRoleAssignment">
+                    <div class="role-selection">
+                      <div 
+                        v-for="role in roles" 
+                        :key="role._id" 
+                        class="role-checkbox"
+                      >
+                        <label>
+                          <input 
+                            type="checkbox" 
+                            :value="role._id"
+                            :checked="selectedRoleIds.includes(role._id)"
+                            @change="toggleRoleSelection(role._id)"
+                          />
+                          <strong>{{ role._rname }}</strong> ({{ role._rcode }})
+                          <div class="role-description">{{ role._rdesc }}</div>
+                          <div class="role-permissions" v-if="role.permissions && role.permissions.length > 0">
+                            <strong>拥有权限:</strong>
+                            <ul>
+                              <li v-for="permission in role.permissions" :key="permission._pid">
+                                {{ permission._pname }} ({{ permission._pcode }})
+                              </li>
+                            </ul>
+                          </div>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                  <div class="modal-buttons">
-                    <button type="button" class="cancel-button" @click="closeAssignRoleModal">取消</button>
-                    <button type="button" class="submit-button" @click="submitRoleAssignment">保存</button>
-                  </div>
+                    
+                    <div class="modal-buttons">
+                      <button type="button" class="cancel-button" @click="closeAssignRoleModal">取消</button>
+                      <button type="submit" class="submit-button">保存分配</button>
+                    </div>
+                  </form>
                 </div>
               </div>
 
               <!-- 管理员表格 -->
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>用户ID</th>
-                    <th>账号</th>
-                    <th>姓名</th>
-                    <th>管理员类型</th>
-                    <th>邮箱</th>
-                    <th>可借数量</th>
-                    <th>已借数量</th>
-                    <th>创建时间</th>
-                    <th>角色</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="admin in paginatedAdmins" :key="admin._uid">
-                    <td>{{ admin._uid }}</td>
-                    <td>{{ admin._account }}</td>
-                    <td>{{ admin._name }}</td>
-                    <td>{{ getAdminTypeText(admin._utype) }}</td>
-                    <td>{{ admin._email }}</td>
-                    <td>{{ admin._max_num }}</td>
-                    <td>{{ admin.lend_num }}</td>
-                    <td>{{ formatDate(admin._create_time) }}</td>
-                    <td>
-                      <div class="admin-roles">
-                        <span v-for="role in admin.roles" :key="role.id" class="role-tag">
-                          {{ role.name }}
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>账号</th>
+                      <th>用户名</th>
+                      <th>管理员类型</th>
+                      <th>角色</th>
+                      <th>邮箱</th>
+                      <th>创建时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="admin in currentPageAdmins" :key="admin._uid">
+                      <td>{{ admin._uid }}</td>
+                      <td>{{ admin._account }}</td>
+                      <td>{{ admin._name }}</td>
+                      <td>
+                        <span :class="'type-' + admin._utype">
+                          {{ getAdminTypeText(admin._utype) }}
                         </span>
-                        <span v-if="!admin.roles || admin.roles.length === 0" class="no-role">无角色</span>
-                      </div>
-                    </td>
-                    <td>
-                      <button class="action-button edit-button" @click="editAdmin(admin)">编辑</button>
-                      <button class="action-button delete-button" @click="deleteAdmin(admin._uid)">删除</button>
-                      <button class="action-button reset-password-button" @click="resetAdminPassword(admin._uid)">重置密码</button>
-                      <button class="action-button assign-role-button" @click="showAssignRoleModalHandler(admin)">分配角色</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      </td>
+                      <td>
+                        <div v-if="admin.roles && admin.roles.length > 0">
+                          <span 
+                            v-for="role in admin.roles" 
+                            :key="role._id"
+                            class="role-tag"
+                          >
+                            {{ role._rname }}
+                          </span>
+                        </div>
+                        <div v-else>-</div>
+                      </td>
+                      <td>{{ admin._email }}</td>
+                      <td>{{ formatDate(admin._create_time) }}</td>
+                      <td>
+                        <button class="edit-button" @click="editAdmin(admin)">
+                          <i class="fas fa-edit"></i> 编辑
+                        </button>
+                        <button class="assign-role-button" @click="showAssignRoleModal(admin)" v-if="admin._utype === 'admin_n'">
+                          <i class="fas fa-user-tag"></i> 分配角色
+                        </button>
+                        <button class="delete-button" @click="deleteAdmin(admin._uid)">
+                          <i class="fas fa-trash"></i> 删除
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="filteredAdmins.length === 0">
+                      <td colspan="8" class="no-data">暂无管理员数据</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-              <!-- 分页 -->
-              <div class="pagination">
-                <button @click="adminCurrentPage--" :disabled="adminCurrentPage === 1">上一页</button>
-                <span>{{ adminCurrentPage }} / {{ Math.ceil((filteredAdmins.length > 0 ? filteredAdmins.length : admins.length) / adminRowsPerPage) }}</span>
-                <button @click="adminCurrentPage++" :disabled="adminCurrentPage === Math.ceil((filteredAdmins.length > 0 ? filteredAdmins.length : admins.length) / adminRowsPerPage)">下一页</button>
+
+              <!-- 分页控件 -->
+              <div class="pagination" v-if="totalAdminPages > 1">
+                <button 
+                  class="page-button" 
+                  :disabled="adminCurrentPage === 1" 
+                  @click="changeAdminPage(adminCurrentPage - 1)"
+                >
+                  <i class="fas fa-chevron-left"></i> 上一页
+                </button>
+                
+                <button 
+                  v-for="page in visibleAdminPages"
+                  :key="page"
+                  class="page-button" 
+                  :class="{ active: adminCurrentPage === page }"
+                  @click="changeAdminPage(page)"
+                >
+                  {{ page }}
+                </button>
+                
+                <button 
+                  class="page-button" 
+                  :disabled="adminCurrentPage === totalAdminPages" 
+                  @click="changeAdminPage(adminCurrentPage + 1)"
+                >
+                  下一页 <i class="fas fa-chevron-right"></i>
+                </button>
+                
+                <span class="page-info">
+                  第 {{ adminCurrentPage }} 页，共 {{ totalAdminPages }} 页
+                </span>
               </div>
             </div>
-             
+
+            <!-- 角色管理页面 -->
+            <div v-show="currentPage === 'role_management'" class="page">
+              
+              <!-- 搜索和操作区域 -->
+              <form class="search-form">
+                <select id="roleSearchType" class="search-select" v-model="roleSearchType">
+                  <option value="_name">角色名称</option>
+                  <option value="_code">角色代码</option>
+                  <option value="_desc">角色描述</option>
+                </select>
+                <input 
+                  type="text" 
+                  id="roleSearchInput" 
+                  class="search-input" 
+                  placeholder="请输入查询内容" 
+                  v-model="roleSearchKeyword"
+                >
+                <button type="button" class="search-button" @click="handleRoleSearch">
+                  <i class="fas fa-search"></i> 查询
+                </button>
+                <button type="button" class="reset-button" @click="handleRoleReset">
+                  <i class="fas fa-sync"></i> 重置
+                </button>
+                <button type="button" class="addRoleModal" @click="showAddRoleModal">添加角色</button>
+              </form>
+
+              <!-- 添加/编辑角色弹窗 -->
+              <div id="addRoleModal" class="modal" v-if="showAddRoleModalFlag">
+                <div class="modal-content large">
+                  <span class="close-button" @click="closeAddRoleModal">&times;</span>
+                  <h2>{{ isEditRole ? '编辑角色' : '添加角色' }}</h2>
+                  <form @submit.prevent="submitRoleForm">
+                    <div class="form-group">
+                      <label for="roleName">角色名称 *</label>
+                      <input 
+                        type="text" 
+                        id="roleName" 
+                        v-model="roleForm.roleName" 
+                        placeholder="请输入角色名称"
+                        required
+                      />
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="roleCode">角色代码 *</label>
+                      <input 
+                        type="text" 
+                        id="roleCode" 
+                        v-model="roleForm.roleCode" 
+                        placeholder="请输入角色代码"
+                        required
+                      />
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="roleDesc">角色描述</label>
+                      <textarea 
+                        id="roleDesc" 
+                        v-model="roleForm.roleDesc" 
+                        placeholder="请输入角色描述"
+                        rows="3"
+                      ></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                      <label>权限分配</label>
+                      <div class="permission-list">
+                        <div 
+                          v-for="permission in permissions" 
+                          :key="permission._pid" 
+                          class="permission-item"
+                        >
+                          <label class="checkbox-label">
+                            <input 
+                              type="checkbox" 
+                              :value="permission._pid"
+                              v-model="roleForm.permissionIds"
+                            />
+                            <span class="permission-name">{{ permission._pname }}</span>
+                            <span class="permission-code">({{ permission._pcode }})</span>
+                            <span class="permission-desc">{{ permission._pdesc }}</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="modal-buttons">
+                      <button type="button" class="cancel-button" @click="closeAddRoleModal">取消</button>
+                      <button type="submit" class="submit-button">{{ isEditRole ? '更新' : '添加' }}</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- 角色表格 -->
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>角色名称</th>
+                      <th>角色代码</th>
+                      <th>角色描述</th>
+                      <th>权限数量</th>
+                      <th>创建时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="role in currentPageRoles" :key="role._id">
+                      <td>{{ role._id }}</td>
+                      <td>{{ role._rname }}</td>
+                      <td>{{ role._rcode }}</td>
+                      <td>{{ role._rdesc }}</td>
+                      <td>{{ role.permissions ? role.permissions.length : 0 }}</td>
+                      <td>{{ formatDate(role._create_time) }}</td>
+                      <td>
+                        <button class="edit-button" @click="editRole(role)">
+                          <i class="fas fa-edit"></i> 编辑
+                        </button>
+                        <button class="delete-button" @click="deleteRole(role._id)">
+                          <i class="fas fa-trash"></i> 删除
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="filteredRoles.length === 0">
+                      <td colspan="7" class="no-data">暂无角色数据</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 分页控件 -->
+              <div class="pagination" v-if="totalRolePages > 1">
+                <button 
+                  class="page-button" 
+                  :disabled="roleCurrentPage === 1" 
+                  @click="changeRolePage(roleCurrentPage - 1)"
+                >
+                  <i class="fas fa-chevron-left"></i> 上一页
+                </button>
+                
+                <button 
+                  v-for="page in visibleRolePages"
+                  :key="page"
+                  class="page-button" 
+                  :class="{ active: roleCurrentPage === page }"
+                  @click="changeRolePage(page)"
+                >
+                  {{ page }}
+                </button>
+                
+                <button 
+                  class="page-button" 
+                  :disabled="roleCurrentPage === totalRolePages" 
+                  @click="changeRolePage(roleCurrentPage + 1)"
+                >
+                  下一页 <i class="fas fa-chevron-right"></i>
+                </button>
+                
+                <span class="page-info">
+                  第 {{ roleCurrentPage }} 页，共 {{ totalRolePages }} 页
+                </span>
+              </div>
+            </div>
 
             <!-- 图书分类管理 -->
             <div v-show="currentPage === 'booktype_admin'" class="page">
@@ -916,7 +1149,6 @@
 
           <!-- 意见建议回馈 -->
           <div v-show="currentPage === 'feedback_admin'" class="page">
-            <h2 class="page-title">读者意见建议回馈</h2>
 
             <!-- 搜索表单 -->
             <form class="search-form">
@@ -1201,10 +1433,26 @@ export default {
       // 角色和权限相关
       roles: [],
       permissions: [],
-      showAssignRoleModal: false,
+      showAssignRoleModalFlag: false,
       currentAssignAdminId: null,
+      currentAssignAdminName: '',
       selectedRoleIds: [],
 
+      // 角色管理相关
+      showAddRoleModalFlag: false,
+      isEditRole: false,
+      currentEditRoleId: null,
+      roleForm: {
+        roleName: '',
+        roleCode: '',
+        roleDesc: '',
+        permissionIds: []
+      },
+      roleCurrentPage: 1,
+      roleRowsPerPage: 8,
+      roleSearchType: '_rname',
+      roleSearchKeyword: '',
+      filteredRoles: [],
 
       // 公告管理相关
       announcements: [],
@@ -1297,13 +1545,8 @@ export default {
       return readers.slice(start, end);
     },
     
-    // 管理员分页数据
-    paginatedAdmins() {
-      const dataSource = this.filteredAdmins.length > 0 ? this.filteredAdmins : this.admins;
-      const start = (this.adminCurrentPage - 1) * this.adminRowsPerPage;
-      const end = start + this.adminRowsPerPage;
-      return dataSource.slice(start, end);
-    },
+   
+    
     
     // 当前页用户数据
     currentPageUsers() {
@@ -1324,10 +1567,48 @@ export default {
     
     // 当前页管理员数据
     currentPageAdmins() {
-      const dataSource = this.filteredAdmins.length > 0 ? this.filteredAdmins : this.admins;
+      const dataSource = (this.filteredAdmins && Array.isArray(this.filteredAdmins) && this.filteredAdmins.length > 0) 
+        ? this.filteredAdmins 
+        : (this.admins && Array.isArray(this.admins) ? this.admins : []);
       const start = (this.adminCurrentPage - 1) * this.adminRowsPerPage;
       const end = start + this.adminRowsPerPage;
-      return dataSource.slice(start, end);
+      return Array.isArray(dataSource) ? dataSource.slice(start, end) : [];
+    },
+
+    // 管理员分页总数
+    totalAdminPages() {
+      const dataSource = (this.filteredAdmins && Array.isArray(this.filteredAdmins) && this.filteredAdmins.length > 0) 
+        ? this.filteredAdmins 
+        : (this.admins && Array.isArray(this.admins) ? this.admins : []);
+      return Math.ceil((Array.isArray(dataSource) ? dataSource.length : 0) / this.adminRowsPerPage) || 1;
+    },
+
+    // 可见的管理员分页页码
+    visibleAdminPages() {  
+      const total = this.totalAdminPages;
+      const current = this.adminCurrentPage;
+      return this.generateVisiblePages(current, total);
+    },
+
+    // 角色分页计算
+    totalRolePages() {
+      const dataSource = (this.filteredRoles && Array.isArray(this.filteredRoles) && this.filteredRoles.length > 0) 
+        ? this.filteredRoles 
+        : (this.roles && Array.isArray(this.roles) ? this.roles : []);
+      return Math.ceil((Array.isArray(dataSource) ? dataSource.length : 0) / this.roleRowsPerPage) || 1;
+    },
+    currentPageRoles() {
+      const dataSource = (this.filteredRoles && Array.isArray(this.filteredRoles) && this.filteredRoles.length > 0) 
+        ? this.filteredRoles 
+        : (this.roles && Array.isArray(this.roles) ? this.roles : []);
+      const start = (this.roleCurrentPage - 1) * this.roleRowsPerPage;
+      const end = start + this.roleRowsPerPage;
+      return Array.isArray(dataSource) ? dataSource.slice(start, end) : [];
+    },
+    visibleRolePages() {
+      const total = this.totalRolePages;
+      const current = this.roleCurrentPage;
+      return this.generateVisiblePages(current, total);
     },
 
     // 公告分页计算
@@ -1364,7 +1645,8 @@ export default {
       return this.books.length;
     },
     userCount() {
-      return this.users.length;
+      // 用户总数应包括普通用户和管理员
+      return this.users.length + this.admins.length;
     },
     announcementCount() {
       return this.announcements.length;
@@ -1522,6 +1804,10 @@ export default {
       this.adminSearchType = '_username';
       this.adminCurrentPage = 1;
       this.filteredAdmins = [];
+
+      this.roleSearchKeyword = '';        // 角色管理
+      this.filteredRoles = [];
+      this.roleCurrentPage = 1;
       
       this.categorySearchKeyword = '';   // 分类管理
       this.categorySearchType = '_type_name';
@@ -1668,10 +1954,7 @@ export default {
       this.lendTrendEndDate = this.formatDateForInput(today);
       console.log('初始化日期范围:', this.lendTrendStartDate, '到', this.lendTrendEndDate);
       
-      // 初始化后立即更新图表
-      this.$nextTick(() => {
-        this.updateLendTrendChart();
-      });
+      // 页面初始化时不主动触发图表更新，避免显示不必要的提示信息
     },
     
     // 格式化日期为input[type="date"]需要的格式(YYYY-MM-DD)
@@ -1725,7 +2008,7 @@ export default {
       
       return true;
     },
-    // 更新借阅趋势图表
+        // 更新借阅趋势图表
     async updateLendTrendChart() {
       console.log('更新借阅趋势图表，开始日期:', this.lendTrendStartDate, '结束日期:', this.lendTrendEndDate);
       
@@ -1792,9 +2075,17 @@ export default {
             this.lendTrendChart.update();
             console.log('图表已更新');
             
-            // 如果没有数据，显示提示信息
+            // 只有在用户主动操作时才显示"无数据"提示
+            // 避免在初始化时显示不必要的提示
             if (dates.length === 0) {
-              this.$message.info('选定日期范围内暂无借阅数据');
+              // 检查是否是用户主动触发的操作
+              const isUserAction = document.activeElement === document.getElementById('startDate') || 
+                                  document.activeElement === document.getElementById('endDate') ||
+                                  (event && event.type === 'click' && event.target.classList.contains('refresh-button'));
+              
+              if (isUserAction) {
+                this.$message.info('选定日期范围内暂无借阅数据');
+              }
             }
           } else {
             console.log('图表实例不存在');
@@ -1955,10 +2246,10 @@ export default {
           this.userTypeChart = new Chart(ctx, {
             type: 'pie',
             data: {
-              labels: ['学生', '教师', '终端管理员', '普通管理员', '临时工'],
+              labels: ['学生', '教师', '管理员', '临时工'],
               datasets: [{
                 data: this.getUserTypeCounts(),
-                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#8AC926'],
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#8AC926'],
                 borderWidth: 1
               }]
             },
@@ -2038,11 +2329,12 @@ export default {
     getUserTypeCounts() {
       const studentCount = this.users.filter(u => u._utype === 'student').length;
       const teacherCount = this.users.filter(u => u._utype === 'teacher').length;
-      const adminTCount = this.users.filter(u => u._utype === 'admin_t').length;
-      const adminNCount = this.users.filter(u => u._utype === 'admin_n').length;
       const tempWorkerCount = this.users.filter(u => u._utype === 'tempworker').length;
       
-      return [studentCount, teacherCount, adminTCount, adminNCount, tempWorkerCount];
+      // 将所有管理员归为一类
+      const adminCount = this.admins.length;
+
+      return [studentCount, teacherCount, adminCount, tempWorkerCount];
     },
 
     // 获取公告状态数量
@@ -2398,6 +2690,8 @@ export default {
           a.click();
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
+          
+          this.$message.success('模板下载成功，请按照模板格式填写数据');
         } else {
           this.$message.error('模板下载失败');
         }
@@ -2407,10 +2701,20 @@ export default {
       }
     },
 
-    // 提交批量上传
+    // 提交批量上传 - 增强版本
     async submitBulkUpload() {
       if (!this.selectedFile) {
         this.$message.error('请选择要上传的文件');
+        return;
+      }
+
+      // 检查文件扩展名
+      const fileName = this.selectedFile.name.toLowerCase();
+      const validExtensions = ['.csv', '.xlsx', '.xls'];
+      const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+      
+      if (!isValidExtension) {
+        this.$message.error('请上传 CSV 或 Excel 文件');
         return;
       }
 
@@ -2427,23 +2731,36 @@ export default {
         });
 
         const result = await response.json();
+        console.log('批量上传响应:', response.status, result);
         
         if (response.ok && result.success) {
-          this.$message.success(`批量上传成功！共处理 ${result.data.total} 条记录`);
+          // 显示更详细的成功信息
+          if (result.data && result.data.total === 0) {
+            this.$message.warning('文件上传成功，但没有处理任何记录。请检查文件内容格式是否正确。');
+            this.$message.info('请确保文件包含数据行，且列名与模板一致');
+          } else {
+            this.$message.success(`批量上传成功！共处理 ${result.data.total} 条记录，其中新增 ${result.data.inserted} 条，更新 ${result.data.updated} 条`);
+          }
           this.closeBulkUploadModal();
           await this.fetchBooks(); // 重新加载图书列表
         } else {
           const errorMsg = result.message || '批量上传失败';
           this.$message.error(errorMsg);
           
-          // 如果有详细错误信息，显示出来
+          // 显示详细错误信息
           if (result.errors && result.errors.length > 0) {
             console.error('上传错误详情:', result.errors);
+            this.$message.error(`详细错误: ${JSON.stringify(result.errors)}`);
           }
         }
       } catch (error) {
         console.error('批量上传失败:', error);
-        this.$message.error('批量上传失败: ' + error.message);
+        
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          this.$message.error('网络连接失败，请检查服务器是否运行正常');
+        } else {
+          this.$message.error('批量上传失败: ' + error.message);
+        }
       }
     },
     
@@ -2851,12 +3168,10 @@ export default {
       }
     },
     
-    // 管理员分页方法
+    // 管理员分页切换
     changeAdminPage(page) {
-      const totalPages = this.totalAdminPages;
-      if (page >= 1 && page <= totalPages) {
-        this.adminCurrentPage = page;
-      }
+      if (page < 1 || page > this.totalAdminPages) return;
+      this.adminCurrentPage = page;
     },
 
     showAddUserModal() {
@@ -3175,38 +3490,70 @@ export default {
     },
 
 
-    // 管理员管理相关方法
+    // 获取管理员列表
     async fetchAdmins() {
       const token = localStorage.getItem('token');
       if (!token) {
         this.$message.error('请先登录');
         return;
       }
+      
       try {
-        const res = await fetch('/api/admins', {
+        console.log('正在请求管理员列表...');
+        const res = await fetch('/api/admins?includeRoles=true', {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
           }
         });
-
-        // 只在这里处理401
+        
+        console.log('管理员API响应状态:', res.status);
+        console.log('管理员API响应头:', [...res.headers.entries()]);
+        
         if (res.status === 401) {
+          console.log('认证失败，token可能已过期');
           this.performLogout();
           return;
         }
-        const result = await res.json();
-        console.log('管理员数据响应:', result); // 添加调试日志
-        if (res.status === 200) {
-          this.admins = result.data?.adminlist || result.data || [];
-          this.filteredAdmins = [];
-        } else {
+        
+        if (!res.ok) {
+          console.log('API请求失败，状态码:', res.status);
+          this.$message.error(`API请求失败，状态码: ${res.status}`);
           this.admins = [];
           this.filteredAdmins = [];
-          this.$message.error(result.message || '没有找到管理员');
+          return;
         }
-      } catch (err) {
-        console.error(err);
-        this.$message.error('无法获取管理员数据，请稍后再试');
+        
+        const result = await res.json();
+        console.log('管理员API完整响应数据:', result);
+        
+        // 根据API文档，正确的响应格式应该是 { success: true, message: "...", data: { adminlist: [...] } }
+        if (result && result.success && result.data && Array.isArray(result.data.adminlist)) {
+          this.admins = result.data.adminlist;
+          this.filteredAdmins = [...this.admins];
+          console.log('成功获取管理员列表，数量:', this.admins.length);
+        } else if (result && result.success && Array.isArray(result.data)) {
+          // 备用方案：如果data本身就是数组
+          this.admins = result.data;
+          this.filteredAdmins = [...this.admins];
+          console.log('成功获取管理员列表(备用方案)，数量:', this.admins.length);
+        } else {
+          console.log('API返回格式不正确或没有数据:', result);
+          // 检查是否有错误信息
+          if (result && result.message) {
+            this.$message.error(result.message);
+          } else {
+            this.$message.error('获取管理员列表失败：响应格式不正确');
+          }
+          this.admins = [];
+          this.filteredAdmins = [];
+        }
+      } catch (error) {
+        console.error('获取管理员信息失败:', error);
+        this.$message.error('网络错误，获取管理员列表失败: ' + error.message);
+        this.admins = [];
+        this.filteredAdmins = [];
       }
     },
 
@@ -3226,7 +3573,7 @@ export default {
       };
       
       const actualField = typeMap[this.adminSearchType] || '_name';
-      const keyword = this.adminSearchKeyword.trim();
+      const keyword = this.adminSearchKeyword.trim().toLowerCase();
 
       if (!keyword) {
         return this.admins;
@@ -3236,16 +3583,16 @@ export default {
         if (actualField === '_uid') {
           return String(admin[actualField]).includes(keyword);
         } else {
-          return admin[actualField] && admin[actualField].includes(keyword);
+          return admin[actualField] && admin[actualField].toLowerCase().includes(keyword);
         }
       });
     },
 
+    // 重置管理员搜索
     handleAdminReset() {
       this.adminSearchKeyword = '';
-      this.adminSearchType = '_username';
+      this.filteredAdmins = this.admins;
       this.adminCurrentPage = 1;
-      this.filteredAdmins = [];
     },
 
     // 添加/编辑管理员模态框相关方法
@@ -3311,41 +3658,42 @@ export default {
         adminData._password = password;
       }
 
-      try {
+       try {
         let res;
+        let apiEndpoint = '/api/admins';
+        let apiMethod = 'POST';
+        
         if (this.isEditAdmin) {
           // 更新管理员
-          res = await fetch(`/api/admins/${this.currentEditAdminId}`, {
-            method: 'PUT',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(adminData)
-          });
-        } else {
-          // 创建管理员
-          res = await fetch('/api/admins', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(adminData)
-          });
+          apiEndpoint = `/api/admins/${this.currentEditAdminId}`;
+          apiMethod = 'PUT';
         }
+        
+        console.log('发送管理员请求:', apiMethod, apiEndpoint, adminData);
+        
+        res = await fetch(apiEndpoint, {
+          method: apiMethod,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(adminData)
+        });
 
         const result = await res.json();
-        if (res.status === 200) {
-          this.$message.success(result.message || (this.isEditAdmin ? '管理员信息更新成功' : '管理员添加成功'));
-          this.showAddAdminModalFlag = false;
+        console.log('管理员API响应:', result);
+        
+        if (res.status === 200 || (result && result.success)) {
+          this.$message.success(result.message || (this.isEditAdmin ? '更新' : '添加') + '管理员成功');
+          this.closeAddAdminModal();
+          // 关键：刷新管理员列表
           await this.fetchAdmins();
         } else {
-          this.$message.error(result.message || (this.isEditAdmin ? '更新失败' : '添加失败'));
+          this.$message.error(result.message || (this.isEditAdmin ? '更新' : '添加') + '管理员失败');
         }
       } catch (err) {
         console.error(err);
-        this.$message.error((this.isEditAdmin ? '更新' : '添加') + '管理员失败');
+        this.$message.error((this.isEditAdmin ? '更新' : '添加') + '管理员失败: ' + err.message);
       }
     },
 
@@ -3376,104 +3724,326 @@ export default {
    
    // 获取角色列表
     async fetchRoles() {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        this.$message.error('请先登录');
-        return;
-      }
       try {
         const res = await fetch('/api/roles', {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
           }
         });
-
-        if (res.status === 401) {
-          this.performLogout();
-          return;
-        }
-        
         const result = await res.json();
         if (res.status === 200) {
-          this.roles = result.data?.roles || result.data || [];
+          this.roles = (result.data && Array.isArray(result.data)) ? result.data : [];
+          this.filteredRoles = [...this.roles];
         } else {
+          this.$message.error(result.message || '获取角色列表失败');
           this.roles = [];
-          this.$message.error(result.message || '没有找到角色信息');
+          this.filteredRoles = [];
         }
       } catch (err) {
         console.error(err);
-        this.$message.error('无法获取角色数据，请稍后再试');
+        this.$message.error('获取角色列表失败');
+        this.roles = [];
+        this.filteredRoles = [];
       }
     },
 
     // 获取权限列表
     async fetchPermissions() {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        this.$message.error('请先登录');
-        return;
-      }
       try {
         const res = await fetch('/api/permissions', {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
           }
         });
-
-        if (res.status === 401) {
-          this.performLogout();
-          return;
-        }
-        
         const result = await res.json();
         if (res.status === 200) {
-          this.permissions = result.data?.permissions || result.data || [];
+          this.permissions = (result.data && Array.isArray(result.data)) ? result.data : [];
         } else {
+          this.$message.error(result.message || '获取权限列表失败');
           this.permissions = [];
-          this.$message.error(result.message || '没有找到权限信息');
         }
       } catch (err) {
         console.error(err);
-        this.$message.error('无法获取权限数据，请稍后再试');
+        this.$message.error('获取权限列表失败');
+        this.permissions = [];
       }
     },
 
-    showAssignRoleModalHandler(admin) {
+    // 显示添加角色弹窗
+    showAddRoleModal() {
+      this.isEditRole = false;
+      this.currentEditRoleId = null;
+      this.roleForm = {
+        roleName: '',
+        roleCode: '',
+        roleDesc: '',
+        permissionIds: []
+      };
+      this.showAddRoleModalFlag = true;
+    },
+
+    // 关闭添加角色弹窗
+    closeAddRoleModal() {
+      this.showAddRoleModalFlag = false;
+    },
+
+    // 编辑角色
+    editRole(role) {
+      this.isEditRole = true;
+      this.currentEditRoleId = role._id || role.id || role._rid;
+      this.roleForm = {
+        roleName: role._rname,
+        roleCode: role._rcode,
+        roleDesc: role._rdesc,
+        permissionIds: role.permissions ? role.permissions.map(p => p._pid) : []
+      };
+      this.showAddRoleModalFlag = true;
+    },
+
+    // 提交角色表单
+    async submitRoleForm() {
+      const { roleName, roleCode, roleDesc, permissionIds } = this.roleForm;
+
+      if (!roleName) {
+        this.$message.error('请输入角色名称！');
+        return;
+      }
+
+      if (!roleCode) {
+        this.$message.error('请输入角色代码！');
+        return;
+      }
+
+      try {
+        if (this.isEditRole) {
+          await this.editRoleApi(this.currentEditRoleId, {
+            _rname: roleName,
+            _rcode: roleCode,
+            _rdesc: roleDesc,
+            permissionIds: permissionIds
+          });
+        } else {
+          await this.addRoleApi({
+            _rname: roleName,
+            _rcode: roleCode,
+            _rdesc: roleDesc,
+            permissionIds: permissionIds
+          });
+        }
+        this.closeAddRoleModal();
+        await this.fetchRoles();
+      } catch (err) {
+        console.error(err);
+        this.$message.error('操作失败');
+      }
+    },
+
+    // 添加角色API
+    async addRoleApi(roleData) {
+      const res = await fetch('/api/roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(roleData)
+      });
+      const result = await res.json();
+      if (res.status !== 200) {
+        throw new Error(result.message || '添加角色失败');
+      }
+      this.$message.success(result.message || '添加角色成功');
+    },
+
+    // 编辑角色API
+    async editRoleApi(id, roleData) {
+
+      // 检查ID是否有效
+      if (!id) {
+        throw new Error('角色ID无效');
+      }
+
+      const res = await fetch(`/api/roles/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(roleData)
+      });
+      const result = await res.json();
+      if (res.status !== 200) {
+        throw new Error(result.message || '编辑角色失败');
+      }
+      this.$message.success(result.message || '编辑角色成功');
+    },
+
+    // 删除角色
+    async deleteRole(id) {
+
+      // 检查ID是否有效
+      const roleId = id || this.currentEditRoleId;
+
+      if (!confirm('确定要删除该角色吗？')) return;
+
+      try {
+        const res = await fetch(`/api/roles/${roleId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const result = await res.json();
+        if (res.status === 200) {
+          this.$message.success(result.message || '删除角色成功');
+          await this.fetchRoles();
+        } else {
+          this.$message.error(result.message || '删除角色失败');
+        }
+      } catch (err) {
+        console.error(err);
+        this.$message.error('删除角色失败');
+      }
+    },
+
+    // 角色搜索方法
+    handleRoleSearch() {
+      this.roleCurrentPage = 1;
+      const keyword = this.roleSearchKeyword.trim().toLowerCase();
+      
+      if (!keyword) {
+        this.filteredRoles = this.roles;
+        return;
+      }
+      
+      this.filteredRoles = this.roles.filter(role => {
+        return (
+          (role._rname && role._rname.toLowerCase().includes(keyword)) ||
+          (role._rcode && role._rcode.toLowerCase().includes(keyword)) ||
+          (role._rdesc && role._rdesc.toLowerCase().includes(keyword))
+        );
+      });
+    },
+
+    // 重置角色搜索
+    handleRoleReset() {
+      this.roleSearchKeyword = '';
+      this.filteredRoles = this.roles;
+      this.roleCurrentPage = 1;
+    },
+
+    // 切换角色页面
+    changeRolePage(page) {
+      if (page < 1 || page > this.totalRolePages) return;
+      this.roleCurrentPage = page;
+    },
+
+    // 为用户分配角色的方法
+    async assignRolesToUser(userId, roleIds) {
+      try {
+        console.log('准备分配角色:', { userId, roleIds }); // 添加调试日志
+        // 确保 roleIds 是数组且不为空
+        if (!Array.isArray(roleIds)) {
+          this.$message.error('角色ID格式错误');
+          return false;
+        }
+        
+        if (roleIds.length === 0) {
+          this.$message.warning('未选择任何角色');
+          // 如果要清空角色，也应该发送空数组而不是不发送
+          // 这里我们允许发送空数组来清空角色
+        }
+        const response = await fetch(`/api/user-roles/${userId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ roleIds }) // 确保参数名称正确
+        });
+        
+        const result = await response.json();
+        console.log('API响应:', result); // 添加响应日志
+        
+        if (response.ok) {
+          this.$message.success('角色分配成功');
+          return true;
+        } else {
+          this.$message.error(result.message || '角色分配失败');
+          return false;
+        }
+      } catch (error) {
+        console.error('网络错误:', error);
+        this.$message.error('网络错误: ' + error.message);
+        return false;
+      }
+    },
+
+    // 授权普通管理员的方法
+    async grantAdminPermission(userId) {
+      try {
+        const response = await fetch('/api/admin-auth/grant', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ userId })
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          this.$message.success('管理员授权成功');
+          return true;
+        } else {
+          this.$message.error(result.message || '管理员授权失败');
+          return false;
+        }
+      } catch (error) {
+        this.$message.error('网络错误: ' + error.message);
+        return false;
+      }
+    },
+
+    // 显示分配角色模态框
+    showAssignRoleModal(admin) {
       this.currentAssignAdminId = admin._uid;
-      // 初始化选中的角色ID列表为当前管理员已拥有的角色
-      this.selectedRoleIds = admin.roles ? admin.roles.map(role => role.id) : [];
-      this.showAssignRoleModal = true;
+      this.currentAssignAdminName = admin._name;
+      // 获取该管理员当前拥有的角色
+      this.selectedRoleIds = admin.roles ? admin.roles.map(role => role._rid) : [];
+      this.showAssignRoleModalFlag = true;
     },
 
     // 关闭分配角色模态框
     closeAssignRoleModal() {
-      this.showAssignRoleModal = false;
+      this.showAssignRoleModalFlag = false;
       this.currentAssignAdminId = null;
+      this.currentAssignAdminName = '';
       this.selectedRoleIds = [];
     },
 
-    // 处理角色选择变化
-    handleRoleSelectionChange(roleId) {
+    // 切换角色选择
+    toggleRoleSelection(roleId) {
       const index = this.selectedRoleIds.indexOf(roleId);
       if (index > -1) {
-        // 如果已选中，则移除
+        // 如果已经选中，则取消选择
         this.selectedRoleIds.splice(index, 1);
       } else {
-        // 如果未选中，则添加
+        // 如果未选中，则添加选择
         this.selectedRoleIds.push(roleId);
       }
     },
 
     // 提交角色分配
     async submitRoleAssignment() {
-      if (!this.currentAssignAdminId) {
-        this.$message.error('未选择管理员');
-        return;
-      }
-
       try {
-        const res = await fetch(`/api/admins/${this.currentAssignAdminId}/roles/assign`, {
-          method: 'POST', // 应该是 POST 而不是 PUT
+        const res = await fetch(`/api/admins/${this.currentAssignAdminId}/roles`, {
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3484,43 +4054,20 @@ export default {
         });
 
         const result = await res.json();
-        
         if (res.status === 200) {
           this.$message.success(result.message || '角色分配成功');
           this.closeAssignRoleModal();
-          await this.fetchAdmins(); // 重新加载管理员列表以更新角色信息
+          // 重新获取管理员列表以更新显示
+          await this.fetchAdmins();
         } else {
           this.$message.error(result.message || '角色分配失败');
         }
       } catch (err) {
         console.error(err);
-        this.$message.error('角色分配失败: ' + err.message);
+        this.$message.error('角色分配失败');
       }
     },
 
-    async deleteRole(id) {
-      if (!confirm('确定要删除该角色吗？注意：这将影响拥有该角色的所有用户。')) return;
-      
-      try {
-        const res = await fetch(`/api/roles/${id}`, {
-          method: 'DELETE',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const result = await res.json()
-        if (res.status === 200) {
-          this.$message.success(result.message || '成功删除角色信息')
-          await this.fetchRoles();
-        } else {
-          this.$message.error(result.message || '操作失败')
-        }
-      } catch (err) {
-        console.error(err)
-        this.$message.error('删除角色失败')
-      }
-    },
 
     // 公告管理相关方法
     // 公告内容预览方法
@@ -4721,7 +5268,7 @@ small {
 }
 
 /* 新增按钮 - 使用主题色 */
-.addBookModal, .addCategoryButton, .addUserModal, .addAnnouncementButton,.add-button {
+.addBookModal, .addCategoryButton, .addUserModal, .addAnnouncementButton,.addAdminModal,.addRoleModal {
   background-color: #1194AE; /* 主题色 */
   color: white;
   border: none;
@@ -4734,7 +5281,7 @@ small {
   min-width: 120px;
 }
 
-.addBookModal:hover, .addCategoryButton:hover, .addUserModal:hover, .addAnnouncementButton:hover, .add-button:hover {
+.addBookModal:hover, .addCategoryButton:hover, .addUserModal:hover, .addAnnouncementButton:hover, .addAdminModal:hover,.addRoleModal:hover {
   background-color: #067a97;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
@@ -4777,43 +5324,55 @@ button:disabled:hover {
 }
 
 /* 分页样式 */
+/* 分页容器样式 */
 .pagination {
-  margin-top: 30px;
-  text-align: center;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
+  margin-top: 20px;
+  gap: 5px;
 }
 
+/* 分页按钮基础样式 */
 .pagination button {
-  margin: 0 3px;
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  background-color: white;
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: all 0.3s;
-  min-width: 40px;
-}
-
-.pagination button:hover:not(:disabled) {
-  background-color: #f5f5f5;
-  border-color: #1194AE;
-}
-
-.pagination button.active {
-  background-color: #1194AE;
+  padding: 8px 12px;
+  margin: 0 2px;
+  background-color: #2691a6;
   color: white;
-  border-color: #1194AE;
+  border: 1px solid #2691a6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.pagination button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-  background-color: #f5f5f5;
+/* 分页按钮悬停效果 */
+.pagination button:hover {
+  background-color: #1f7a8c;
+  border-color: #1f7a8c;
 }
+
+/* 当前页按钮样式 */
+.pagination button.active {
+  background-color: #1f7a8c;
+  border-color: #1f7a8c;
+  font-weight: bold;
+}
+
+/* 禁用按钮样式 */
+.pagination button:disabled {
+  background-color: #cccccc;
+  border-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  opacity: 1; /* 防止按钮变透明 */
+}
+
+/* 分页按钮焦点样式 */
+.pagination button:focus {
+  outline: 2px solid #227586;
+  opacity: 1; /* 确保获得焦点时不透明 */
+}
+
 
 .total-pages {
   font-size: 14px;
@@ -5268,7 +5827,18 @@ button:disabled:hover {
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
 }
 
-/* 角色分配模态框样式 */
+/* 角色标签样式 */
+.role-tag {
+  display: inline-block;
+  background-color: #1194AE;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  margin: 2px;
+}
+
+/* 分配角色模态框样式 */
 .role-selection {
   max-height: 300px;
   overflow-y: auto;
@@ -5294,30 +5864,88 @@ button:disabled:hover {
   color: #666;
 }
 
-.admin-roles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+.role-permissions {
+  margin: 10px 0 0 20px;
+  font-size: 0.85em;
 }
 
-.no-role {
-  color: #999;
-  font-style: italic;
+.role-permissions ul {
+  padding-left: 20px;
+  margin: 5px 0 0 0;
+}
+
+.role-permissions li {
+  margin-bottom: 3px;
 }
 
 .assign-role-button {
-  background-color: #6c757d;
+  background-color: #28a745;
   color: white;
   border: none;
-  padding: 5px 10px;
-  border-radius: 3px;
+  padding: 6px 12px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
-  margin-top: 3px;
+  font-size: 14px;
+  transition: background-color 0.3s;
+  margin: 0 5px;
 }
 
 .assign-role-button:hover {
-  background-color: #5a6268;
+  background-color: #218838;
+}
+
+.assign-role-button i {
+  margin-right: 5px;
+}
+
+/* 角色管理样式 */
+.permission-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.permission-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.permission-item:last-child {
+  border-bottom: none;
+}
+
+.permission-item .checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.permission-item input[type="checkbox"] {
+  margin-right: 10px;
+  margin-top: 4px;
+}
+
+.permission-name {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.permission-code {
+  color: #666;
+  font-family: monospace;
+  margin-right: 5px;
+}
+
+.permission-desc {
+  color: #888;
+  font-size: 0.9em;
+}
+
+.modal-content.large {
+  width: 600px;
+  max-width: 90vw;
 }
 
 </style>
