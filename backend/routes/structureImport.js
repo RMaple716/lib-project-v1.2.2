@@ -565,7 +565,7 @@ router.post('/classes', authenticate, upload.single('file'), async (req, res) =>
         // 创建班级
         await Class.create({
           _cname: className,
-          _mid: major.id
+          _mid: major._mid
         });
 
         importedCount++;
