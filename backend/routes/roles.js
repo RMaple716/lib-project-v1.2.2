@@ -58,8 +58,10 @@ const { Op } = require('sequelize');
  */
 /**
  * 获取角色列表 - 需要role.view权限
- * @description 获取系统中所有角色的列表
+ * @description 获取系统中所有角色的列表，包括每个角色关联的权限信息
  * @requiresPermission role.view
+ * @returns {Object} 返回包含角色列表的对象
+ * @returns {Array} returns.data 角色列表，每个角色包含_id、_rname、_rcode、_rdesc、_create_time、_update_time和关联的permissions数组
  */
 // 获取角色列表
 router.get('/', authenticate, requirePermission('role.view'), async (req, res) => {
@@ -155,6 +157,13 @@ router.get('/', authenticate, requirePermission('role.view'), async (req, res) =
  * 创建角色 - 需要role.create权限
  * @description 创建一个新的角色，需要终端管理员权限
  * @requiresPermission role.create
+ * @param {Object} requestBody - 请求体
+ * @param {string} requestBody._rname - 角色名称
+ * @param {string} requestBody._rcode - 角色代码
+ * @param {string} requestBody._rdesc - 角色描述
+ * @param {Array<number>} requestBody.permissionIds - 权限ID数组
+ * @returns {Object} 返回包含创建结果的对象
+ * @returns {Object} returns.data 创建的角色对象，包含关联的权限信息
  */
 // 创建角色
 router.post('/', authenticate, requirePermission('role.create'), async (req, res) => {
@@ -220,7 +229,7 @@ router.post('/', authenticate, requirePermission('role.create'), async (req, res
         }
       ]
     });
-
+    console.log("角色信息", roleWithPermissions);
     res.json({
       success: true,
       message: '角色创建成功',
@@ -311,8 +320,16 @@ router.post('/', authenticate, requirePermission('role.create'), async (req, res
  */
 /**
  * 更新角色 - 需要role.edit权限
- * @description 更新角色信息，需要终端管理员权限
+ * @description 更新角色信息，包括基本信息和权限关联
  * @requiresPermission role.edit
+ * @param {string} req.params.id - 角色ID
+ * @param {Object} requestBody - 请求体
+ * @param {string} requestBody._rname - 角色名称
+ * @param {string} requestBody._rcode - 角色代码
+ * @param {string} requestBody._rdesc - 角色描述
+ * @param {Array<number>} requestBody.permissionIds - 权限ID数组
+ * @returns {Object} 返回包含更新结果的对象
+ * @returns {Object} returns.data 更新后的角色对象，包含关联的权限信息
  */
 // 更新角色
 router.put('/:id', authenticate, requirePermission('role.edit'), async (req, res) => {
@@ -332,11 +349,11 @@ router.put('/:id', authenticate, requirePermission('role.edit'), async (req, res
     }
 
     // 如果更新了代码，检查是否与其他角色重复
-    if (code && code !== role.code) {
+    if (_rcode && _rcode !== role._rcode) {
       const existingRole = await Role.findOne({
         where: { 
-          code,
-          id: { [Op.ne]: id }
+          _rcode,
+          _rid: { [Op.ne]: id }
         }
       });
 
@@ -351,9 +368,9 @@ router.put('/:id', authenticate, requirePermission('role.edit'), async (req, res
 
     // 更新角色基本信息
     await role.update({
-      name: name || role.name,
-      code: code || role.code,
-      description: description || role.description
+      _rname: _rname || role._rname,
+      _rcode: _rcode || role._rcode,
+      _rdesc: _rdesc || role._rdesc
     });
 
     // 如果提供了权限ID列表，则更新权限关联
@@ -369,7 +386,7 @@ router.put('/:id', authenticate, requirePermission('role.edit'), async (req, res
       if (permissionIds.length > 0) {
         // 验证权限ID是否存在
         const permissions = await Permission.findAll({
-          where: { id: { [Op.in]: permissionIds } }
+          where: { _pid: { [Op.in]: permissionIds } }
         });
 
         if (permissions.length !== permissionIds.length) {
@@ -476,8 +493,10 @@ router.put('/:id', authenticate, requirePermission('role.edit'), async (req, res
  */
 /**
  * 删除角色 - 需要role.delete权限
- * @description 删除角色，需要终端管理员权限
+ * @description 删除角色及其所有权限关联，需要终端管理员权限
  * @requiresPermission role.delete
+ * @param {string} req.params.id - 角色ID
+ * @returns {Object} 返回包含删除结果的对象
  */
 // 删除角色
 router.delete('/:id', authenticate, requirePermission('role.delete'), async (req, res) => {
@@ -497,7 +516,7 @@ router.delete('/:id', authenticate, requirePermission('role.delete'), async (req
 
     // 检查角色是否正在被用户使用
     const userRoleCount = await UserRole.count({
-      where: { role_id: id }
+      where: { _rid: id }
     });
 
     if (userRoleCount > 0) {

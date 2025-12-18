@@ -242,7 +242,7 @@ router.post('/departments', authenticate, upload.single('file'), async (req, res
         }
 
         const existingDept = await Department.findOne({
-          where: { name: deptName }
+          where: { _dname: deptName }
         });
 
         if (existingDept) {
@@ -252,7 +252,7 @@ router.post('/departments', authenticate, upload.single('file'), async (req, res
 
         // 创建院系
         await Department.create({
-          name: deptName
+          _dname: deptName
         });
 
         importedCount++;
@@ -364,8 +364,8 @@ router.post('/majors', authenticate, upload.single('file'), async (req, res) => 
     for (const majorData of majorsData) {
       try {
         // 检查专业名称和所属院系是否存在
-        const majorName = majorData['专业名称'] || majorData.name || '';
-        const deptName = majorData['所属院系'] || majorData.department || '';
+        const majorName = majorData['专业名称'] || majorData._mname || '';
+        const deptName = majorData['所属院系'] || majorData._dname || '';
 
         if (!majorName) {
           errors.push({
@@ -385,7 +385,7 @@ router.post('/majors', authenticate, upload.single('file'), async (req, res) => 
 
         // 查找院系
         const department = await Department.findOne({
-          where: { name: deptName }
+          where: { _dname: deptName }
         });
 
         if (!department) {
@@ -398,7 +398,7 @@ router.post('/majors', authenticate, upload.single('file'), async (req, res) => 
 
         // 检查专业是否已存在
         const existingMajor = await Major.findOne({
-          where: { name: majorName }
+          where: { _mname: majorName }
         });
 
         if (existingMajor) {
@@ -408,10 +408,9 @@ router.post('/majors', authenticate, upload.single('file'), async (req, res) => 
 
         // 创建专业
         await Major.create({
-          name: majorName,
-          department_id: department.id
+          _mname: majorName,
+          _did: department._did
         });
-
         importedCount++;
       } catch (error) {
         console.error('导入专业失败:', error);
@@ -521,8 +520,8 @@ router.post('/classes', authenticate, upload.single('file'), async (req, res) =>
     for (const classData of classesData) {
       try {
         // 检查班级名称和所属专业是否存在
-        const className = classData['班级名称'] || classData.name || '';
-        const majorName = classData['所属专业'] || classData.major || '';
+        const className = classData['班级名称'] || classData._cname || '';
+        const majorName = classData['所属专业'] || classData._mname || '';
 
         if (!className) {
           errors.push({
@@ -542,7 +541,7 @@ router.post('/classes', authenticate, upload.single('file'), async (req, res) =>
 
         // 查找专业
         const major = await Major.findOne({
-          where: { name: majorName }
+          where: { _mname: majorName }
         });
 
         if (!major) {
@@ -555,7 +554,7 @@ router.post('/classes', authenticate, upload.single('file'), async (req, res) =>
 
         // 检查班级是否已存在
         const existingClass = await Class.findOne({
-          where: { name: className }
+          where: { _cname: className }
         });
 
         if (existingClass) {
@@ -565,8 +564,8 @@ router.post('/classes', authenticate, upload.single('file'), async (req, res) =>
 
         // 创建班级
         await Class.create({
-          name: className,
-          major_id: major.id
+          _cname: className,
+          _mid: major.id
         });
 
         importedCount++;
