@@ -271,11 +271,13 @@ const validateStudents = (students) => {
     } else {
       // 如果没有错误，添加到有效学生列表
       validStudents.push({
-        account: student['账号'].toString().trim(),
-        name: student['姓名'].toString().trim(),
-        email: student['邮箱'].toString().trim(),
-        className: student['班级'].toString().trim(),
-        password: student['密码'] ? student['密码'].toString().trim() : '123456' // 默认密码
+        _account: student['账号'].toString().trim(),
+        _name: student['姓名'].toString().trim(),
+        _email: student['邮箱'].toString().trim(),
+        _className: student['班级'].toString().trim(),
+        _password: student['密码'] ? student['密码'].toString().trim() : '123456', // 默认密码
+        _cname: student['班级'].toString().trim(),
+        _mname: student['专业'] ? student['专业'].toString().trim() : null
       });
     }
   }
@@ -517,12 +519,12 @@ const generateTempWorkerTemplate = () => {
  */
 const findOrCreateDepartment = async (departmentName) => {
   let department = await Department.findOne({
-    where: { name: departmentName }
+    where: { _dname: departmentName }
   });
 
   if (!department) {
     department = await Department.create({
-      name: departmentName
+      _dname: departmentName
     });
     console.log(`自动创建院系: ${departmentName}`);
   }
@@ -602,7 +604,7 @@ const findOrCreateWorkDepartment = async (workDepartmentName) => {
 const getOrCreateClassWithHierarchy = async (className) => {
   // 查找班级
   let classRecord = await Class.findOne({
-    where: { name: className },
+    where: { _cname: className },
     include: [
       {
         model: Major,
@@ -619,6 +621,7 @@ const getOrCreateClassWithHierarchy = async (className) => {
 
   // 如果班级不存在，则尝试解析班级名称并创建层级结构
   if (!classRecord) {
+    console.log(`班级 ${className} 不存在，尝试创建相关院系和专业`);
     // 班级名称格式假设为: "专业名-班级名" 或 "院系名-专业名-班级名"
     const parts = className.split('-');
 
@@ -630,10 +633,10 @@ const getOrCreateClassWithHierarchy = async (className) => {
       const department = await findOrCreateDepartment('默认院系');
 
       // 创建专业（如果不存在）
-      const major = await findOrCreateMajor(majorName, department.id);
+      const major = await findOrCreateMajor(majorName, department._did);
 
       // 创建班级
-      classRecord = await findOrCreateClass(className, major.id);
+      classRecord = await findOrCreateClass(className, major._mid);
     } else if (parts.length >= 3) {
       // 格式: "院系名-专业名-班级名"
       const [departmentName, majorName, ...classParts] = parts;
@@ -643,15 +646,15 @@ const getOrCreateClassWithHierarchy = async (className) => {
       const department = await findOrCreateDepartment(departmentName);
 
       // 创建专业（如果不存在）
-      const major = await findOrCreateMajor(majorName, department.id);
+      const major = await findOrCreateMajor(majorName, department._did);
 
       // 创建班级
-      classRecord = await findOrCreateClass(className, major.id);
+      classRecord = await findOrCreateClass(className, major._mid);
     } else {
       // 如果无法解析，则使用默认院系和专业
       const department = await findOrCreateDepartment('默认院系');
-      const major = await findOrCreateMajor('默认专业', department.id);
-      classRecord = await findOrCreateClass(className, major.id);
+      const major = await findOrCreateMajor('默认专业', department._did);
+      classRecord = await findOrCreateClass(className, major._mid);
     }
   }
 

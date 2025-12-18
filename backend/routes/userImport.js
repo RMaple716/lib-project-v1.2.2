@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
-const { User, Department, Major, Class, WorkDepartment, Role } = require('../models');
+const { User, Role } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { 
   parseUserFile, 
@@ -269,7 +269,7 @@ router.post('/students', authenticate, upload.single('file'), async (req, res) =
       try {
         // 检查账号是否已存在
         const existingUser = await User.findOne({
-          where: { _account: student.account }
+          where: { _account: student._account }
         });
 
         if (existingUser) {
@@ -278,16 +278,17 @@ router.post('/students', authenticate, upload.single('file'), async (req, res) =
         }
 
         // 查找或创建班级及其关联的专业和院系
-        const classRecord = await getOrCreateClassWithHierarchy(student.className);
+        const classRecord = await getOrCreateClassWithHierarchy(student._cname);
 
         // 创建学生用户
         const newUser = await User.create({
           _utype: 'student',
-          _account: student.account,
-          _name: student.name,
-          _password: student.password,
-          _email: student.email,
-          class_id: classRecord.id,
+          _account: student._account,
+          _name: student._name,
+          _password: student._password,
+          _email: student._email,
+          _cid: classRecord._cid,
+          _mid: classRecord._mid,
           _max_num: 10, // 学生默认最大借书数量
           lend_num: 0,
           _access: 1
@@ -303,7 +304,7 @@ router.post('/students', authenticate, upload.single('file'), async (req, res) =
       } catch (error) {
         console.error('导入学生失败:', error);
         errors.push({
-          account: student.account,
+          account: student._account,
           error: error.message
         });
       }
