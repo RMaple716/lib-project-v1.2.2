@@ -27,6 +27,7 @@ const permissionRoutes = require('./routes/permissions');
 const roleRoutes = require('./routes/roles');
 const userRoleRoutes = require('./routes/userRoles');
 const adminRoutes = require('./routes/admins');
+const recommendationRoutes = require('./routes/recommendations');
 
 // 创建统一的日志记录器
 const logger = winston.createLogger({
@@ -89,6 +90,7 @@ app.use('/api/permissions', permissionRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/user-roles', userRoleRoutes);
 app.use('/api/admins', adminRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -166,7 +168,8 @@ async function startServer() {
           announcements: '/api/announcements',
           messages: '/api/messages',
           categories: '/api/categories',
-          borrowRecords: '/api/borrow-records'
+          borrowRecords: '/api/borrow-records',
+          recommendations: '/api/recommendations'
         }
       });
     });
