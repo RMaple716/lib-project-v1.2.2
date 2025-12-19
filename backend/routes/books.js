@@ -574,13 +574,24 @@ router.get('/rank', async (req, res) => {
 // 借阅图书
 router.post('/:id/borrow', authenticate, requirePermission('book.borrow'), async (req, res) => {
   try {
-    const { id } = req.params.bookid;
-    //console.log("请求",req);
-
-    console.log('借阅图书ID:', id);
+    const id = req.params.id;
+    console.log("借阅图书ID:", id);
+   
     const userId = req.user._uid;
-    
     const book = await Book.findByPk(id);
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        message: '图书不存在',
+      });
+    }
+    if (book.stock <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: '图书已借完',
+      });
+    }
+    console.log('借阅图书ID:', id);
     
     if (!book) {
       return res.status(404).json({

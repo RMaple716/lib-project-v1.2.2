@@ -399,7 +399,7 @@ router.put('/:id', authenticate, requirePermission('role.edit'), async (req, res
       }
 
       // 更新权限关联
-      await role.setPermissions(permissions);
+      await role.setPermissions(permissionIds);
     }
 
     // 获取更新后的角色信息
