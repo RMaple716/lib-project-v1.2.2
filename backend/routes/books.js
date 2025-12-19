@@ -660,7 +660,7 @@ router.post('/:id/borrow', authenticate, requirePermission('book.borrow'), async
 
     // 更新图书库存和借阅次数
     await book.update({
-      _num: book._num - 1,
+      //_num: book._num - 1,
       _times: book._times + 1
     });
 
@@ -781,9 +781,9 @@ router.put('/:hid/return', authenticate, requirePermission('book.return'), async
     });
 
     // 更新图书库存
-    await book.update({
+    /*await book.update({
       _num: book._num + 1
-    });
+    });*/
 
     // 更新用户当前借阅数量
     const user = await User.findByPk(userId);
@@ -1006,10 +1006,20 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    let Borrowed_Count = await BorrowRecord.count({
+      where: { 
+        _bid: id,
+        _status: 0 // 借出状态
+      }
+    });
+    let Avaliable_Count = book._num - Borrowed_Count
     res.json({
       success: true,
       message: '成功获取图书详情',
-      data: book
+      data: {
+        book,
+        available_copies: Avaliable_Count
+      }
     });
 
   } catch (error) {
@@ -1373,7 +1383,7 @@ router.get('/', async (req, res) => {
         category: undefined // 删除category对象
       };
     });
-
+    
 
     res.json({
       success: true,

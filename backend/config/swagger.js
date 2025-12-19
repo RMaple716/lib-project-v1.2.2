@@ -1663,7 +1663,8 @@ const options = {
               category: {
                 _type_name: "计算机科学"
               }
-            }
+            },
+            available_copies: 4
           }
         },
         CreateBookSuccess: {
