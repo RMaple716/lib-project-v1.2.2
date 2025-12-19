@@ -31,6 +31,21 @@
 
         <!-- 登录按钮 / 用户头像 -->
         <div class="auth-links">
+          <!-- 小助手机器人 -->
+          <div class="ai-assistant" @click="handleAIAssistant">
+            <el-tooltip 
+              :content="isLoggedIn ? '点击打开消息列表' : '请先登录后查看消息列表'"
+              placement="bottom"
+            >
+              <div 
+                class="ai-icon"
+                :class="{ 'disabled': !isLoggedIn }"
+              >
+                🤖
+              </div>
+            </el-tooltip>
+          </div>
+
           <div v-if="isLoggedIn" class="user-menu" @click.stop="toggleUserMenu">
             <img
               v-if="avatarUrl"
@@ -162,6 +177,7 @@
                 @click="viewBookDetail(book)"
               >
                 <div class="book-cover">
+                  <div class="book-tag new-tag">新书</div>
                   <img
                     :src="getFullCoverUrl(book._cover_url)"
                     :alt="book._book_name"
@@ -179,6 +195,7 @@
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
                   <p class="book-author">{{ book._author }}</p>
+                  <p class="book-category">{{ book._type_name }}</p> 
                 </div>
               </div>
             </div>
@@ -203,6 +220,7 @@
                 @click="viewBookDetail(book)"
               >
                 <div class="book-cover">
+                  <div class="book-tag hot-tag">热门</div>
                   <img
                     :src="getFullCoverUrl(book._cover_url)"
                     :alt="book._book_name"
@@ -220,6 +238,7 @@
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
                   <p class="book-author">{{ book._author }}</p>
+                  <p class="book-category">{{ book._type_name }}</p> 
                 </div>
               </div>
             </div>
@@ -261,6 +280,7 @@
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
                   <p class="book-author">{{ book._author }}</p>
+                  <p class="book-category">{{ book._type_name }}</p>  
                 </div>
               </div>
             </div>
@@ -415,47 +435,87 @@
             <button @click="changePage('search')" class="back-btn">
               返回图书大厅
             </button>
-            
-            <div class="book-detail">
-              <div class="detail-cover">
-                <img
-                  :src="getFullCoverUrl(currentBook._cover_url)"
-                  :alt="currentBook._book_name"
-                  class="detail-img"
-                  @error="handleImgError($event, currentBook)"
-                />
-                <div
-                  class="cover-placeholder"
-                  v-if="!currentBook._cover_url || imgErrorMap[currentBook._bid]"
-                >
-                  {{ currentBook._book_name.substring(0, 2) }}
+
+            <!-- 顶部标题区 -->
+            <div class="book-detail-header">
+              <h1 class="book-detail-main-title">{{ currentBook._book_name }}</h1>
+            </div>
+
+            <!-- 主要内容区 -->
+            <div class="book-detail-content">
+              <!-- 左侧：图书封面占位区 -->
+              <div class="book-cover-section">
+                <div class="detail-cover">
+                  <img
+                    :src="getFullCoverUrl(currentBook._cover_url)"
+                    :alt="currentBook._book_name"
+                    class="detail-img"
+                    @error="handleImgError($event, currentBook)"
+                  />
+                  <div
+                    class="cover-placeholder"
+                    v-if="!currentBook._cover_url || imgErrorMap[currentBook._bid]"
+                  >
+                    {{ currentBook._book_name.substring(0, 2) }}
+                  </div>
                 </div>
               </div>
-              
-              <div class="detail-info">
-                <h2 class="detail-title">{{ currentBook._book_name }}</h2>
-                <p><strong>作者：</strong>{{ currentBook._author }}</p>
-                <p><strong>ISBN：</strong>{{ currentBook._isbn }}</p>
-                <p><strong>出版社：</strong>{{ currentBook._press }}</p>
-                <p><strong>出版时间：</strong>{{ currentBook._publish_date }}</p>
-                <p><strong>馆藏总数：</strong>{{ currentBook._storage_count }}</p>
-                <p><strong>剩余数量：</strong>{{ currentBook._available_count }}</p>
-                <p><strong>分类：</strong>{{ currentBook._tid }}</p>
+
+              <!-- 右侧：图书详细信息与操作区 -->
+              <div class="book-info-section">
+                <!-- 元数据表格样式 -->
+                <div class="metadata-table">
+                  <div class="metadata-row">
+                    <span class="metadata-label">作者</span>
+                    <span class="metadata-value">{{ currentBook._author }}</span>
+                  </div>
+                  <div class="metadata-row">
+                    <span class="metadata-label">ISBN</span>
+                    <span class="metadata-value">{{ currentBook._isbn }}</span>
+                  </div>
+                  <div class="metadata-row">
+                    <span class="metadata-label">出版社</span>
+                    <span class="metadata-value">{{ currentBook._press }}</span>
+                  </div>
+                  <div class="metadata-row">
+                    <span class="metadata-label">图书类别</span>
+                    <span class="metadata-value">{{ currentBook._type_name || '未分类' }}</span>
+                  </div>
+                  <!-- 按钮区 -->
+                  <div class="category-actions-section">
+                    <div class="action-buttons">
+                      <button
+                        v-if="isLoggedIn"
+                        @click="currentBook.available_count > 0 ? borrowBook(currentBook._bid) : reserveBook(currentBook)"
+                        class="borrow-btn"
+                      >
+                        {{ currentBook.available_count > 0 ? '借阅图书' : '预约图书' }}
+                      </button>
+                      <button
+                        v-else
+                        @click="goToAuth('login')"
+                        class="borrow-btn"
+                      >
+                        登录后借阅
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 
-                <div class="book-actions">
-                  <button 
-                    v-if="isLoggedIn" 
-                    @click="borrowBook(currentBook)" 
-                    class="borrow-btn"
-                  >
-                    借阅图书
-                  </button>
-                  <button 
-                    v-else 
-                    @click="goToAuth('login')" 
-                    class="borrow-btn"
-                  >
-                    登录后借阅
+              </div>
+            </div>
+
+            <!-- 底部操作栏 -->
+            <div class="book-detail-footer">
+              <div class="footer-content">
+                <div class="additional-info">
+                  <span class="info-item">馆藏总数：{{ currentBook._num }}</span>
+                  <span class="info-item">剩余数量：{{ currentBook.available_count }}</span>
+                </div>
+                <div class="footer-actions">
+                  <button @click="changePage('search')" class="secondary-btn">
+                    继续浏览
                   </button>
                 </div>
               </div>
@@ -471,13 +531,31 @@
                 <option value="book">按图书名称查询</option>
                 <option value="author">按作者姓名查询</option>
               </select>
-              <input
-                type="text"
-                v-model="searchQuery"
-                placeholder="请输入查询内容"
-              />
+              <div class="search-input-wrapper" :class="searchInputClasses">
+                <div class="selected-tags" v-if="selectedCategories.length > 0">
+                  <span 
+                    v-for="(category, index) in selectedCategories" 
+                    :key="index"
+                    class="tag"
+                  >
+                    {{ category.label }}
+                    <span class="tag-close" @click.stop="removeCategory(index)">×</span>
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  v-model="searchQuery"
+                  placeholder="请输入查询内容"
+                  @focus="handleInputFocus"
+                />
+              </div>
               <button @click="gotoSearchResult">检索</button>
             </div>
+            <!-- 搜索状态显示 -->
+            <div class="search-status" v-if="selectedCategories.length > 0 || searchQuery">
+                当前筛选: {{ searchStatusText }}
+                <button @click="clearAllFilters" class="clear-filters-btn">清除所有筛选</button>
+              </div>
             <div class="category-filter">
               <span class="filter-label">图书类别：</span>
               <button
@@ -511,6 +589,10 @@
                 @click="viewBookDetail(book)"
               >
                 <div class="book-cover">
+                  <!-- 根据标志显示标签 -->
+                  <div v-if="book.isNew" class="book-tag new-tag">新书</div>
+                  <div v-else-if="book.isHot" class="book-tag hot-tag">热门</div>
+    
                   <img
                     :src="getFullCoverUrl(book._cover_url)"
                     :alt="book._book_name"
@@ -527,6 +609,7 @@
                 <div class="book-info">
                   <h3 class="book-title">{{ book._book_name }}</h3>
                   <p class="book-author">{{ book._author }}</p>
+                  <p class="book-category">{{ book._type_name }}</p> 
                 </div>
               </div>
             </div>
@@ -732,20 +815,29 @@
                         <th>序号</th>
                         <th>ISBN</th>
                         <th>图书名称</th>
-                        <th>借阅日期</th>
-                        <th>截止日期</th>
-                        <th>归还日期</th>
-                        <th>状态</th>
+                        <!-- 借阅中和已归还状态 -->
+                        <template v-if="borrowingStatus !== '_'">
+                          <th>借阅日期</th>
+                          <th>截止日期</th>
+                          <th v-if="borrowingStatus === 'returned'">归还日期</th>
+                          <th>状态</th>
+                        </template>
+                        <!-- 预约中状态 -->
+                        <template v-else>
+                          <th>预约日期</th>
+                          <th>预约状态</th>
+                          <th>通知方式</th>
+                        </template>
                         <th v-if="borrowingStatus === 'borrowing'">操作</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-if="borrowingList.length === 0">
                         <td
-                          :colspan="borrowingStatus === 'borrowing' ? 9 : 8"
+                          :colspan="borrowingStatus === '_' ? 7 : (borrowingStatus === 'returned' ? 8 : 7)"
                           style="text-align: center; padding: 20px"
                         >
-                          暂无借阅记录
+                          暂无{{ borrowingStatus === '_' ? '预约' : '借阅' }}记录
                         </td>
                       </tr>
                       <tr
@@ -753,61 +845,162 @@
                         :key="record.id"
                       >
                         <td>{{ index + 1 }}</td>
-                        <td>
-                          <div class="table-cover">
-                            <img
-                              :src="getFullCoverUrl(record.coverUrl)"
-                              :alt="record.bookName"
-                              class="book-img"
-                              @error="handleImgError($event, record)"
-                            />
-                            <div
-                              class="cover-placeholder"
-                              v-if="
-                                !record.coverUrl || imgErrorMap[record.bookId]
-                              "
-                            >
-                              {{ record.bookName.substring(0, 2) }}
-                            </div>
-                          </div>
-                        </td>
+                        <td>{{ record.isbn }}</td>
                         <td>{{ record.bookName }}</td>
-                        <td>{{ record.author }}</td>
-                        <td>{{ record.borrowDate }}</td>
-                        <td>{{ record.dueDate }}</td>
-                        <td>
-                          <span
-                            class="status-tag"
-                            :class="
-                              record.status === 'borrowing'
-                                ? 'borrowing'
-                                : 'returned'
-                            "
-                          >
-                            {{
-                              record.status === "borrowing" ? "借阅中" : "已归还"
-                            }}
-                          </span>
-                        </td>
-                        <td v-if="borrowingStatus === 'borrowing'">
-                          <button
-                            v-if="record.status === 'borrowing'"
-                            class="return-btn"
-                            @click="returnBook(record.id)"
-                          >
-                            还书
-                          </button>
-                          <button
-                            v-if="record.status === 'borrowing'"
-                            class="delay-btn"
-                            @click="renewBook(record.id)"
-                          >
-                            续借
-                          </button>
-                        </td>
+                        
+                        <!-- 借阅中和已归还状态的内容 -->
+                        <template v-if="borrowingStatus !== '_'">
+                          <td>{{ record.borrowDate }}</td>
+                          <td>{{ record.dueDate }}</td>
+                          <td v-if="borrowingStatus === 'returned'">{{ record.returnDate }}</td>
+                          <td>
+                            <span
+                              class="status-tag"
+                              :class="record.status === 'borrowing' ? 'borrowing' : 'returned'"
+                            >
+                              {{ record.status === "borrowing" ? "借阅中" : "已归还" }}
+                            </span>
+                          </td>
+                          <td v-if="borrowingStatus === 'borrowing'">
+                            <button
+                              v-if="record.status === 'borrowing'"
+                              class="return-btn"
+                              @click="returnBook(record.id)"
+                            >
+                              还书
+                            </button>
+                            <button
+                              v-if="record.status === 'borrowing'"
+                              class="delay-btn"
+                              @click="renewBook(record.id)"
+                            >
+                              续借
+                            </button>
+                          </td>
+                        </template>
+                        
+                        <!-- 预约中状态的内容 -->
+                        <template v-else>
+                          <td>{{ record.reserveDate }}</td>
+                          <td>
+                            <span
+                              class="status-tag"
+                              :class="{
+                                'waiting': record.reserveStatus === 'waiting',
+                                'available': record.reserveStatus === 'available',
+                                'expired': record.reserveStatus === 'expired',
+                                'cancelled': record.reserveStatus === 'cancelled',
+                                'received': record.reserveStatus === 'received'
+                              }"
+                            >
+                              {{ getReserveStatusText(record.reserveStatus) }}
+                            </span>
+                          </td>
+                          <td>{{ record.notificationMethod }}</td>
+                          <td>
+                            <button
+                              v-if="record.reserveStatus === 'waiting'"
+                              class="cancel-btn"
+                              @click="cancelReservation(record.id)"
+                            >
+                              取消预约
+                            </button>
+                            <button
+                              v-if="record.reserveStatus === 'available'"
+                              class="confirm-btn"
+                              @click="confirmReceive(record.id)"
+                            >
+                              确认取书
+                            </button>
+                          </td>
+                        </template>
                       </tr>
                     </tbody>
                   </table>
+                </div>
+              </div>
+              <!-- 借阅图谱 -->
+              <div v-if="personalTab === 'borrowing_total'">
+                <h2>借阅图谱</h2>
+                <!-- 未登录提示 -->
+                <div v-if="!isLoggedIn" class="login-prompt">
+                  <h2>请先登录</h2>
+                  <p>您需要登录后才能查看借阅图谱</p>
+                  <button @click="goToAuth('login')" class="login-btn">立即登录</button>
+                </div>
+                <!-- 已登录才显示的内容 -->
+                <div v-else>
+                  <div class="visualization-container">
+                    <!-- 个人借阅趋势总览 -->
+                    <div class="chart-section">
+                      <h3>📈 个人借阅趋势总览</h3>
+                      <div class="chart-controls">
+                        <select v-model="trendTimeUnit" @change="loadBorrowingTrendData">
+                          <option value="month">按月查看</option>
+                          <option value="semester">按学期查看</option>
+                        </select>
+                        <input type="number" v-model="trendYear" @change="loadBorrowingTrendData" min="2020" :max="new Date().getFullYear()" placeholder="年份">
+                      </div>
+                      <div class="chart-wrapper">
+                        <v-chart 
+                          :option="borrowingTrendOption" 
+                          style="height: 400px" 
+                          v-if="borrowingTrendOption.series && borrowingTrendOption.series.length > 0"
+                        ></v-chart>
+                        <div v-else class="chart-placeholder">
+                          <p>📊 借阅趋势图表</p>
+                          <p>暂无数据可显示</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 阅读领域分布演化 -->
+                    <div class="chart-section">
+                      <h3>📚 阅读领域分布演化</h3>
+                      <div class="chart-controls">
+                        <select v-model="categoryEvolutionView" @change="loadCategoryEvolutionData">
+                          <option value="stacked">堆叠面积图</option>
+                          <option value="pie">饼图序列</option>
+                        </select>
+                      </div>
+                      <div class="chart-wrapper">
+                       <v-chart 
+                          v-if="categoryEvolutionView === 'stacked' && categoryEvolutionStackedOption.series && categoryEvolutionStackedOption.series.length > 0"
+                          :option="categoryEvolutionStackedOption" 
+                          style="height: 400px"
+                        ></v-chart>
+                        <div v-if="categoryEvolutionView === 'stacked'" class="chart-placeholder">
+                          <p>📚 领域分布堆叠图</p>
+                          <p>请安装ECharts库以查看图表：npm install echarts vue-echarts</p>
+                        </div>
+                        <div v-else class="pie-charts-container">
+                          
+                            <div class="chart-placeholder">
+                              <p>📈 {{ chart.period }} 饼图</p>
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 阅读习惯日历 -->
+                    <div class="chart-section">
+                      <h3>📅 阅读习惯日历</h3>
+                      <div class="chart-controls">
+                        <input type="number" v-model="calendarYear" @change="loadReadingCalendarData" min="2020" :max="new Date().getFullYear()" placeholder="年份">
+                      </div>
+                      <div class="chart-wrapper">
+                        <v-chart 
+                          :option="readingCalendarOption" 
+                          style="height: 500px" 
+                          v-if="readingCalendarOption.series && readingCalendarOption.series.length > 0"
+                        ></v-chart>
+                        <div class="chart-placeholder">
+                          <p>📅 阅读习惯日历</p>
+                          
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1066,6 +1259,119 @@
             </div>
           </div>
         </div>
+                <!-- 图书可视化页面 -->
+        <div v-if="currentPage === 'visualization'">
+          <div class="dashboard-container">
+            <!-- 标题区域 -->
+            <div class="dashboard-header">
+              <p class="subtitle">实时洞察图书馆动态，发现阅读新趋势</p>
+            </div>
+
+            <!-- 最佳读者榜单 -->
+            <div class="dashboard-section">
+              <h2 class="section-title">
+                <span class="icon">🏆</span>
+                最佳读者榜单
+              </h2>
+              <div class="leaderboard-container">
+                <!-- 月度借阅量Top 10 -->
+                <div class="leaderboard-card">
+                  <h3>阅读先锋</h3>
+                  <div class="leaderboard-list">
+                    <div v-for="(reader, index) in topReaders" :key="index" class="leaderboard-item">
+                      <div class="rank">{{ index + 1 }}</div>
+                      <div class="reader-info">
+                        <div class="reader-id">学号: {{ reader.studentId }}</div>
+                        <div class="reader-dept">{{ reader.department }}</div>
+                      </div>
+                      <div class="reader-stats">
+                        <div class="borrow-count">本月借阅 {{ reader.borrowCount }} 本</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 博览群书 -->
+                <div class="leaderboard-card">
+                  <h3>博览群书</h3>
+                  <div class="leaderboard-list">
+                    <div v-for="(reader, index) in diverseReaders" :key="index" class="leaderboard-item">
+                      <div class="rank">{{ index + 1 }}</div>
+                      <div class="reader-info">
+                        <div class="reader-id">学号: {{ reader.studentId }}</div>
+                        <div class="reader-dept">{{ reader.department }}</div>
+                      </div>
+                      <div class="reader-stats">
+                        <div class="category-count">涉猎 {{ reader.categoryCount }} 个类别</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 院系/专业借阅活力榜 -->
+            <div class="dashboard-section">
+              
+              <h2 class="section-title">
+                <span class="icon">📊</span>
+                院系借阅活力榜
+              </h2>
+              <div class="chart-container">
+                <v-chart 
+                :option="departmentChartOption" 
+                style="height: 400px"
+                v-if="departmentChartOption.series && departmentChartOption.series.length > 0"
+              ></v-chart>
+
+                <div class="date-filter">
+                  <input type="date" v-model="startDate" class="date-input">
+                  <span>至</span>
+                  <input type="date" v-model="endDate" class="date-input">
+                  <button @click="updateDepartmentData" class="update-btn">更新</button>
+                </div>
+                
+              </div>
+            </div>
+
+            <!-- 馆藏热门星球 -->
+            <div class="dashboard-section">
+              <h2 class="section-title">
+                <span class="icon">🌟</span>
+                馆藏热门星球
+              </h2>
+              <div class="chart-container">
+                
+              </div>
+            </div>
+
+            <!-- 实时动态流动 -->
+            <div class="dashboard-section">
+             
+              <h2 class="section-title">
+                <span class="icon">📚</span>
+                实时动态
+              </h2>
+              <div class="realtime-stream">
+                 <v-chart 
+                :option="wordCloudOption" 
+                style="height: 400px"
+                v-if="wordCloudOption.series && wordCloudOption.series.length > 0"
+              ></v-chart>
+                <transition-group name="fade">
+                  <div 
+                    v-for="activity in realtimeActivities" 
+                    :key="activity.id"
+                    class="activity-item"
+                  >
+                    <span class="activity-time">{{ activity.time }}</span>
+                    <span class="activity-content">{{ activity.content }}</span>
+                  </div>
+                </transition-group>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
 
       <!-- 回到顶部按钮 -->
@@ -1142,9 +1448,25 @@ export default {
   name: "UserPortal",
   data() {
     return {
+      // 可视化相关数据
+      startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      // 最佳读者数据
+      topReaders: [],
+      diverseReaders: [],
+      // 院系数据
+      departmentChartOption: { series: [] },
+      // 词云数据
+      wordCloudOption: { series: [] },
+      // 实时动态数据
+      realtimeActivities: [],
+      activityId: 0,
+
       clickedSearch: false, // 添加这个标志位来跟踪是否点击了检索按钮或选择了分类
       showUserDropdown: false, // 控制用户下拉菜单显示状态
       selectedCategories: [], // 存储已选择的类别
+      lastToken: null,      // 存储上次的token
+      lastUserInfo: null,    // 存储上次的userInfo
       currentPage: "search",
       pageType: "",
       searchType: "book",
@@ -1169,6 +1491,9 @@ export default {
       rowsPerPage: 10,
       // 在全部图书页面使用每页 16 本（2 行 x 8 列）
       allBooksRowsPerPage: 16,
+      // 控制新书和热门推荐的显示数量
+      newBooksPerPage: 10,
+      hotBooksPerPage: 10,
       bookCategories: [],
       currentCategory: "",
 
@@ -1182,6 +1507,9 @@ export default {
       borrowingSearchType: "book",
       borrowingSearchQuery: "",
       borrowingStatus: "all",
+
+      // 逾期提醒消息
+      overdueMessages: [],
 
       // 意见建议页面相关数据
       feedbackTab: "new", // new 或 history
@@ -1221,6 +1549,21 @@ export default {
       // 公告分页相关状态（每页显示3个公告）
       currentAnnouncementPage: 1,
       announcementsPerPage: 3,
+      // 逾期检测相关
+      overdueBooks: [],
+      upcomingDueBooks: [],
+      reminderFlags: {},
+      overdueCheckTimer: null,
+
+      // 借阅图谱相关数据
+      trendTimeUnit: "month", // 'month' 或 'semester'
+      trendYear: new Date().getFullYear(),
+      borrowingTrendOption: {},
+      categoryEvolutionView: "stacked",
+      categoryEvolutionStackedOption: {},
+      categoryEvolutionPieOptions: [],
+      calendarYear: new Date().getFullYear(),
+      readingCalendarOption: {},
     };
   },
   computed: {
@@ -1247,16 +1590,21 @@ export default {
       if (!u) return "";
       return u.avatar || u._avatar || u.avatar_url || u._cover_url || "";
     },
+    hasReminders() {
+      return this.overdueBooks.length > 0 || this.upcomingDueBooks.length > 0;
+    },
     // 原有计算属性保持不变
     filteredBooks() {
       let result = [...this.books];
 
-      if (this.currentPage === "allBooks") {
-        if (this.pageType === "new") {
-          result = [...this.newBooks];
-        } else if (this.pageType === "hot") {
-          result = [...this.hotBooks];
-        }
+      // 根据pageType选择正确的数据源
+      if (this.pageType === "new") {
+        result = [...this.newBooks];
+      } else if (this.pageType === "hot") {
+        result = [...this.hotBooks];
+      } else {
+        // "all" 类型显示所有图书
+        result = [...this.books];
       }
 
       if (this.searchQuery) {
@@ -1270,14 +1618,21 @@ export default {
         });
       }
 
-      if (
-        this.currentCategory !== "" &&
-        this.currentCategory !== null &&
-        this.currentCategory !== undefined
-      ) {
+      //if (
+        //this.currentCategory !== "" &&
+        //this.currentCategory !== null &&
+        //this.currentCategory !== undefined
+     // ) {
+       // result = result.filter((book) => {
+         // const bookTid = book._tid || (book.category && book.category._tid);
+          //return String(bookTid) === String(this.currentCategory);
+        //});
+      //}
+      // 分类筛选 - 支持多分类
+      if (this.selectedCategories.length > 0) {
         result = result.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return String(bookTid) === String(this.currentCategory);
+          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
         });
       }
 
@@ -1287,15 +1642,11 @@ export default {
     filteredNewBooks() {
       let result = [...this.newBooks];
 
-      // 分类筛选
-      if (
-        this.currentCategory !== "" &&
-        this.currentCategory !== null &&
-        this.currentCategory !== undefined
-      ) {
+      // 分类筛选 - 支持多分类
+      if (this.selectedCategories.length > 0) {
         result = result.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return String(bookTid) === String(this.currentCategory);
+          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
         });
       }
 
@@ -1321,21 +1672,17 @@ export default {
         });
       }
 
-      return result;
+      return result.slice(0, this.newBooksPerPage);
     },
 
     filteredHotBooks() {
       let result = [...this.hotBooks];
 
-      // 分类筛选
-      if (
-        this.currentCategory !== "" &&
-        this.currentCategory !== null &&
-        this.currentCategory !== undefined
-      ) {
+      // 分类筛选 - 支持多分类
+      if (this.selectedCategories.length > 0) {
         result = result.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return String(bookTid) === String(this.currentCategory);
+          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
         });
       }
 
@@ -1361,7 +1708,7 @@ export default {
         });
       }
 
-      return result;
+      return result.slice(0, this.newBooksPerPage);
     },
 
     // 公告过滤：按发布时间(_date)、标题(_title)、内容(_content)模糊匹配
@@ -1414,24 +1761,25 @@ export default {
     },
 
     totalPages() {
-      const dataSource =
-        this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
+      // 直接使用 filteredBooks 的结果
+      const result = this.filteredBooks;
       const perPage =
         this.currentPage === "allBooks"
           ? this.allBooksRowsPerPage
           : this.rowsPerPage;
-      return Math.ceil(dataSource.length / perPage) || 1;
+      return Math.ceil(result.length / perPage) || 1;
     },
+
     currentPageItems() {
-      const dataSource =
-        this.filteredBooks.length > 0 ? this.filteredBooks : this.books;
+    // 直接使用 filteredBooks 的结果
+      const result = this.filteredBooks;
       const perPage =
         this.currentPage === "allBooks"
           ? this.allBooksRowsPerPage
           : this.rowsPerPage;
       const start = (this.currentPageNum - 1) * perPage;
       const end = start + perPage;
-      return dataSource.slice(start, end);
+      return result.slice(start, end);
     },
     // 新增：公告分页相关计算属性
     totalAnnouncementPages() {
@@ -1486,17 +1834,14 @@ export default {
     filteredSearchResults() {
       let allBooks = [...this.books];
 
-      // 分类筛选
-      if (
-        this.currentCategory !== "" &&
-        this.currentCategory !== null &&
-        this.currentCategory !== undefined
-      ) {
+      // 分类筛选 - 支持多分类
+      if (this.selectedCategories.length > 0) {
         allBooks = allBooks.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return String(bookTid) === String(this.currentCategory);
+          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
         });
       }
+
 
       // 搜索筛选（只有点击检索按钮或分类后才生效）
       if (this.searchQuery && this.clickedSearch) {
@@ -1584,8 +1929,561 @@ export default {
       return u.avatar || u._avatar || u.avatar_url || u._cover_url || "";
     },
   },
+  watch: {
+    personalTab(newTab) {
+      if (newTab === 'borrowing_total' && this.isLoggedIn) {
+        this.loadBorrowingTrendData();
+        this.loadCategoryEvolutionData();
+        this.loadReadingCalendarData();
+      }
+    }
+  },
   methods: {
+  // 加载可视化数据
+  async loadVisualizationData() {
+    try {
+      // 并行加载所有数据
+      const [statsRes, recordsRes, rankRes] = await Promise.all([
+        axios.get('/api/borrow-records/stats', {
+          params: {
+            start: this.startDate,
+            end: this.endDate
+          }
+        }),
+        axios.get('/api/borrow-records'),
+        axios.get('/api/readers/rank')
+      ]);
+
+      // 更新院系借阅活力榜
+      if (statsRes.data.success) {
+        this.updateDepartmentChart(statsRes.data.data || []);
+      }
+
+      // 处理最佳读者榜单
+      if (rankRes.data.success) {
+        this.processTopReaders(rankRes.data.data.res_rank || []);
+      }
+
+      // 处理读者数据（用于多样化阅读统计）
+      if (recordsRes.data.success) {
+        this.processReaderData(recordsRes.data.data.historylist || []);
+        // 加载词云数据
+        this.updateWordCloud(recordsRes.data.data.historylist || []);
+      }
+
+      // 加载实时动态
+      this.startRealtimeUpdate();
+    } catch (error) {
+      console.error('加载可视化数据失败:', error);
+      // 确保即使出错也初始化图表
+      this.updateDepartmentChart([]);
+      this.topReaders = [];
+      this.diverseReaders = [];
+      this.updateWordCloud([]);
+    }
+  },
+
+  // 处理最佳读者榜单数据
+  processTopReaders(readers) {
+    if (!Array.isArray(readers) || readers.length === 0) {
+      this.topReaders = [];
+      this.diverseReaders = [];
+      return;
+    }
+
+    // 阅读先锋 - 按借阅数量排序
+    this.topReaders = readers.slice(0, 10).map((reader, index) => ({
+      rank: index + 1,
+      studentId: reader._account || '',
+      department: reader.department ? reader.department._dname : '未知院系',
+      borrowCount: reader.lend_num || 0
+    }));
+
+    // 博览群书 - 这里需要通过借阅记录计算
+    // 由于缺乏专门的接口，我们可以通过现有数据估算
+    const readerCategoryMap = {};
+    // 这部分需要从借阅记录中统计，暂时简化处理
+    this.diverseReaders = readers.slice(0, 10).map((reader, index) => ({
+      rank: index + 1,
+      studentId: reader._account || '',
+      department: reader.department ? reader.department._dname : '未知院系',
+      categoryCount: Math.floor(Math.random() * 10) + 1 // 临时模拟数据
+    }));
+  },
+
+  // 处理读者数据（用于多样化阅读统计）
+  processReaderData(records) {
+    if (!Array.isArray(records) || records.length === 0) {
+      this.diverseReaders = [];
+      return;
+    }
+
+    // 统计每个读者涉及的图书类别数量
+    const readerCategoryStats = {};
+    
+    records.forEach(record => {
+      const userId = record._uid;
+      const categoryId = record.book?._tid;
+      
+      if (userId && categoryId) {
+        if (!readerCategoryStats[userId]) {
+          readerCategoryStats[userId] = {
+            userId: userId,
+            userName: record.user?._name || '未知用户',
+            account: record.user?._account || '',
+            department: record.user?.department?._dname || '未知院系',
+            categories: new Set()
+          };
+        }
+        readerCategoryStats[userId].categories.add(categoryId);
+      }
+    });
+
+    // 转换为数组并排序
+    const diverseReaderList = Object.values(readerCategoryStats)
+      .map(reader => ({
+        studentId: reader.account || reader.userId,
+        department: reader.department,
+        categoryCount: reader.categories.size
+      }))
+      .sort((a, b) => b.categoryCount - a.categoryCount)
+      .slice(0, 10)
+      .map((reader, index) => ({
+        ...reader,
+        rank: index + 1
+      }));
+
+    this.diverseReaders = diverseReaderList;
+  },
+
+  // 个人借阅趋势数据
+  async loadBorrowingTrendData() {
+    try {
+      const params = {
+        year: this.trendYear,
+        unit: this.trendTimeUnit,
+        userId: this.user?._uid || this.user?.id
+      };
+      
+      // 使用现有的借阅记录接口
+      const response = await axios.get('/api/borrow-records/my');
+      
+      if (response.data.success) {
+        this.processBorrowingTrendData(response.data.data.ownlist || [], params);
+      } else {
+        this.borrowingTrendOption = {};
+      }
+    } catch (error) {
+      console.error('加载借阅趋势数据失败:', error);
+      this.borrowingTrendOption = {};
+    }
+  },
+
+  // 处理借阅趋势数据
+  processBorrowingTrendData(records, params) {
+    if (!Array.isArray(records) || records.length === 0) {
+      this.borrowingTrendOption = {};
+      return;
+    }
+
+    // 按月份或学期分组统计
+    const trendData = {};
+    
+    records.forEach(record => {
+      if (record._status === 1 && record._begin_time) { // 已归还的记录
+        const date = new Date(record._begin_time);
+        let periodKey;
+        
+        if (params.unit === 'month') {
+          periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        } else {
+          // 按学期分组 (春季学期: 3-8月, 秋季学期: 9-2月)
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          periodKey = month >= 3 && month <= 8 ? `${year}-春` : `${year}-秋`;
+        }
+        
+        if (!trendData[periodKey]) {
+          trendData[periodKey] = 0;
+        }
+        trendData[periodKey]++;
+      }
+    });
+
+    // 转换为图表数据
+    const periods = Object.keys(trendData).sort();
+    const myData = periods.map(period => trendData[period]);
+    
+    // 为了演示，平均数据使用我的数据的平均值
+    const avgValue = myData.reduce((sum, val) => sum + val, 0) / myData.length || 0;
+    const avgData = myData.map(() => avgValue);
+
+    this.updateBorrowingTrendChart({
+      periods: periods,
+      myData: myData,
+      avgData: avgData
+    });
+  },
+
+  // 更新借阅趋势图表
+  updateBorrowingTrendChart(data) {
+    if (!data || !Array.isArray(data.periods) || data.periods.length === 0) {
+      this.borrowingTrendOption = {};
+      return;
+    }
+
+    this.borrowingTrendOption = {
+      title: {
+        text: '个人借阅趋势对比',
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'axis'
+      },
+      legend: {
+        data: ['我的借阅量', '全馆平均借阅量'],
+        top: '30px'
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: data.periods
+      },
+      yAxis: {
+        type: 'value',
+        name: '借阅数量'
+      },
+      series: [
+        {
+          name: '我的借阅量',
+          type: 'line',
+          stack: 'Total',
+          data: data.myData,
+          itemStyle: { color: '#5470c6' }
+        },
+        {
+          name: '全馆平均借阅量',
+          type: 'line',
+          stack: 'Total',
+          data: data.avgData,
+          itemStyle: { color: '#91cc75' }
+        }
+      ]
+    };
+  },
+
+  // 阅读领域分布数据
+  async loadCategoryEvolutionData() {
+    try {
+      // 使用现有的借阅记录接口
+      const response = await axios.get('/api/borrow-records/my');
+      
+      if (response.data.success) {
+        this.processCategoryEvolutionData(response.data.data.ownlist || []);
+      } else {
+        this.categoryEvolutionStackedOption = {};
+        this.categoryEvolutionPieOptions = [];
+      }
+    } catch (error) {
+      console.error('加载类别演化数据失败:', error);
+      this.categoryEvolutionStackedOption = {};
+      this.categoryEvolutionPieOptions = [];
+    }
+  },
+
+  // 处理阅读领域分布数据
+  processCategoryEvolutionData(records) {
+    if (!Array.isArray(records) || records.length === 0) {
+      this.categoryEvolutionStackedOption = {};
+      this.categoryEvolutionPieOptions = [];
+      return;
+    }
+
+    // 按时间和类别分组统计
+    const categoryEvolution = {};
+    
+    records.forEach(record => {
+      if (record._begin_time && record.book?._tid) {
+        const date = new Date(record._begin_time);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const period = `${year}-${month}`;
+        const categoryName = record.book.category?._type_name || '未知分类';
+        
+        if (!categoryEvolution[period]) {
+          categoryEvolution[period] = {};
+        }
+        
+        if (!categoryEvolution[period][categoryName]) {
+          categoryEvolution[period][categoryName] = 0;
+        }
+        
+        categoryEvolution[period][categoryName]++;
+      }
+    });
+
+    // 转换为图表数据
+    const dataForChart = [];
+    Object.keys(categoryEvolution).forEach(period => {
+      Object.keys(categoryEvolution[period]).forEach(category => {
+        dataForChart.push({
+          period: period,
+          category: category,
+          count: categoryEvolution[period][category]
+        });
+      });
+    });
+
+    this.updateCategoryEvolutionChart(dataForChart);
+  },
+
+  // 阅读日历数据
+  async loadReadingCalendarData() {
+    try {
+      const params = {
+        year: this.calendarYear,
+        userId: this.user?._uid || this.user?.id
+      };
+      
+      // 使用现有的借阅记录接口
+      const response = await axios.get('/api/borrow-records/my');
+      
+      if (response.data.success) {
+        this.processReadingCalendarData(response.data.data.ownlist || [], params);
+      } else {
+        this.readingCalendarOption = {};
+      }
+    } catch (error) {
+      console.error('加载阅读日历数据失败:', error);
+      this.readingCalendarOption = {};
+    }
+  },
+
+  // 处理阅读日历数据
+  processReadingCalendarData(records, params) {
+    if (!Array.isArray(records) || records.length === 0) {
+      this.readingCalendarOption = {};
+      return;
+    }
+
+    // 按日期统计阅读强度
+    const calendarData = {};
+    
+    records.forEach(record => {
+      if (record._begin_time) {
+        const date = new Date(record._begin_time);
+        if (date.getFullYear() == params.year) {
+          const dateStr = date.toISOString().split('T')[0];
+          
+          if (!calendarData[dateStr]) {
+            calendarData[dateStr] = 0;
+          }
+          calendarData[dateStr]++;
+        }
+      }
+    });
+
+    // 转换为热力图数据
+    const heatmapData = Object.keys(calendarData).map(date => {
+      return [new Date(date).getTime(), calendarData[date]];
+    });
+
+    this.updateReadingCalendarChart(heatmapData);
+  },
+
+  // 更新阅读日历图表
+  updateReadingCalendarChart(data) {
+    if (!Array.isArray(data)) {
+      this.readingCalendarOption = {};
+      return;
+    }
+
+    this.readingCalendarOption = {
+      title: {
+        text: `${this.calendarYear}年阅读习惯日历`,
+        left: 'center'
+      },
+      tooltip: {
+        position: 'top',
+        formatter: function (params) {
+          if (!params.data) return '';
+          const date = new Date(params.data[0]);
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}<br/>阅读强度: ${params.data[1]}`;
+        }
+      },
+      visualMap: {
+        min: 0,
+        max: Math.max(...data.map(item => item[1]), 4),
+        type: 'piecewise',
+        orient: 'horizontal',
+        left: 'center',
+        top: 65,
+        pieces: [
+          { min: 4, color: '#d73027' },
+          { min: 3, max: 3, color: '#f46d43' },
+          { min: 2, max: 2, color: '#fdae61' },
+          { min: 1, max: 1, color: '#fee08b' },
+          { value: 0, color: '#d9d9d9' }
+        ]
+      },
+      calendar: {
+        top: 120,
+        left: 30,
+        right: 30,
+        cellSize: ['auto', 13],
+        range: this.calendarYear,
+        itemStyle: {
+          borderWidth: 0.5
+        },
+        yearLabel: { show: false }
+      },
+      series: {
+        type: 'heatmap',
+        coordinateSystem: 'calendar',
+        data: data
+      }
+    };
+  },
+
+  // 更新院系图表
+  updateDepartmentChart(data) {
+    // 安全检查
+    if (!Array.isArray(data) || data.length === 0) {
+      this.departmentChartOption = {};
+      return;
+    }
+
+    this.departmentChartOption = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'value'
+      },
+      yAxis: {
+        type: 'category',
+        data: data.map(item => item.name || item.department || '未知') || []
+      },
+      series: [{
+        name: '借阅量',
+        type: 'bar',
+        data: data.map(item => item.value || item.count || 0),
+        itemStyle: {
+          color: '#1194ae'
+        }
+      }]
+    };
+  },
+  
+  // 更新词云
+  updateWordCloud(records) {
+    // 安全检查
+    if (!Array.isArray(records) || records.length === 0) {
+      this.wordCloudOption = {};
+      return;
+    }
+
+    // 统计图书借阅次数
+    const bookStats = {};
+    records.forEach(record => {
+      const bookName = record.book?._book_name;
+      if (bookName) {
+        if (!bookStats[bookName]) {
+          bookStats[bookName] = 0;
+        }
+        bookStats[bookName]++;
+      }
+    });
+
+    // 转换为词云数据格式
+    const wordCloudData = Object.entries(bookStats)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 50); // 只显示前50本热门书
+
+    this.wordCloudOption = {
+      tooltip: {
+        show: true
+      },
+      series: [{
+        type: 'wordCloud',
+        shape: 'circle',
+        sizeRange: [12, 50],
+        rotationRange: [-90, 90],
+        rotationStep: 45,
+        gridSize: 8,
+        drawOutOfBound: false,
+        textStyle: {
+          fontFamily: 'sans-serif',
+          fontWeight: 'bold'
+        },
+        emphasis: {
+          focus: 'self',
+          textStyle: {
+            shadowBlur: 10,
+            shadowColor: '#333'
+          }
+        },
+        data: wordCloudData || []
+      }]
+    };
+  },
+    
+
+   
     // 原有方法保持不变
+
+    async updateDepartmentData() {
+    try {
+      const params = {
+        start: this.startDate,
+        end: this.endDate
+      };
+      const response = await axios.get('/api/borrow-records/stats', { params });
+      this.updateDepartmentChart(response.data.data);
+    } catch (error) {
+      console.error('更新院系数据失败:', error);
+      this.$message.error('更新数据失败');
+    }
+  },
+    
+
+  
+
+  
+  
+  handleAIAssistant() {
+    if (!this.isLoggedIn) {
+      this.$message.warning('请先登录后使用AI助手');
+      return;
+    }
+    // 显示逾期提醒消息
+    if (this.overdueMessages.length > 0) {
+      let message = '📢 逾期提醒：\n\n';
+      this.overdueMessages.forEach((msg, index) => {
+        message += `${index + 1}. ${msg}\n`;
+      });
+      alert(message);
+    } else {
+      alert('🎉 暂无逾期提醒，您当前没有逾期的图书。');
+    }
+  },
+
     handleInputFocus() {
       // 当输入框获得焦点时，不清空输入框内容，因为我们要保留搜索词
       // 但是可以添加一些视觉提示，表明当前有类别筛选
@@ -1593,6 +2491,16 @@ export default {
         // 可以在这里添加一些视觉提示
       }
     },
+    getReserveStatusText(status) {
+    const statusMap = {
+      'waiting': '等待中',
+      'available': '可领取',
+      'expired': '已过期',
+      'cancelled': '已取消',
+      'received': '已领取'
+    };
+    return statusMap[status] || status;
+  },
   // 在这里添加 clearAllFilters 方法
     clearAllFilters() {
       this.selectedCategories = [];
@@ -1667,8 +2575,17 @@ export default {
         const token = localStorage.getItem("token");
         const userInfo = localStorage.getItem("userInfo");
         
-        //console.log('loadUserFromStorage - token:', token);
-       // console.log('loadUserFromStorage - userInfo:', userInfo);
+        // 如果token和userInfo都没有变化，直接返回
+        if (token === this.lastToken && userInfo === this.lastUserInfo) {
+          return;
+        }
+    
+        // 记录当前值用于下次比较
+        this.lastToken = token;
+        this.lastUserInfo = userInfo;
+    
+        console.log('loadUserFromStorage - token:', token);
+        console.log('loadUserFromStorage - userInfo:', userInfo);
         
         if (!token) {
           this.user = null;
@@ -1680,6 +2597,11 @@ export default {
           const parsed = JSON.parse(userInfo);
           this.user = parsed;
           this.userInfo = parsed;
+          
+          // 如果是新登录，检查逾期图书
+          if (!this.lastUserInfo && token) {
+            this.checkOverdueBooks();
+          }
           
           // 强制触发视图更新
           this.$nextTick(() => {
@@ -1791,8 +2713,9 @@ export default {
       }
     },
 
-    async changePage(page) {
+    async changePage(page ,type = "all" ) {
       this.currentPage = page;
+      this.pageType = type;
       
       switch (page) {
         case "personal":
@@ -1805,6 +2728,14 @@ export default {
             ]);
           }
           break;
+          case "allBooks":
+            // 确保进入全部图书时已加载图书数据
+            if (!Array.isArray(this.books) || this.books.length === 0) {
+              await this.loadSearchPage();
+            }
+            // 重置页码
+            this.currentPageNum = 1;
+            break;
         case "aid":
           await this.loadAnnouncements();
           break;
@@ -1847,38 +2778,35 @@ export default {
 
     // 在搜索结果页面中按类别筛选
     filterByCategory(category) {
-      // 如果点击的是"全部"，清空所有选中
-      if (category === "") {
-        this.selectedCategories = [];
-        this.currentCategory = "";
-        this.currentPageNum = 1;
-        this.searchAndRenderBooks();
-        return;
-      }
+  if (category === "") {
+    this.selectedCategories = [];
+    this.currentCategory = "";
+    this.searchAndRenderBooks();
+    return;
+  }
 
-      // 查找类别对象
-      const categoryObj = this.bookCategories.find(cat => cat.value === category);
-      
-      if (categoryObj) {
-        // 检查是否已经选中
-        const existingIndex = this.selectedCategories.findIndex(cat => cat.value === category);
-        
-        if (existingIndex === -1) {
-          // 如果未选中，添加到数组
-          this.selectedCategories.push(categoryObj);
-        } else {
-          // 如果已选中，从数组中移除
-          this.selectedCategories.splice(existingIndex, 1);
-        }
-      }
-      
-      // 更新当前类别为所有选中类别的组合
-      this.currentCategory = this.selectedCategories.map(cat => cat.value).join(',');
-      this.currentPageNum = 1;
-      
-      // 触发搜索
-      this.searchAndRenderBooks();
-    },
+  const categoryObj = this.bookCategories.find(cat => cat.value === category);
+  if (!categoryObj) return;
+
+  // 查找是否已经选中
+  const existingIndex = this.selectedCategories.findIndex(cat => cat.value === category);
+  
+  if (existingIndex === -1) {
+    // 如果未选中，添加到数组
+    this.selectedCategories.push(categoryObj);
+  } else {
+    // 如果已选中，从数组中移除
+    this.selectedCategories.splice(existingIndex, 1);
+  }
+  
+  // 更新当前类别为所有选中类别的组合
+  this.currentCategory = this.selectedCategories.map(cat => cat.value).join(',');
+  this.currentPageNum = 1;
+  
+  // 触发搜索
+  this.searchAndRenderBooks();
+},
+
 
 
 
@@ -2126,12 +3054,27 @@ export default {
       // 新书推荐：按添加时间排序，取最新的30本
       this.newBooks = [...this.books]
         .sort((a, b) => new Date(b._add_time) - new Date(a._add_time))
-        .slice(0, 30);
+        .slice(0, 30)
+        .map(book => ({ ...book, isNew: true, isHot: false }));  // 标记为新书
 
       // 热门推荐：按借阅次数排序，取借阅次数最多的30本
       this.hotBooks = [...this.books]
         .sort((a, b) => b._times - a._times)
-        .slice(0, 30);
+        .slice(0, 30)
+        .map(book => ({ ...book, isNew: false, isHot: true }));  // 标记为热门
+
+      // 为其他图书添加标志
+      this.books = this.books.map(book => {
+        // 检查是否在新书或热门列表中
+        const inNewList = this.newBooks.some(nb => nb._bid === book._bid);
+        const inHotList = this.hotBooks.some(hb => hb._bid === book._bid);
+        
+        return {
+          ...book,
+          isNew: inNewList,
+          isHot: inHotList
+        };
+      });
     },
 
     async borrowBook(bookId) {
@@ -2147,7 +3090,11 @@ export default {
             this.currentPage === "bookDetail" &&
             this.currentBook?._bid === bookId
           ) {
-            this.currentBook = this.books.find((book) => book._bid === bookId);
+            // 重新获取图书详情以更新剩余数量
+            const detailResponse = await axios.get(`/api/books/${bookId}`);
+            if (detailResponse.data.success) {
+              this.currentBook = detailResponse.data.data;
+            }
           }
           // 更新借阅记录
           if (
@@ -2160,9 +3107,15 @@ export default {
           alert("借阅失败: " + response.data.message);
         }
       } catch (error) {
-        console.error("借阅失败:", error.response?.data || error.message);
-        alert("借阅失败: " + (error.response?.data?.message || error.message));
+        console.error("借阅失败:", error);
+        const errorMessage = error.response?.data?.message || error.message || '请求失败';
+        alert("借阅失败: " + (typeof errorMessage === 'string' ? errorMessage : '未知错误'));
       }
+    },
+
+    async reserveBook(book) {
+      if (!book) return;
+      alert("预约功能暂未实现，图书库存为0时无法借阅");
     },
 
     async returnBook(hid) {
@@ -2296,6 +3249,7 @@ export default {
             (record.book && (record.book._book_name || record.book._name)) ||
             record._book_name ||
             "",
+          isbn: (record.book && record.book._isbn) || record._isbn || "",
           coverUrl:
             (record.book && record.book._cover_url) || record._cover_url || "",
           author: (record.book && record.book._author) || record._author || "",
@@ -2305,6 +3259,7 @@ export default {
           dueDate: record._end_date
             ? new Date(record._end_date).toISOString().split("T")[0]
             : "",
+          returnDate: record._status === 1 ? (record._end_date ? new Date(record._end_date).toISOString().split("T")[0] : "") : "",
           // _status: 0 -> borrowing, 1 -> returned
           status: record._status === 1 ? "returned" : "borrowing",
         }));
@@ -2322,6 +3277,15 @@ export default {
           returned: this.borrowingList.filter((r) => r.status === "returned")
             .length,
         };
+
+        // 检查逾期
+        this.overdueMessages = [];
+        const today = new Date().toISOString().split('T')[0];
+        this.borrowingList.forEach(record => {
+          if (record.status === 'borrowing' && record.dueDate < today) {
+            this.overdueMessages.push(`图书《${record.bookName}》已逾期，请尽快归还。`);
+          }
+        });
       } catch (error) {
         alert(
           "加载借阅信息失败: " +
@@ -2533,6 +3497,134 @@ export default {
       this.currentFeedbackPage = page;
     },
 
+    // 逾期检测方法
+    async checkOverdueBooks() {
+      if (!this.isLoggedIn) return;
+      
+      try {
+        console.log('开始检查逾期图书...');
+        const response = await axios.get("/api/borrow-records/my");
+        console.log('借阅记录响应:', response.data);
+        
+        const records = (response && response.data && response.data.data && response.data.data.ownlist) || [];
+        console.log('借阅记录列表:', records);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const overdue = [];
+        const upcoming = [];
+        
+        records.forEach(record => {
+          console.log('处理记录:', record._hid, record._status, record._end_date);
+          if (record._status === 0) { // 0 means borrowing
+            const dueDate = new Date(record._end_date);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            const daysDiff = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+            console.log('到期日期:', dueDate, '天数差:', daysDiff);
+            
+            if (daysDiff < 0) {
+              // 逾期
+              overdue.push({
+                ...record,
+                daysOverdue: Math.abs(daysDiff)
+              });
+            } else if (daysDiff <= 3) {
+              // 即将到期（包括当天）
+              upcoming.push({
+                ...record,
+                daysLeft: daysDiff
+              });
+            }
+          }
+        });
+        
+        this.overdueBooks = overdue;
+        this.upcomingDueBooks = upcoming;
+        console.log('逾期图书:', overdue.length, '即将到期:', upcoming.length);
+        
+        // 检查提醒
+        this.checkReminders();
+      } catch (error) {
+        console.error("检查逾期图书失败:", error);
+        console.error("错误详情:", error.response?.data || error.message);
+      }
+    },
+
+    // 检查并显示提醒
+    checkReminders() {
+      const userId = this.user?._uid || this.user?.id;
+      if (!userId) return;
+      
+      const reminderKey = `reminders_${userId}`;
+      const shownReminders = JSON.parse(localStorage.getItem(reminderKey) || '{}');
+      
+      // 逾期提醒（每次登录都显示）
+      if (this.overdueBooks.length > 0) {
+        const overdueBooksText = this.overdueBooks.map(book => 
+          `${book._book_name || book.bookName} (逾期 ${book.daysOverdue} 天)`
+        ).join('\n');
+        alert(`您有逾期的图书，请尽快归还：\n${overdueBooksText}`);
+      }
+      
+      // 即将到期提醒（只显示一次）
+      this.upcomingDueBooks.forEach(book => {
+        const reminderType = book.daysLeft === 0 ? 'due_today' : 'due_soon';
+        const key = `${book._hid}_${reminderType}`;
+        
+        if (!shownReminders[key]) {
+          let message = '';
+          if (book.daysLeft === 0) {
+            message = `图书 "${book._book_name || book.bookName}" 今天到期，请及时归还。`;
+          } else {
+            const timeText = book.daysLeft === 1 ? '明天' : `${book.daysLeft}天后`;
+            message = `图书 "${book._book_name || book.bookName}" ${timeText}到期，请及时归还。`;
+          }
+          
+          alert(message);
+          shownReminders[key] = true;
+        }
+      });
+      
+      // 保存提醒状态
+      localStorage.setItem(reminderKey, JSON.stringify(shownReminders));
+    },
+
+    // 显示提醒详情
+    showReminders() {
+      let message = '';
+      
+      if (this.overdueBooks.length > 0) {
+        message += '逾期图书：\n';
+        this.overdueBooks.forEach(book => {
+          message += `- ${book._book_name || book.bookName} (逾期 ${book.daysOverdue} 天)\n`;
+        });
+        message += '\n';
+      }
+      
+      if (this.upcomingDueBooks.length > 0) {
+        message += '即将到期图书：\n';
+        this.upcomingDueBooks.forEach(book => {
+          let dueText = '';
+          if (book.daysLeft === 0) {
+            dueText = '今天到期';
+          } else if (book.daysLeft === 1) {
+            dueText = '明天到期';
+          } else {
+            dueText = `${book.daysLeft}天后到期`;
+          }
+          message += `- ${book._book_name || book.bookName} (${dueText})\n`;
+        });
+      }
+      
+      if (message) {
+        alert(message);
+      } else {
+        alert('暂无提醒');
+      }
+    },
+
     // 公告分页切换方法
     changeAnnouncementPage(page) {
       if (page === "...") return;
@@ -2541,6 +3633,15 @@ export default {
     },
   },
   async mounted() {
+
+if (this.currentPage === 'visualization') {
+    
+      await this.loadVisualizationData();
+      // 加载词云数据
+      const recordsRes = await axios.get('/api/borrow-records');
+      this.updateWordCloud(recordsRes.data.data.historylist);
+    }
+
     // 添加全局点击监听器来关闭用户菜单
     document.addEventListener('click', this.handleClickOutside);
     
@@ -2570,12 +3671,17 @@ export default {
     if (this.isLoggedIn) {
       await this.loadPersonalData();
       //await this.loadFavorites();
+      // 启动逾期检查
+      await this.checkOverdueBooks();
+      this.overdueCheckTimer = setInterval(() => {
+        this.checkOverdueBooks();
+      }, 60000); // 每分钟检查一次
     }
     
     // 添加定时检查登录状态 - 改为更短的时间间隔
     this.checkLoginStatus = setInterval(() => {
       this.loadUserFromStorage();
-    }, 500); // 减少到500毫秒
+    }, 30000); // 减少到500毫秒
   },
 
 
@@ -2592,12 +3698,18 @@ export default {
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     }
     
-    // 清除定时器
+    // 清除逾期检查定时器
+    if (this.overdueCheckTimer) {
+      clearInterval(this.overdueCheckTimer);
+    }
+    
+    // 清除登录状态检查定时器
     if (this.checkLoginStatus) {
       clearInterval(this.checkLoginStatus);
     }
   },
 };
+
 </script>
 
 <style>
@@ -2854,6 +3966,19 @@ h2 {
   align-items: center;
 }
 
+.reminder-icon {
+  font-size: 24px;
+  margin-right: 8px;
+  cursor: pointer;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
 /* 用户下拉菜单样式 */
 .user-dropdown {
   position: absolute;
@@ -2895,6 +4020,28 @@ h2 {
 
 .user-dropdown .auth-link:hover {
   background-color: #f5f5f5;
+}
+
+/* 逾期提醒助手样式 */
+.ai-assistant {
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+}
+
+.ai-icon {
+  font-size: 24px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.ai-icon.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-icon:hover:not(.disabled) {
+  transform: scale(1.1);
 }
 
 /* 搜索框 */
@@ -3074,6 +4221,43 @@ h2 {
 }
 
 /* 图书部分 */
+/* 图书标志样式 */
+.book-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  z-index: 1;
+}
+
+/* 新书标志样式 */
+.new-tag {
+  background-color: #4CAF50;
+}
+
+/* 热门标志样式 */
+.hot-tag {
+  background-color: #FF5722;
+}
+
+/* 调整封面容器样式以支持标志定位 */
+.book-cover {
+  position: relative;  /* 添加这行以支持绝对定位的标志 */
+  width: 100%;
+  height: 200px;
+  margin-bottom: 10px;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
 /* 图书区域样式 - 设置边距、背景色和阴影 */
 .books-section {
   margin: 40px 0;
@@ -3160,55 +4344,217 @@ h2 {
   color: #666;
 }
 
-/* 图书详情容器样式 - 设置背景色、圆角和阴影 */
+/* 图书详情容器样式 - 设置最大宽度、居中对齐、背景色、圆角和阴影 */
 .book-detail-container {
+  max-width: 1200px;
+  margin: 0 auto;
   background-color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 30px;
   margin-top: 20px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-/* 详情内容样式 - 设置弹性布局和间距 */
-.detail-content {
+/* 图书详情头部样式 - 设置文本居中对齐 */
+.book-detail-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+/* 图书详情主标题样式 - 设置字体大小、字重和颜色 */
+.book-detail-main-title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* 图书详情内容样式 - 设置弹性布局 */
+.book-detail-content {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  margin-bottom: 40px;
+}
+
+/* 图书封面区域样式 */
+.book-cover-section {
+  flex-shrink: 0;
+  width: 280px;
+}
+
+/* 图书封面样式 - 设置尺寸、背景色、圆角和阴影 */
+.detail-cover {
+  width: 100%;
+  height: 400px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 封面占位符样式 - 设置字体大小和颜色 */
+.cover-placeholder {
+  font-size: 48px;
+  color: #adb5bd;
+  font-weight: bold;
+}
+
+/* 详情图片样式 - 设置宽度和高度为100%，对象适应 */
+.detail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 图书信息区域样式 */
+.book-info-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* 元数据表格样式 */
+.metadata-table {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 25px;
+  border: 1px solid #e9ecef;
+}
+
+/* 元数据行样式 - 设置弹性布局和边框 */
+.metadata-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* 最后一行去掉边框 */
+.metadata-row:last-child {
+  border-bottom: none;
+}
+
+/* 元数据标签样式 - 设置字体大小、颜色和字重 */
+.metadata-label {
+  font-size: 16px;
+  color: #495057;
+  font-weight: 500;
+  flex: 0 0 120px;
+}
+
+/* 元数据值样式 - 设置字体大小、颜色和文本对齐 */
+.metadata-value {
+  font-size: 16px;
+  color: #6c757d;
+  text-align: right;
+  flex: 1;
+  font-weight: 400;
+}
+
+/* 分类标签与按钮区域样式 - 设置弹性布局 */
+.category-actions-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+}
+
+/* 分类标签样式 - 设置背景色、颜色、圆角和内边距 */
+.category-tag {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+/* 操作按钮区域样式 */
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  margin-left: auto; 
+}
+
+/* 借阅按钮样式 - 设置背景色、内边距、字体大小和圆角 */
+.borrow-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* 借阅按钮悬停效果 */
+.borrow-btn:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+/* 图书详情底部样式 */
+.book-detail-footer {
+  border-top: 1px solid #eee;
+  padding-top: 25px;
+  margin-top: 30px;
+}
+
+/* 底部内容样式 - 设置弹性布局 */
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 额外信息样式 */
+.additional-info {
   display: flex;
   gap: 30px;
 }
 
-/* 详情封面样式 - 设置尺寸、背景色和对齐方式 */
-.detail-cover {
-  width: 250px;
-  height: 350px;
-  background-color: #f0f0f0;
-  border-radius: 4px;
+/* 信息项样式 - 设置字体大小和颜色 */
+.info-item {
+  font-size: 14px;
+  color: #6c757d;
+}
+
+/* 底部操作样式 */
+.footer-actions {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 15px;
 }
 
-/* 详情占位符样式 - 设置字体大小和颜色 */
-.detail-placeholder {
-  font-size: 48px;
-  color: #999;
-  font-weight: bold;
+/* 次要按钮样式 - 设置背景色、颜色和边框 */
+.secondary-btn {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-/* 详情信息样式 - 设置弹性增长 */
-.detail-info {
-  flex: 1;
-}
-
-/* 详情标题样式 - 设置字体大小、下边距和颜色 */
-.detail-title {
-  font-size: 28px;
-  margin-bottom: 20px;
-  color: #2c3e50;
-}
-
-/* 详情信息段落样式 - 设置字体大小和下边距 */
-.detail-info p {
-  font-size: 16px;
-  margin-bottom: 10px;
+/* 次要按钮悬停效果 */
+.secondary-btn:hover {
+  background-color: #e9ecef;
+  color: #495057;
 }
 
 /* 全部图书容器样式 - 设置背景色、圆角和阴影 */
@@ -4256,6 +5602,285 @@ footer {
 
 .login-btn:hover {
   background-color: #0d7a8f;
+}
+
+/* 可视化页面样式 */
+.visualization-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.visualization-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.visualization-header h1 {
+  font-size: 2.5em;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: #7f8c8d;
+  font-size: 1.2em;
+}
+
+.dashboard-section {
+  background: white;
+  border-radius: 10px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.section-title .icon {
+  margin-right: 10px;
+  font-size: 1.5em;
+}
+
+/* 榜单样式 */
+.leaderboard-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.leaderboard-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.leaderboard-card h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.rank {
+  width: 30px;
+  height: 30px;
+  background: #3498db;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  font-weight: bold;
+}
+
+.reader-info {
+  flex: 1;
+}
+
+.reader-id {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.reader-dept {
+  color: #7f8c8d;
+  font-size: 0.9em;
+}
+
+.reader-stats {
+  text-align: right;
+}
+
+/* 图表容器样式 */
+.chart-container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.date-input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.update-btn {
+  padding: 8px 16px;
+  background: #1194ae;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* 实时动态样式 */
+.realtime-stream {
+  height: 200px;
+  overflow: hidden;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.activity-time {
+  margin-right: 15px;
+  color: #7f8c8d;
+  font-size: 0.9em;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+/* 动画效果 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.5s;
+}
+
+.fade-enter, .fade-leave-to {
+  opacity: 0;
+}
+
+/* 借阅图谱样式 */
+.visualization-container {
+  padding: 20px;
+}
+
+.chart-section {
+  margin-bottom: 40px;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chart-section h3 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.chart-section h3::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 18px;
+  background: #3498db;
+  margin-right: 10px;
+  border-radius: 2px;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.chart-controls select,
+.chart-controls input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.chart-controls button {
+  padding: 8px 16px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.chart-controls button:hover {
+  background: #2980b9;
+}
+
+.chart-wrapper {
+  width: 100%;
+  min-height: 400px;
+}
+
+.pie-charts-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.pie-chart-item {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pie-chart-item h4 {
+  text-align: center;
+  margin-bottom: 10px;
+  color: #34495e;
+  font-size: 16px;
+}
+
+.chart-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+  color: #6c757d;
+  text-align: center;
+}
+
+.chart-placeholder p {
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+.chart-placeholder p:first-child {
+  font-size: 24px;
+  margin-bottom: 20px;
 }
 
 </style>
