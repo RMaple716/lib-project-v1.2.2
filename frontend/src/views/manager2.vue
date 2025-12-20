@@ -259,7 +259,6 @@
                 <select id="searchType" class="search-select" v-model="searchType">
                   <option value="_bid">序号</option> 
                   <option value="_book_name">书名</option>
-                  <option value="_author">作者</option>
                   <option value="_isbn">ISBN号</option>
                   <option value="_type_name">图书类型</option>
                 </select>
@@ -279,8 +278,6 @@
                   <form @submit.prevent="submitBookForm">
                     <label for="bookTitle">书名：</label>
                     <input type="text" id="bookTitle" v-model="bookForm.bookTitle" placeholder="请输入书名">
-                    <label for="author">作者：</label>
-                    <input type="text" id="author" v-model="bookForm.author" placeholder="请输入作者">
                     <label for="isbn">ISBN号：</label>
                     <input type="text" id="isbn" v-model="bookForm.isbn" placeholder="请输入ISBN号">                
                     <label for="bookType">图书类型：</label>
@@ -289,10 +286,10 @@
                     </select>                 
                     <label for="publisher">出版社：</label>
                     <input type="text" id="publisher" v-model="bookForm.publisher" placeholder="请输入出版社">                  
-                    <label for="totalQuantity">总数量：</label>
-                    <input type="number" id="totalQuantity" v-model="bookForm.totalQuantity" placeholder="请输入总数量">
-                    <label for="coverUrl">封面URL：</label>
-                    <input type="text" id="coverUrl" v-model="bookForm.coverUrl" placeholder="请输入封面图片URL"> 
+                    <label for="totalQuantity">馆藏数量：</label>
+                    <input type="number" id="totalQuantity" v-model="bookForm.totalQuantity" placeholder="请输入馆藏数量">
+                    <label for="availableQuantity">可借副本：</label>
+                    <input type="number" id="availableQuantity" v-model="bookForm.availableQuantity" placeholder="请输入可借副本数量">
                     <button type="submit" class="submit-button">提交</button>
                   </form>
                 </div>
@@ -337,30 +334,25 @@
                     <th>序号</th>
                     <th>图书类型</th>
                     <th>书名</th>
-                    <th>作者</th>
                     <th>ISBN号</th>
                     <th>出版社</th>
-                    <th>总数量</th>
-                    <th>封面</th>
+                    <th>馆藏数量</th>
+                    <th>可借副本</th>           
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="currentPageBooks.length === 0">
-                    <td colspan="9">{{ filteredBooks.length === 0 ? '暂无图书数据' : '没有找到相关图书' }}</td>
+                    <td colspan="8">{{ filteredBooks.length === 0 ? '暂无图书数据' : '没有找到相关图书' }}</td>
                   </tr>
                   <tr v-for="book in currentPageBooks" :key="book._bid">
                     <td>{{ book._bid }}</td>
                     <td>{{ book._type_name}}</td>
                     <td>{{ book._book_name }}</td>
-                    <td>{{ book._author }}</td>
                     <td>{{ book._isbn }}</td>
                     <td>{{ book._press }}</td>
                     <td>{{ book._num }}</td>
-                    <td>
-                      <img v-if="book._cover_url" :src="book._cover_url" alt="封面" class="book-cover">
-                      <span v-else>无封面</span>
-                    </td>
+                    <td>{{ book._available_num !== undefined ? book._available_num : 'N/A' }}</td>
                     <td>
                       <button class="edit-button" @click="editBook(book)">编辑</button>
                       <button class="delete-button" @click="deleteBook(book._bid)">删除</button>
@@ -1177,6 +1169,7 @@
                   <th>反馈ID</th>
                   <th>用户ID</th>
                   <th>读者邮箱</th>
+                  <th>反馈类型</th>
                   <th>反馈标题</th>
                   <th>反馈内容</th>
                   <th>提交时间</th>
@@ -1186,12 +1179,13 @@
               </thead>
               <tbody>
                 <tr v-if="currentPageFeedbacks.length === 0">
-                  <td colspan="8">{{ filteredFeedbacks.length === 0 ? '暂无意见建议' : '没有找到相关反馈' }}</td>
+                  <td colspan="9">{{ filteredFeedbacks.length === 0 ? '暂无意见建议' : '没有找到相关反馈' }}</td>
                 </tr>
                 <tr v-for="feedback in currentPageFeedbacks" :key="feedback._fid">
                   <td>{{ feedback._fid }}</td>
                   <td>{{ feedback._uid }}</td>
                   <td>{{ feedback._email }}</td>
+                  <td>{{ feedback._type || '未分类' }}</td>
                   <td>{{ feedback._title }}</td>
                   <td class="feedback-content-cell">
                     <div class="content-preview">{{ getContentPreview(feedback._content) }}</div>
@@ -2503,7 +2497,6 @@ export default {
       const typeMap = {
         '_bid': '_bid', 
         '_book_name': '_book_name',
-        '_author': '_author',
         '_isbn': '_isbn',
         '_type_name': '_type_name'
       };
@@ -2749,6 +2742,14 @@ export default {
           }
           this.closeBulkUploadModal();
           await this.fetchBooks(); // 重新加载图书列表
+
+          // 如果响应中有更新的分类数据，直接使用它；否则重新获取分类列表
+          if (result.data && result.data.categories) {
+            this.categories = result.data.categories || [];
+            this.filteredCategories = [];
+          } else {
+            await this.fetchCategories(); // 重新加载分类列表
+          }
         } else {
           const errorMsg = result.message || '批量上传失败';
           this.$message.error(errorMsg);
