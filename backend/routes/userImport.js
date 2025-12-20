@@ -5,6 +5,7 @@ const fs = require('fs');
 const router = express.Router();
 const { User, Role } = require('../models');
 const { authenticate } = require('../middleware/auth');
+const { optimizedBatchImportStudents } = require('../utils/optimizedUserImport');
 const { 
   parseUserFile, 
   validateStudents, 
@@ -331,6 +332,124 @@ router.post('/students', authenticate, upload.single('file'), async (req, res) =
     res.status(500).json({
       success: false,
       message: '导入学生失败',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/user-import/students/optimized:
+ *   post:
+ *     summary: 优化版批量导入学生
+ *     description: 通过上传Excel文件批量导入学生信息，使用优化算法提高导入速度
+ *     tags: [UserImport]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: 包含学生信息的CSV或XLSX文件
+ *               batchSize:
+ *                 type: integer
+ *                 description: 每批处理的学生数量（默认50）
+ *               parallelBatches:
+ *                 type: integer
+ *                 description: 并行处理的批次数量（默认3）
+ *     responses:
+ *       200:
+ *         description: 导入成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: 操作是否成功
+ *                 message:
+ *                   type: string
+ *                   description: 响应消息
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imported:
+ *                       type: number
+ *                       description: 成功导入的学生数量
+ *                     skipped:
+ *                       type: number
+ *                       description: 跳过的学生数量（已存在）
+ *                     errors:
+ *                       type: array
+ *                       description: 导入错误列表
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权访问
+ *       500:
+ *         description: 服务器内部错误
+ */
+router.post('/students/optimized', authenticate, upload.single('file'), async (req, res) => {
+  const filePath = req.file ? req.file.path : null;
+
+  if (!filePath) {
+    return res.status(400).json({
+      success: false,
+      message: '请上传文件'
+    });
+  }
+
+  try {
+    // 解析文件
+    const studentsData = await parseUserFile(filePath);
+
+    // 验证数据
+    const validation = validateStudents(studentsData);
+
+    if (!validation.valid && validation.errors.length > 0) {
+      // 清理临时文件
+      cleanupTempFile(filePath);
+
+      return res.status(400).json({
+        success: false,
+        message: '数据验证失败',
+        errors: validation.errors
+      });
+    }
+
+    const validStudents = validation.validStudents;
+    
+    // 获取导入选项
+    const options = {
+      batchSize: parseInt(req.body.batchSize) || 50,
+      parallelBatches: parseInt(req.body.parallelBatches) || 3,
+      skipExisting: true,
+      logProgress: true
+    };
+
+    // 使用优化函数批量导入学生
+    const result = await optimizedBatchImportStudents(validStudents, options);
+    console.log('优化导入学生结果:', result);
+    // 清理临时文件
+    cleanupTempFile(filePath);
+
+    res.json(result);
+  } catch (error) {
+    console.error('优化导入学生失败:', error);
+
+    // 清理临时文件
+    cleanupTempFile(filePath);
+
+    res.status(500).json({
+      success: false,
+      message: '优化导入学生失败',
       error: error.message
     });
   }

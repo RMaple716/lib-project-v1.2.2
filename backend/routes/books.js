@@ -1013,13 +1013,11 @@ router.get('/:id', async (req, res) => {
       }
     });
     let Avaliable_Count = book._num - Borrowed_Count
+    book.dataValues.avaliable_count= Avaliable_Count;
     res.json({
       success: true,
       message: '成功获取图书详情',
-      data: {
-        book,
-        available_copies: Avaliable_Count
-      }
+      data: book
     });
 
   } catch (error) {
