@@ -1013,7 +1013,9 @@ router.get('/:id', async (req, res) => {
       }
     });
     let Avaliable_Count = book._num - Borrowed_Count
-    book.dataValues.avaliable_count= Avaliable_Count;
+    book.dataValues._total_copies= book._num;
+    book.dataValues._avaliable_copies= Avaliable_Count;
+    
     res.json({
       success: true,
       message: '成功获取图书详情',
@@ -1271,7 +1273,10 @@ router.delete('/:id', authenticate, requirePermission('book.delete'), async (req
   }
 });
 
-/* @swagger
+
+
+/** 
+ * @swagger
  * /api/books:
  *   get:
  *     summary: 获取图书列表
@@ -1336,8 +1341,8 @@ router.delete('/:id', authenticate, requirePermission('book.delete'), async (req
  */
 
 /**
- * 获取图书列表 - 需要book.view权限
- * @description 获取图书列表，支持按关键词搜索和按分类筛选
+ * 获取图书列表 
+ * @description 获取图书列表，支持按关键词搜索和分类筛选，返回结果包含每本图书的总复本数和可借阅复本数
  * @requiresPermission book.view
  */
 router.get('/', async (req, res) => {
@@ -1373,12 +1378,41 @@ router.get('/', async (req, res) => {
       }],
     });
     
+    // 获取所有借阅记录
+    const bookIds = books.map(book => book._bid);
+    const borrowRecords = await BorrowRecord.findAll({
+      where: {
+        _bid: { [Op.in]: bookIds }
+      }
+    });
+    
+    // 创建借阅记录的图书ID到记录的映射
+    const borrowRecordMap = new Map();
+    borrowRecords.forEach(record => {
+      if (!borrowRecordMap.has(record._bid)) {
+        borrowRecordMap.set(record._bid, []);
+      }
+      borrowRecordMap.get(record._bid).push(record);
+    });
+    
     const formattedBooks = books.map(book => {
     const bookData = book.toJSON();
+      
+      // 计算可借阅复本数
+      const bookBorrowRecords = borrowRecordMap.get(bookData._bid) || [];
+      const borrowedCount = bookBorrowRecords.filter(record => record._return_time === null).length;
+      
+      // 使用图书模型中的_num字段作为馆藏数量
+      const totalCopies = bookData._num || 5; // 使用图书的_num字段，如果没有则默认为5
+      const availableCopies = totalCopies - borrowedCount;
+      
       return {
         ...bookData,
         _type_name: bookData.category ? bookData.category._type_name : null,
+        _total_copies: totalCopies, // 总复本数
+        _available_copies: availableCopies > 0 ? availableCopies : 0, // 可借阅复本数
         category: undefined // 删除category对象
+        
       };
     });
     
