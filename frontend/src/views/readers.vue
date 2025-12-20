@@ -32,20 +32,49 @@
         <!-- 登录按钮 / 用户头像 -->
         <div class="auth-links">
           <!-- 小助手机器人 -->
-          <div class="ai-assistant" @click="handleAIAssistant">
-            <el-tooltip 
-              :content="isLoggedIn ? '点击打开消息列表' : '请先登录后查看消息列表'"
-              placement="bottom"
+          <!-- 替换原有的 AI 助手部分 -->
+          <div class="ai-assistant" @click="toggleMessagePanel">
+            <div 
+              class="ai-icon"
+              :class="{ 'disabled': !isLoggedIn }"
+              :title="isLoggedIn ? '点击查看消息列表' : '请先登录'"
             >
-              <div 
-                class="ai-icon"
-                :class="{ 'disabled': !isLoggedIn }"
-              >
-                🤖
+              🤖
+              <span v-if="unreadMessageCount > 0" class="unread-badge">{{ unreadMessageCount }}</span>
+            </div>
+            
+            <!-- 消息面板 -->
+            <div v-show="showMessagePanel" class="message-panel" @click.stop>
+              <div class="message-header">
+                <h3>消息中心</h3>
+                <button class="close-btn" @click="toggleMessagePanel">×</button>
               </div>
-            </el-tooltip>
+              <div class="message-list">
+                <div v-if="messages.length === 0" class="no-messages">
+                  暂无消息
+                </div>
+                <div 
+                  v-for="message in messages" 
+                  :key="message.id" 
+                  class="message-item"
+                  :class="{ 'unread': !message.read }"
+                >
+                  <div class="message-content">
+                    <div class="message-title">{{ message.title }}</div>
+                    <div class="message-text">{{ message.text }}</div>
+                    <div class="message-time">{{ message.time }}</div>
+                  </div>
+                  <button 
+                    class="dismiss-btn" 
+                    @click="dismissMessage(message.id)"
+                    title="关闭消息"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-
           <div v-if="isLoggedIn" class="user-menu" @click.stop="toggleUserMenu">
             <img
               v-if="avatarUrl"
@@ -501,8 +530,6 @@
                     </div>
                   </div>
                 </div>
-
-                
               </div>
             </div>
 
@@ -511,7 +538,7 @@
               <div class="footer-content">
                 <div class="additional-info">
                   <span class="info-item">馆藏总数：{{ currentBook._num }}</span>
-                  <span class="info-item">剩余数量：{{ currentBook.available_count }}</span>
+                  <span class="info-item">可借数量：{{ currentBook.available_count }}</span>
                 </div>
                 <div class="footer-actions">
                   <button @click="changePage('search')" class="secondary-btn">
@@ -930,77 +957,7 @@
                 </div>
                 <!-- 已登录才显示的内容 -->
                 <div v-else>
-                  <div class="visualization-container">
-                    <!-- 个人借阅趋势总览 -->
-                    <div class="chart-section">
-                      <h3>📈 个人借阅趋势总览</h3>
-                      <div class="chart-controls">
-                        <select v-model="trendTimeUnit" @change="loadBorrowingTrendData">
-                          <option value="month">按月查看</option>
-                          <option value="semester">按学期查看</option>
-                        </select>
-                        <input type="number" v-model="trendYear" @change="loadBorrowingTrendData" min="2020" :max="new Date().getFullYear()" placeholder="年份">
-                      </div>
-                      <div class="chart-wrapper">
-                        <v-chart 
-                          :option="borrowingTrendOption" 
-                          style="height: 400px" 
-                          v-if="borrowingTrendOption.series && borrowingTrendOption.series.length > 0"
-                        ></v-chart>
-                        <div v-else class="chart-placeholder">
-                          <p>📊 借阅趋势图表</p>
-                          <p>暂无数据可显示</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- 阅读领域分布演化 -->
-                    <div class="chart-section">
-                      <h3>📚 阅读领域分布演化</h3>
-                      <div class="chart-controls">
-                        <select v-model="categoryEvolutionView" @change="loadCategoryEvolutionData">
-                          <option value="stacked">堆叠面积图</option>
-                          <option value="pie">饼图序列</option>
-                        </select>
-                      </div>
-                      <div class="chart-wrapper">
-                       <v-chart 
-                          v-if="categoryEvolutionView === 'stacked' && categoryEvolutionStackedOption.series && categoryEvolutionStackedOption.series.length > 0"
-                          :option="categoryEvolutionStackedOption" 
-                          style="height: 400px"
-                        ></v-chart>
-                        <div v-if="categoryEvolutionView === 'stacked'" class="chart-placeholder">
-                          <p>📚 领域分布堆叠图</p>
-                          <p>请安装ECharts库以查看图表：npm install echarts vue-echarts</p>
-                        </div>
-                        <div v-else class="pie-charts-container">
-                          
-                            <div class="chart-placeholder">
-                              <p>📈 {{ chart.period }} 饼图</p>
-                            </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- 阅读习惯日历 -->
-                    <div class="chart-section">
-                      <h3>📅 阅读习惯日历</h3>
-                      <div class="chart-controls">
-                        <input type="number" v-model="calendarYear" @change="loadReadingCalendarData" min="2020" :max="new Date().getFullYear()" placeholder="年份">
-                      </div>
-                      <div class="chart-wrapper">
-                        <v-chart 
-                          :option="readingCalendarOption" 
-                          style="height: 500px" 
-                          v-if="readingCalendarOption.series && readingCalendarOption.series.length > 0"
-                        ></v-chart>
-                        <div class="chart-placeholder">
-                          <p>📅 阅读习惯日历</p>
-                          
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <VisualizationCharts :user="user" />
                 </div>
               </div>
             </div>
@@ -1259,119 +1216,6 @@
             </div>
           </div>
         </div>
-                <!-- 图书可视化页面 -->
-        <div v-if="currentPage === 'visualization'">
-          <div class="dashboard-container">
-            <!-- 标题区域 -->
-            <div class="dashboard-header">
-              <p class="subtitle">实时洞察图书馆动态，发现阅读新趋势</p>
-            </div>
-
-            <!-- 最佳读者榜单 -->
-            <div class="dashboard-section">
-              <h2 class="section-title">
-                <span class="icon">🏆</span>
-                最佳读者榜单
-              </h2>
-              <div class="leaderboard-container">
-                <!-- 月度借阅量Top 10 -->
-                <div class="leaderboard-card">
-                  <h3>阅读先锋</h3>
-                  <div class="leaderboard-list">
-                    <div v-for="(reader, index) in topReaders" :key="index" class="leaderboard-item">
-                      <div class="rank">{{ index + 1 }}</div>
-                      <div class="reader-info">
-                        <div class="reader-id">学号: {{ reader.studentId }}</div>
-                        <div class="reader-dept">{{ reader.department }}</div>
-                      </div>
-                      <div class="reader-stats">
-                        <div class="borrow-count">本月借阅 {{ reader.borrowCount }} 本</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 博览群书 -->
-                <div class="leaderboard-card">
-                  <h3>博览群书</h3>
-                  <div class="leaderboard-list">
-                    <div v-for="(reader, index) in diverseReaders" :key="index" class="leaderboard-item">
-                      <div class="rank">{{ index + 1 }}</div>
-                      <div class="reader-info">
-                        <div class="reader-id">学号: {{ reader.studentId }}</div>
-                        <div class="reader-dept">{{ reader.department }}</div>
-                      </div>
-                      <div class="reader-stats">
-                        <div class="category-count">涉猎 {{ reader.categoryCount }} 个类别</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 院系/专业借阅活力榜 -->
-            <div class="dashboard-section">
-              
-              <h2 class="section-title">
-                <span class="icon">📊</span>
-                院系借阅活力榜
-              </h2>
-              <div class="chart-container">
-                <v-chart 
-                :option="departmentChartOption" 
-                style="height: 400px"
-                v-if="departmentChartOption.series && departmentChartOption.series.length > 0"
-              ></v-chart>
-
-                <div class="date-filter">
-                  <input type="date" v-model="startDate" class="date-input">
-                  <span>至</span>
-                  <input type="date" v-model="endDate" class="date-input">
-                  <button @click="updateDepartmentData" class="update-btn">更新</button>
-                </div>
-                
-              </div>
-            </div>
-
-            <!-- 馆藏热门星球 -->
-            <div class="dashboard-section">
-              <h2 class="section-title">
-                <span class="icon">🌟</span>
-                馆藏热门星球
-              </h2>
-              <div class="chart-container">
-                
-              </div>
-            </div>
-
-            <!-- 实时动态流动 -->
-            <div class="dashboard-section">
-             
-              <h2 class="section-title">
-                <span class="icon">📚</span>
-                实时动态
-              </h2>
-              <div class="realtime-stream">
-                 <v-chart 
-                :option="wordCloudOption" 
-                style="height: 400px"
-                v-if="wordCloudOption.series && wordCloudOption.series.length > 0"
-              ></v-chart>
-                <transition-group name="fade">
-                  <div 
-                    v-for="activity in realtimeActivities" 
-                    :key="activity.id"
-                    class="activity-item"
-                  >
-                    <span class="activity-time">{{ activity.time }}</span>
-                    <span class="activity-content">{{ activity.content }}</span>
-                  </div>
-                </transition-group>
-              </div>
-            </div>
-          </div>
-        </div>
       </main>
 
       <!-- 回到顶部按钮 -->
@@ -1383,6 +1227,9 @@
 </template>
 
 <script>
+
+import VisualizationCharts from '@/components/VisualizationCharts.vue';
+
 /* eslint-disable */
 import axios from "axios";
 import slide1 from "@/assets/slide1.jpg";
@@ -1404,7 +1251,7 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
- axios.interceptors.response.use(
+axios.interceptors.response.use(
   (response) => response,
   (error) => {
     try {
@@ -1415,14 +1262,16 @@ axios.interceptors.request.use((config) => {
         // 只对需要认证的操作（借阅、收藏等）进行处理
         const url = error?.response?.config?.url || "";
         const publicEndpoints = [
-          '/api/books',
-          '/api/categories',
-          '/api/announcements'
+          "/api/books",
+          "/api/categories",
+          "/api/announcements",
         ];
-        
+
         // 如果是公开接口的401错误，不弹出提示
-        const isPublicEndpoint = publicEndpoints.some(endpoint => url.includes(endpoint));
-        
+        const isPublicEndpoint = publicEndpoints.some((endpoint) =>
+          url.includes(endpoint)
+        );
+
         if (!isPublicEndpoint) {
           // 使用更友好的提示替换后端原始提示
           try {
@@ -1446,27 +1295,20 @@ axios.interceptors.request.use((config) => {
 
 export default {
   name: "UserPortal",
+  components: {
+    // ... 其他组件
+    VisualizationCharts
+  },
   data() {
     return {
-      // 可视化相关数据
-      startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      // 最佳读者数据
-      topReaders: [],
-      diverseReaders: [],
-      // 院系数据
-      departmentChartOption: { series: [] },
-      // 词云数据
-      wordCloudOption: { series: [] },
-      // 实时动态数据
-      realtimeActivities: [],
-      activityId: 0,
-
+      showMessagePanel: false,
+      messages: [], // 消息列表
+      hasShownLoginReminder: false, // 是否已显示登录提醒
       clickedSearch: false, // 添加这个标志位来跟踪是否点击了检索按钮或选择了分类
       showUserDropdown: false, // 控制用户下拉菜单显示状态
       selectedCategories: [], // 存储已选择的类别
-      lastToken: null,      // 存储上次的token
-      lastUserInfo: null,    // 存储上次的userInfo
+      lastToken: null, // 存储上次的token
+      lastUserInfo: null, // 存储上次的userInfo
       currentPage: "search",
       pageType: "",
       searchType: "book",
@@ -1554,36 +1396,33 @@ export default {
       upcomingDueBooks: [],
       reminderFlags: {},
       overdueCheckTimer: null,
-
-      // 借阅图谱相关数据
-      trendTimeUnit: "month", // 'month' 或 'semester'
-      trendYear: new Date().getFullYear(),
-      borrowingTrendOption: {},
-      categoryEvolutionView: "stacked",
-      categoryEvolutionStackedOption: {},
-      categoryEvolutionPieOptions: [],
-      calendarYear: new Date().getFullYear(),
-      readingCalendarOption: {},
     };
   },
   computed: {
+    unreadMessageCount() {
+      return this.messages.filter(msg => !msg.read).length;
+    },
     isLoggedIn() {
       return !!localStorage.getItem("token") && !!this.user;
     },
     searchInputClasses() {
       return {
-        'has-tags': this.selectedCategories.length > 0
+        "has-tags": this.selectedCategories.length > 0,
       };
     },
     searchStatusText() {
       const parts = [];
       if (this.selectedCategories.length > 0) {
-        parts.push(`类别: ${this.selectedCategories.map(cat => cat.label).join(', ')}`);
+        parts.push(
+          `类别: ${this.selectedCategories.map((cat) => cat.label).join(", ")}`
+        );
       }
       if (this.searchQuery) {
-        parts.push(`${this.searchType === 'book' ? '书名' : '作者'}: ${this.searchQuery}`);
+        parts.push(
+          `${this.searchType === "book" ? "书名" : "作者"}: ${this.searchQuery}`
+        );
       }
-      return parts.length > 0 ? parts.join(' | ') : '全部图书';
+      return parts.length > 0 ? parts.join(" | ") : "全部图书";
     },
     avatarUrl() {
       const u = this.user || this.userInfo;
@@ -1617,22 +1456,13 @@ export default {
           }
         });
       }
-
-      //if (
-        //this.currentCategory !== "" &&
-        //this.currentCategory !== null &&
-        //this.currentCategory !== undefined
-     // ) {
-       // result = result.filter((book) => {
-         // const bookTid = book._tid || (book.category && book.category._tid);
-          //return String(bookTid) === String(this.currentCategory);
-        //});
-      //}
       // 分类筛选 - 支持多分类
       if (this.selectedCategories.length > 0) {
         result = result.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
+          return this.selectedCategories.some(
+            (cat) => String(cat.value) === String(bookTid)
+          );
         });
       }
 
@@ -1646,7 +1476,9 @@ export default {
       if (this.selectedCategories.length > 0) {
         result = result.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
+          return this.selectedCategories.some(
+            (cat) => String(cat.value) === String(bookTid)
+          );
         });
       }
 
@@ -1682,7 +1514,9 @@ export default {
       if (this.selectedCategories.length > 0) {
         result = result.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
+          return this.selectedCategories.some(
+            (cat) => String(cat.value) === String(bookTid)
+          );
         });
       }
 
@@ -1771,7 +1605,7 @@ export default {
     },
 
     currentPageItems() {
-    // 直接使用 filteredBooks 的结果
+      // 直接使用 filteredBooks 的结果
       const result = this.filteredBooks;
       const perPage =
         this.currentPage === "allBooks"
@@ -1838,10 +1672,11 @@ export default {
       if (this.selectedCategories.length > 0) {
         allBooks = allBooks.filter((book) => {
           const bookTid = book._tid || (book.category && book.category._tid);
-          return this.selectedCategories.some(cat => String(cat.value) === String(bookTid));
+          return this.selectedCategories.some(
+            (cat) => String(cat.value) === String(bookTid)
+          );
         });
       }
-
 
       // 搜索筛选（只有点击检索按钮或分类后才生效）
       if (this.searchQuery && this.clickedSearch) {
@@ -1910,14 +1745,14 @@ export default {
       // 默认返回全部
       return this.borrowingList;
     },
-    
+
     // 当前借阅数量（按借阅记录计数，同一本书借两本计2）
     currentBorrowCount() {
       if (!Array.isArray(this.allBorrowingRecords)) return 0;
       return this.allBorrowingRecords.filter((r) => r.status === "borrowing")
         .length;
     },
-    
+
     avatarUrl() {
       // 优先使用 user.avatar 或 user._avatar 或 user.avatar_url 等常见字段
       const u =
@@ -1929,561 +1764,111 @@ export default {
       return u.avatar || u._avatar || u.avatar_url || u._cover_url || "";
     },
   },
-  watch: {
-    personalTab(newTab) {
-      if (newTab === 'borrowing_total' && this.isLoggedIn) {
-        this.loadBorrowingTrendData();
-        this.loadCategoryEvolutionData();
-        this.loadReadingCalendarData();
-      }
-    }
-  },
   methods: {
-  // 加载可视化数据
-  async loadVisualizationData() {
-    try {
-      // 并行加载所有数据
-      const [statsRes, recordsRes, rankRes] = await Promise.all([
-        axios.get('/api/borrow-records/stats', {
-          params: {
-            start: this.startDate,
-            end: this.endDate
-          }
-        }),
-        axios.get('/api/borrow-records'),
-        axios.get('/api/readers/rank')
-      ]);
-
-      // 更新院系借阅活力榜
-      if (statsRes.data.success) {
-        this.updateDepartmentChart(statsRes.data.data || []);
-      }
-
-      // 处理最佳读者榜单
-      if (rankRes.data.success) {
-        this.processTopReaders(rankRes.data.data.res_rank || []);
-      }
-
-      // 处理读者数据（用于多样化阅读统计）
-      if (recordsRes.data.success) {
-        this.processReaderData(recordsRes.data.data.historylist || []);
-        // 加载词云数据
-        this.updateWordCloud(recordsRes.data.data.historylist || []);
-      }
-
-      // 加载实时动态
-      this.startRealtimeUpdate();
-    } catch (error) {
-      console.error('加载可视化数据失败:', error);
-      // 确保即使出错也初始化图表
-      this.updateDepartmentChart([]);
-      this.topReaders = [];
-      this.diverseReaders = [];
-      this.updateWordCloud([]);
-    }
-  },
-
-  // 处理最佳读者榜单数据
-  processTopReaders(readers) {
-    if (!Array.isArray(readers) || readers.length === 0) {
-      this.topReaders = [];
-      this.diverseReaders = [];
-      return;
-    }
-
-    // 阅读先锋 - 按借阅数量排序
-    this.topReaders = readers.slice(0, 10).map((reader, index) => ({
-      rank: index + 1,
-      studentId: reader._account || '',
-      department: reader.department ? reader.department._dname : '未知院系',
-      borrowCount: reader.lend_num || 0
-    }));
-
-    // 博览群书 - 这里需要通过借阅记录计算
-    // 由于缺乏专门的接口，我们可以通过现有数据估算
-    const readerCategoryMap = {};
-    // 这部分需要从借阅记录中统计，暂时简化处理
-    this.diverseReaders = readers.slice(0, 10).map((reader, index) => ({
-      rank: index + 1,
-      studentId: reader._account || '',
-      department: reader.department ? reader.department._dname : '未知院系',
-      categoryCount: Math.floor(Math.random() * 10) + 1 // 临时模拟数据
-    }));
-  },
-
-  // 处理读者数据（用于多样化阅读统计）
-  processReaderData(records) {
-    if (!Array.isArray(records) || records.length === 0) {
-      this.diverseReaders = [];
-      return;
-    }
-
-    // 统计每个读者涉及的图书类别数量
-    const readerCategoryStats = {};
-    
-    records.forEach(record => {
-      const userId = record._uid;
-      const categoryId = record.book?._tid;
-      
-      if (userId && categoryId) {
-        if (!readerCategoryStats[userId]) {
-          readerCategoryStats[userId] = {
-            userId: userId,
-            userName: record.user?._name || '未知用户',
-            account: record.user?._account || '',
-            department: record.user?.department?._dname || '未知院系',
-            categories: new Set()
-          };
-        }
-        readerCategoryStats[userId].categories.add(categoryId);
-      }
-    });
-
-    // 转换为数组并排序
-    const diverseReaderList = Object.values(readerCategoryStats)
-      .map(reader => ({
-        studentId: reader.account || reader.userId,
-        department: reader.department,
-        categoryCount: reader.categories.size
-      }))
-      .sort((a, b) => b.categoryCount - a.categoryCount)
-      .slice(0, 10)
-      .map((reader, index) => ({
-        ...reader,
-        rank: index + 1
-      }));
-
-    this.diverseReaders = diverseReaderList;
-  },
-
-  // 个人借阅趋势数据
-  async loadBorrowingTrendData() {
-    try {
-      const params = {
-        year: this.trendYear,
-        unit: this.trendTimeUnit,
-        userId: this.user?._uid || this.user?.id
-      };
-      
-      // 使用现有的借阅记录接口
-      const response = await axios.get('/api/borrow-records/my');
-      
-      if (response.data.success) {
-        this.processBorrowingTrendData(response.data.data.ownlist || [], params);
-      } else {
-        this.borrowingTrendOption = {};
-      }
-    } catch (error) {
-      console.error('加载借阅趋势数据失败:', error);
-      this.borrowingTrendOption = {};
-    }
-  },
-
-  // 处理借阅趋势数据
-  processBorrowingTrendData(records, params) {
-    if (!Array.isArray(records) || records.length === 0) {
-      this.borrowingTrendOption = {};
-      return;
-    }
-
-    // 按月份或学期分组统计
-    const trendData = {};
-    
-    records.forEach(record => {
-      if (record._status === 1 && record._begin_time) { // 已归还的记录
-        const date = new Date(record._begin_time);
-        let periodKey;
-        
-        if (params.unit === 'month') {
-          periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        } else {
-          // 按学期分组 (春季学期: 3-8月, 秋季学期: 9-2月)
-          const year = date.getFullYear();
-          const month = date.getMonth() + 1;
-          periodKey = month >= 3 && month <= 8 ? `${year}-春` : `${year}-秋`;
-        }
-        
-        if (!trendData[periodKey]) {
-          trendData[periodKey] = 0;
-        }
-        trendData[periodKey]++;
-      }
-    });
-
-    // 转换为图表数据
-    const periods = Object.keys(trendData).sort();
-    const myData = periods.map(period => trendData[period]);
-    
-    // 为了演示，平均数据使用我的数据的平均值
-    const avgValue = myData.reduce((sum, val) => sum + val, 0) / myData.length || 0;
-    const avgData = myData.map(() => avgValue);
-
-    this.updateBorrowingTrendChart({
-      periods: periods,
-      myData: myData,
-      avgData: avgData
-    });
-  },
-
-  // 更新借阅趋势图表
-  updateBorrowingTrendChart(data) {
-    if (!data || !Array.isArray(data.periods) || data.periods.length === 0) {
-      this.borrowingTrendOption = {};
-      return;
-    }
-
-    this.borrowingTrendOption = {
-      title: {
-        text: '个人借阅趋势对比',
-        left: 'center'
-      },
-      tooltip: {
-        trigger: 'axis'
-      },
-      legend: {
-        data: ['我的借阅量', '全馆平均借阅量'],
-        top: '30px'
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: data.periods
-      },
-      yAxis: {
-        type: 'value',
-        name: '借阅数量'
-      },
-      series: [
-        {
-          name: '我的借阅量',
-          type: 'line',
-          stack: 'Total',
-          data: data.myData,
-          itemStyle: { color: '#5470c6' }
-        },
-        {
-          name: '全馆平均借阅量',
-          type: 'line',
-          stack: 'Total',
-          data: data.avgData,
-          itemStyle: { color: '#91cc75' }
-        }
-      ]
-    };
-  },
-
-  // 阅读领域分布数据
-  async loadCategoryEvolutionData() {
-    try {
-      // 使用现有的借阅记录接口
-      const response = await axios.get('/api/borrow-records/my');
-      
-      if (response.data.success) {
-        this.processCategoryEvolutionData(response.data.data.ownlist || []);
-      } else {
-        this.categoryEvolutionStackedOption = {};
-        this.categoryEvolutionPieOptions = [];
-      }
-    } catch (error) {
-      console.error('加载类别演化数据失败:', error);
-      this.categoryEvolutionStackedOption = {};
-      this.categoryEvolutionPieOptions = [];
-    }
-  },
-
-  // 处理阅读领域分布数据
-  processCategoryEvolutionData(records) {
-    if (!Array.isArray(records) || records.length === 0) {
-      this.categoryEvolutionStackedOption = {};
-      this.categoryEvolutionPieOptions = [];
-      return;
-    }
-
-    // 按时间和类别分组统计
-    const categoryEvolution = {};
-    
-    records.forEach(record => {
-      if (record._begin_time && record.book?._tid) {
-        const date = new Date(record._begin_time);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const period = `${year}-${month}`;
-        const categoryName = record.book.category?._type_name || '未知分类';
-        
-        if (!categoryEvolution[period]) {
-          categoryEvolution[period] = {};
-        }
-        
-        if (!categoryEvolution[period][categoryName]) {
-          categoryEvolution[period][categoryName] = 0;
-        }
-        
-        categoryEvolution[period][categoryName]++;
-      }
-    });
-
-    // 转换为图表数据
-    const dataForChart = [];
-    Object.keys(categoryEvolution).forEach(period => {
-      Object.keys(categoryEvolution[period]).forEach(category => {
-        dataForChart.push({
-          period: period,
-          category: category,
-          count: categoryEvolution[period][category]
-        });
-      });
-    });
-
-    this.updateCategoryEvolutionChart(dataForChart);
-  },
-
-  // 阅读日历数据
-  async loadReadingCalendarData() {
-    try {
-      const params = {
-        year: this.calendarYear,
-        userId: this.user?._uid || this.user?.id
-      };
-      
-      // 使用现有的借阅记录接口
-      const response = await axios.get('/api/borrow-records/my');
-      
-      if (response.data.success) {
-        this.processReadingCalendarData(response.data.data.ownlist || [], params);
-      } else {
-        this.readingCalendarOption = {};
-      }
-    } catch (error) {
-      console.error('加载阅读日历数据失败:', error);
-      this.readingCalendarOption = {};
-    }
-  },
-
-  // 处理阅读日历数据
-  processReadingCalendarData(records, params) {
-    if (!Array.isArray(records) || records.length === 0) {
-      this.readingCalendarOption = {};
-      return;
-    }
-
-    // 按日期统计阅读强度
-    const calendarData = {};
-    
-    records.forEach(record => {
-      if (record._begin_time) {
-        const date = new Date(record._begin_time);
-        if (date.getFullYear() == params.year) {
-          const dateStr = date.toISOString().split('T')[0];
-          
-          if (!calendarData[dateStr]) {
-            calendarData[dateStr] = 0;
-          }
-          calendarData[dateStr]++;
-        }
-      }
-    });
-
-    // 转换为热力图数据
-    const heatmapData = Object.keys(calendarData).map(date => {
-      return [new Date(date).getTime(), calendarData[date]];
-    });
-
-    this.updateReadingCalendarChart(heatmapData);
-  },
-
-  // 更新阅读日历图表
-  updateReadingCalendarChart(data) {
-    if (!Array.isArray(data)) {
-      this.readingCalendarOption = {};
-      return;
-    }
-
-    this.readingCalendarOption = {
-      title: {
-        text: `${this.calendarYear}年阅读习惯日历`,
-        left: 'center'
-      },
-      tooltip: {
-        position: 'top',
-        formatter: function (params) {
-          if (!params.data) return '';
-          const date = new Date(params.data[0]);
-          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}<br/>阅读强度: ${params.data[1]}`;
-        }
-      },
-      visualMap: {
-        min: 0,
-        max: Math.max(...data.map(item => item[1]), 4),
-        type: 'piecewise',
-        orient: 'horizontal',
-        left: 'center',
-        top: 65,
-        pieces: [
-          { min: 4, color: '#d73027' },
-          { min: 3, max: 3, color: '#f46d43' },
-          { min: 2, max: 2, color: '#fdae61' },
-          { min: 1, max: 1, color: '#fee08b' },
-          { value: 0, color: '#d9d9d9' }
-        ]
-      },
-      calendar: {
-        top: 120,
-        left: 30,
-        right: 30,
-        cellSize: ['auto', 13],
-        range: this.calendarYear,
-        itemStyle: {
-          borderWidth: 0.5
-        },
-        yearLabel: { show: false }
-      },
-      series: {
-        type: 'heatmap',
-        coordinateSystem: 'calendar',
-        data: data
-      }
-    };
-  },
-
-  // 更新院系图表
-  updateDepartmentChart(data) {
-    // 安全检查
-    if (!Array.isArray(data) || data.length === 0) {
-      this.departmentChartOption = {};
-      return;
-    }
-
-    this.departmentChartOption = {
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'shadow'
-        }
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'value'
-      },
-      yAxis: {
-        type: 'category',
-        data: data.map(item => item.name || item.department || '未知') || []
-      },
-      series: [{
-        name: '借阅量',
-        type: 'bar',
-        data: data.map(item => item.value || item.count || 0),
-        itemStyle: {
-          color: '#1194ae'
-        }
-      }]
-    };
-  },
-  
-  // 更新词云
-  updateWordCloud(records) {
-    // 安全检查
-    if (!Array.isArray(records) || records.length === 0) {
-      this.wordCloudOption = {};
-      return;
-    }
-
-    // 统计图书借阅次数
-    const bookStats = {};
-    records.forEach(record => {
-      const bookName = record.book?._book_name;
-      if (bookName) {
-        if (!bookStats[bookName]) {
-          bookStats[bookName] = 0;
-        }
-        bookStats[bookName]++;
-      }
-    });
-
-    // 转换为词云数据格式
-    const wordCloudData = Object.entries(bookStats)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 50); // 只显示前50本热门书
-
-    this.wordCloudOption = {
-      tooltip: {
-        show: true
-      },
-      series: [{
-        type: 'wordCloud',
-        shape: 'circle',
-        sizeRange: [12, 50],
-        rotationRange: [-90, 90],
-        rotationStep: 45,
-        gridSize: 8,
-        drawOutOfBound: false,
-        textStyle: {
-          fontFamily: 'sans-serif',
-          fontWeight: 'bold'
-        },
-        emphasis: {
-          focus: 'self',
-          textStyle: {
-            shadowBlur: 10,
-            shadowColor: '#333'
-          }
-        },
-        data: wordCloudData || []
-      }]
-    };
-  },
-    
-
-   
     // 原有方法保持不变
-
-    async updateDepartmentData() {
-    try {
-      const params = {
-        start: this.startDate,
-        end: this.endDate
+    toggleMessagePanel() {
+      if (!this.isLoggedIn) {
+        this.$message.warning('请先登录');
+        return;
+      }
+      
+      this.showMessagePanel = !this.showMessagePanel;
+      
+      // 标记所有消息为已读
+      if (this.showMessagePanel) {
+        this.markAllMessagesAsRead();
+      }
+    },
+      // 添加消息到列表
+    addMessage(title, text, type = 'info') {
+      const message = {
+        id: Date.now() + Math.random(), // 简单的唯一ID生成
+        title,
+        text,
+        type,
+        time: new Date().toLocaleString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        read: false
       };
-      const response = await axios.get('/api/borrow-records/stats', { params });
-      this.updateDepartmentChart(response.data.data);
-    } catch (error) {
-      console.error('更新院系数据失败:', error);
-      this.$message.error('更新数据失败');
-    }
-  },
-    
-
-  
-
-  
-  
-  handleAIAssistant() {
-    if (!this.isLoggedIn) {
-      this.$message.warning('请先登录后使用AI助手');
-      return;
-    }
-    // 显示逾期提醒消息
-    if (this.overdueMessages.length > 0) {
-      let message = '📢 逾期提醒：\n\n';
-      this.overdueMessages.forEach((msg, index) => {
-        message += `${index + 1}. ${msg}\n`;
+      
+      this.messages.unshift(message);
+    },
+// 标记所有消息为已读
+    markAllMessagesAsRead() {
+      this.messages.forEach(msg => {
+        msg.read = true;
       });
-      alert(message);
-    } else {
-      alert('🎉 暂无逾期提醒，您当前没有逾期的图书。');
-    }
-  },
-
+    },
+     // 关闭特定消息
+    dismissMessage(messageId) {
+      const index = this.messages.findIndex(msg => msg.id === messageId);
+      if (index !== -1) {
+        this.messages.splice(index, 1);
+      }
+    },
+    // 处理AI助手点击（现在用于切换消息面板）
+    handleAIAssistant() {
+      this.toggleMessagePanel();
+    },
+    // 检查并显示提醒（只在登录时显示一次）
+    checkReminders() {
+      // 如果已经显示过提醒，则不再显示
+      if (this.hasShownLoginReminder) {
+        return;
+      }
+      
+      let message = '';
+      
+      if (this.overdueBooks.length > 0) {
+        message += '📢 逾期提醒：\n\n';
+        this.overdueBooks.forEach((book, index) => {
+          message += `${index + 1}. 《${book._book_name || book.bookName}》已逾期 ${book.daysOverdue} 天\n`;
+        });
+      }
+      
+      if (this.upcomingDueBooks.length > 0) {
+        if (message) message += '\n';
+        message += '⏰ 即将到期提醒：\n\n';
+        this.upcomingDueBooks.forEach((book, index) => {
+          let dueText = '';
+          if (book.daysLeft === 0) {
+            dueText = '今天到期';
+          } else if (book.daysLeft === 1) {
+            dueText = '明天到期';
+          } else {
+            dueText = `${book.daysLeft}天后到期`;
+          }
+          message += `${index + 1}. 《${book._book_name || book.bookName}》${dueText}\n`;
+        });
+      }
+      
+      // 如果有消息，添加到消息列表而不是弹窗
+      if (message) {
+        this.addMessage(
+          this.overdueBooks.length > 0 ? '逾期提醒' : '借阅提醒',
+          message,
+          this.overdueBooks.length > 0 ? 'warning' : 'info'
+        );
+      } else {
+        // 如果没有逾期或即将到期的书，显示欢迎消息
+        this.addMessage('系统消息', '🎉 暂无逾期提醒，您当前没有逾期的图书。', 'success');
+      }
+      
+      // 标记已显示过提醒
+      this.hasShownLoginReminder = true;
+    },
+    
+    // 登录成功后调用此方法
+    onLoginSuccess() {
+      // 重置提醒状态，以便下次登录时可以再次显示
+      this.hasShownLoginReminder = false;
+      // 清空旧消息
+      this.messages = [];
+      // 检查并显示新的提醒
+      this.checkOverdueBooks();
+    },
     handleInputFocus() {
       // 当输入框获得焦点时，不清空输入框内容，因为我们要保留搜索词
       // 但是可以添加一些视觉提示，表明当前有类别筛选
@@ -2492,19 +1877,19 @@ export default {
       }
     },
     getReserveStatusText(status) {
-    const statusMap = {
-      'waiting': '等待中',
-      'available': '可领取',
-      'expired': '已过期',
-      'cancelled': '已取消',
-      'received': '已领取'
-    };
-    return statusMap[status] || status;
-  },
-  // 在这里添加 clearAllFilters 方法
+      const statusMap = {
+        waiting: "等待中",
+        available: "可领取",
+        expired: "已过期",
+        cancelled: "已取消",
+        received: "已领取",
+      };
+      return statusMap[status] || status;
+    },
+    // 在这里添加 clearAllFilters 方法
     clearAllFilters() {
       this.selectedCategories = [];
-      this.searchQuery = '';
+      this.searchQuery = "";
       this.searchAndRenderBooks();
     },
     handleVisibilityChange() {
@@ -2513,7 +1898,7 @@ export default {
         this.loadUserFromStorage();
       }
     },
-     removeCategory(index) {
+    removeCategory(index) {
       this.selectedCategories.splice(index, 1);
       // 更新搜索结果
       this.searchAndRenderBooks();
@@ -2521,7 +1906,9 @@ export default {
 
     updateSearchResults() {
       // 根据选中的类别更新搜索结果
-      this.currentCategory = this.selectedCategories.map(cat => cat.value).join(',');
+      this.currentCategory = this.selectedCategories
+        .map((cat) => cat.value)
+        .join(",");
       this.searchAndRenderBooks();
     },
     // 清除公告筛选条件
@@ -2566,7 +1953,9 @@ export default {
     // 导航到登录页，保留当前页面用于登录后重定向
     goToAuth(type) {
       const redirect = window.location.pathname || "/readers";
-      window.location.href = `/HomeView?view=${type}&redirect=${encodeURIComponent(redirect)}`;
+      window.location.href = `/HomeView?view=${type}&redirect=${encodeURIComponent(
+        redirect
+      )}`;
     },
 
     // 从 localStorage 加载用户信息
@@ -2574,44 +1963,44 @@ export default {
       try {
         const token = localStorage.getItem("token");
         const userInfo = localStorage.getItem("userInfo");
-        
+
         // 如果token和userInfo都没有变化，直接返回
         if (token === this.lastToken && userInfo === this.lastUserInfo) {
           return;
         }
-    
+
         // 记录当前值用于下次比较
         this.lastToken = token;
         this.lastUserInfo = userInfo;
-    
-        console.log('loadUserFromStorage - token:', token);
-        console.log('loadUserFromStorage - userInfo:', userInfo);
-        
+
+        console.log("loadUserFromStorage - token:", token);
+        console.log("loadUserFromStorage - userInfo:", userInfo);
+
         if (!token) {
           this.user = null;
           this.userInfo = null;
           return;
         }
-        
+
         if (userInfo) {
           const parsed = JSON.parse(userInfo);
           this.user = parsed;
           this.userInfo = parsed;
-          
+
           // 如果是新登录，检查逾期图书
           if (!this.lastUserInfo && token) {
             this.checkOverdueBooks();
           }
-          
+
           // 强制触发视图更新
           this.$nextTick(() => {
             this.$forceUpdate();
           });
-          
-          console.log('loadUserFromStorage - 用户信息已加载:', parsed);
+
+          console.log("loadUserFromStorage - 用户信息已加载:", parsed);
         }
       } catch (e) {
-        console.error('loadUserFromStorage - 错误:', e);
+        console.error("loadUserFromStorage - 错误:", e);
         this.user = null;
         this.userInfo = null;
         localStorage.removeItem("token");
@@ -2623,30 +2012,30 @@ export default {
     handleLogout() {
       // 先隐藏下拉菜单
       this.showUserDropdown = false;
-      
+
       // 显示确认对话框
-      if (confirm('确定要退出登录吗？')) {
+      if (confirm("确定要退出登录吗？")) {
         // 清除本地存储
         localStorage.removeItem("token");
         localStorage.removeItem("userInfo");
-        
+
         // 清除内存中的用户信息
         this.user = null;
         this.userInfo = null;
-        
+
         // 更新登录状态
         this.isLoggedIn = false;
-        
+
         // 清除收藏列表
         this.favorites = [];
-        
+
         // 如果当前在需要登录的页面，则跳转到首页
-        if (['personal', 'feedback'].includes(this.currentPage)) {
-          this.currentPage = 'search';
+        if (["personal", "feedback"].includes(this.currentPage)) {
+          this.currentPage = "search";
         }
-        
+
         // 显示退出成功提示
-        alert('已成功退出登录');
+        alert("已成功退出登录");
       }
     },
 
@@ -2654,31 +2043,31 @@ export default {
       // 清除本地存储的用户信息
       localStorage.removeItem("token");
       localStorage.removeItem("userInfo");
-      
+
       // 清除内存中的用户信息
       this.user = null;
       this.userInfo = null;
-      
+
       // 如果当前在需要登录的页面，则跳转到首页
-      if (['personal', 'feedback'].includes(this.currentPage)) {
-        this.currentPage = 'search';
+      if (["personal", "feedback"].includes(this.currentPage)) {
+        this.currentPage = "search";
       }
-       // 重新加载当前页面数据
+      // 重新加载当前页面数据
       this.loadSearchPage();
-      
+
       // 显示登出成功的提示消息（可选）
       // this.$message.success('您已成功退出登录'); // 如果使用了element-ui的消息组件
-      
+
       // 或者使用简单的提示
       console.log("您已成功退出登录");
     },
     toggleUserMenu() {
       this.showUserDropdown = !this.showUserDropdown;
     },
-    
+
     // 点击其他地方隐藏用户菜单
     handleClickOutside(event) {
-      const userMenu = this.$el.querySelector('.user-menu');
+      const userMenu = this.$el.querySelector(".user-menu");
       if (userMenu && !userMenu.contains(event.target)) {
         this.showUserDropdown = false;
       }
@@ -2713,10 +2102,10 @@ export default {
       }
     },
 
-    async changePage(page ,type = "all" ) {
+    async changePage(page, type = "all") {
       this.currentPage = page;
       this.pageType = type;
-      
+
       switch (page) {
         case "personal":
           this.personalTab = "account";
@@ -2728,14 +2117,14 @@ export default {
             ]);
           }
           break;
-          case "allBooks":
-            // 确保进入全部图书时已加载图书数据
-            if (!Array.isArray(this.books) || this.books.length === 0) {
-              await this.loadSearchPage();
-            }
-            // 重置页码
-            this.currentPageNum = 1;
-            break;
+        case "allBooks":
+          // 确保进入全部图书时已加载图书数据
+          if (!Array.isArray(this.books) || this.books.length === 0) {
+            await this.loadSearchPage();
+          }
+          // 重置页码
+          this.currentPageNum = 1;
+          break;
         case "aid":
           await this.loadAnnouncements();
           break;
@@ -2775,40 +2164,42 @@ export default {
       this.searchAndRenderBooks();
     },
 
-
     // 在搜索结果页面中按类别筛选
     filterByCategory(category) {
-  if (category === "") {
-    this.selectedCategories = [];
-    this.currentCategory = "";
-    this.searchAndRenderBooks();
-    return;
-  }
+      if (category === "") {
+        this.selectedCategories = [];
+        this.currentCategory = "";
+        this.searchAndRenderBooks();
+        return;
+      }
 
-  const categoryObj = this.bookCategories.find(cat => cat.value === category);
-  if (!categoryObj) return;
+      const categoryObj = this.bookCategories.find(
+        (cat) => cat.value === category
+      );
+      if (!categoryObj) return;
 
-  // 查找是否已经选中
-  const existingIndex = this.selectedCategories.findIndex(cat => cat.value === category);
-  
-  if (existingIndex === -1) {
-    // 如果未选中，添加到数组
-    this.selectedCategories.push(categoryObj);
-  } else {
-    // 如果已选中，从数组中移除
-    this.selectedCategories.splice(existingIndex, 1);
-  }
-  
-  // 更新当前类别为所有选中类别的组合
-  this.currentCategory = this.selectedCategories.map(cat => cat.value).join(',');
-  this.currentPageNum = 1;
-  
-  // 触发搜索
-  this.searchAndRenderBooks();
-},
+      // 查找是否已经选中
+      const existingIndex = this.selectedCategories.findIndex(
+        (cat) => cat.value === category
+      );
 
+      if (existingIndex === -1) {
+        // 如果未选中，添加到数组
+        this.selectedCategories.push(categoryObj);
+      } else {
+        // 如果已选中，从数组中移除
+        this.selectedCategories.splice(existingIndex, 1);
+      }
 
+      // 更新当前类别为所有选中类别的组合
+      this.currentCategory = this.selectedCategories
+        .map((cat) => cat.value)
+        .join(",");
+      this.currentPageNum = 1;
 
+      // 触发搜索
+      this.searchAndRenderBooks();
+    },
 
     filterByCategoryInResult(category) {
       this.currentCategory = category;
@@ -2833,25 +2224,24 @@ export default {
 
     async loadPersonalData() {
       try {
-        console.log('loadPersonalData - 开始加载个人数据');
+        console.log("loadPersonalData - 开始加载个人数据");
         const response = await axios.get("/api/auth/current-user");
         const payload = response?.data?.data || response?.data || null;
-        
-        console.log('loadPersonalData - 服务器响应:', payload);
-        
+
+        console.log("loadPersonalData - 服务器响应:", payload);
+
         if (payload) {
           this.userInfo = payload;
           this.user = payload;
           localStorage.setItem("userInfo", JSON.stringify(payload));
-          
-          console.log('loadPersonalData - 个人数据已更新:', payload);
+
+          console.log("loadPersonalData - 个人数据已更新:", payload);
         }
       } catch (error) {
         console.error("加载个人数据失败:", error);
         this.handleLogout();
       }
     },
-
 
     // 切换编辑模式
     toggleEdit() {
@@ -2925,16 +2315,18 @@ export default {
     },
 
     // 修改：原搜索方法改为只更新数据不跳转
-   async searchAndRenderBooks() {
+    async searchAndRenderBooks() {
       try {
         // 构建查询参数
         const params = {};
-        
+
         // 如果有选中的类别，添加到参数中
         if (this.selectedCategories.length > 0) {
-          params.categories = this.selectedCategories.map(cat => cat.value).join(',');
+          params.categories = this.selectedCategories
+            .map((cat) => cat.value)
+            .join(",");
         }
-        
+
         // 如果有搜索词，添加到参数中
         if (this.searchQuery) {
           params.query = this.searchQuery;
@@ -2948,12 +2340,14 @@ export default {
           : Array.isArray(payload)
           ? payload
           : [];
-        
+
         this.filterNewAndHotBooks();
         this.currentPageNum = 1;
       } catch (error) {
         console.error("搜索图书失败:", error.response?.data || error.message);
-        alert("搜索图书失败: " + (error.response?.data?.message || error.message));
+        alert(
+          "搜索图书失败: " + (error.response?.data?.message || error.message)
+        );
       }
     },
     // 从后端加载图书类别列表并映射为 {label,value} 格式
@@ -3049,30 +2443,29 @@ export default {
       }
     },
 
-
     filterNewAndHotBooks() {
       // 新书推荐：按添加时间排序，取最新的30本
       this.newBooks = [...this.books]
         .sort((a, b) => new Date(b._add_time) - new Date(a._add_time))
         .slice(0, 30)
-        .map(book => ({ ...book, isNew: true, isHot: false }));  // 标记为新书
+        .map((book) => ({ ...book, isNew: true, isHot: false })); // 标记为新书
 
       // 热门推荐：按借阅次数排序，取借阅次数最多的30本
       this.hotBooks = [...this.books]
         .sort((a, b) => b._times - a._times)
         .slice(0, 30)
-        .map(book => ({ ...book, isNew: false, isHot: true }));  // 标记为热门
+        .map((book) => ({ ...book, isNew: false, isHot: true })); // 标记为热门
 
       // 为其他图书添加标志
-      this.books = this.books.map(book => {
+      this.books = this.books.map((book) => {
         // 检查是否在新书或热门列表中
-        const inNewList = this.newBooks.some(nb => nb._bid === book._bid);
-        const inHotList = this.hotBooks.some(hb => hb._bid === book._bid);
-        
+        const inNewList = this.newBooks.some((nb) => nb._bid === book._bid);
+        const inHotList = this.hotBooks.some((hb) => hb._bid === book._bid);
+
         return {
           ...book,
           isNew: inNewList,
-          isHot: inHotList
+          isHot: inHotList,
         };
       });
     },
@@ -3108,8 +2501,12 @@ export default {
         }
       } catch (error) {
         console.error("借阅失败:", error);
-        const errorMessage = error.response?.data?.message || error.message || '请求失败';
-        alert("借阅失败: " + (typeof errorMessage === 'string' ? errorMessage : '未知错误'));
+        const errorMessage =
+          error.response?.data?.message || error.message || "请求失败";
+        alert(
+          "借阅失败: " +
+            (typeof errorMessage === "string" ? errorMessage : "未知错误")
+        );
       }
     },
 
@@ -3259,7 +2656,12 @@ export default {
           dueDate: record._end_date
             ? new Date(record._end_date).toISOString().split("T")[0]
             : "",
-          returnDate: record._status === 1 ? (record._end_date ? new Date(record._end_date).toISOString().split("T")[0] : "") : "",
+          returnDate:
+            record._status === 1
+              ? record._end_date
+                ? new Date(record._end_date).toISOString().split("T")[0]
+                : ""
+              : "",
           // _status: 0 -> borrowing, 1 -> returned
           status: record._status === 1 ? "returned" : "borrowing",
         }));
@@ -3280,10 +2682,12 @@ export default {
 
         // 检查逾期
         this.overdueMessages = [];
-        const today = new Date().toISOString().split('T')[0];
-        this.borrowingList.forEach(record => {
-          if (record.status === 'borrowing' && record.dueDate < today) {
-            this.overdueMessages.push(`图书《${record.bookName}》已逾期，请尽快归还。`);
+        const today = new Date().toISOString().split("T")[0];
+        this.borrowingList.forEach((record) => {
+          if (record.status === "borrowing" && record.dueDate < today) {
+            this.overdueMessages.push(
+              `图书《${record.bookName}》已逾期，请尽快归还。`
+            );
           }
         });
       } catch (error) {
@@ -3404,58 +2808,7 @@ export default {
         if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth" });
       } catch (e) {}
     },
-
-    // 获取验证码
-    async getCaptcha() {
-      try {
-        const response = await axios.get("/api/auth/captcha");
-        this.captchaImage = response.data.data.image;
-        return response.data.data.token;
-      } catch (error) {
-        console.error("获取验证码失败:", error.response?.data || error.message);
-        alert("获取验证码失败，请重试");
-        return null;
-      }
-    },
-
-    // 跳转到重置密码流程
-    async gotoResetPassword() {
-      try {
-        // 获取验证码
-        const captchaToken = await this.getCaptcha();
-        if (!captchaToken) return;
-
-        // 这里可以显示验证码输入框
-        const newPassword = prompt("请输入新密码:");
-        if (!newPassword) return;
-
-        const confirmPassword = prompt("请确认新密码:");
-        if (newPassword !== confirmPassword) {
-          alert("两次输入的密码不一致");
-          return;
-        }
-
-        const captchaInput = prompt("请输入验证码:");
-        if (!captchaInput) return;
-
-        // 调用重置密码API
-        await axios.put("/api/auth/password", {
-          account: this.userInfo?.studentId,
-          password: newPassword,
-          captcha: captchaInput,
-          captchaToken: captchaToken,
-        });
-
-        alert("密码重置成功，请重新登录");
-        // 这里可以跳转到登录页
-      } catch (error) {
-        console.error("重置密码失败:", error.response?.data || error.message);
-        alert(
-          "重置密码失败: " + (error.response?.data?.message || error.message)
-        );
-      }
-    },
-
+    //分页
     generateVisiblePages(currentPage, totalPages) {
       const visiblePages = [];
       const maxVisible = 5;
@@ -3500,50 +2853,63 @@ export default {
     // 逾期检测方法
     async checkOverdueBooks() {
       if (!this.isLoggedIn) return;
-      
+
       try {
-        console.log('开始检查逾期图书...');
+        console.log("开始检查逾期图书...");
         const response = await axios.get("/api/borrow-records/my");
-        console.log('借阅记录响应:', response.data);
-        
-        const records = (response && response.data && response.data.data && response.data.data.ownlist) || [];
-        console.log('借阅记录列表:', records);
-        
+        console.log("借阅记录响应:", response.data);
+
+        const records =
+          (response &&
+            response.data &&
+            response.data.data &&
+            response.data.data.ownlist) ||
+          [];
+        console.log("借阅记录列表:", records);
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         const overdue = [];
         const upcoming = [];
-        
-        records.forEach(record => {
-          console.log('处理记录:', record._hid, record._status, record._end_date);
-          if (record._status === 0) { // 0 means borrowing
+
+        records.forEach((record) => {
+          console.log(
+            "处理记录:",
+            record._hid,
+            record._status,
+            record._end_date
+          );
+          if (record._status === 0) {
+            // 0 means borrowing
             const dueDate = new Date(record._end_date);
             dueDate.setHours(0, 0, 0, 0);
-            
-            const daysDiff = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-            console.log('到期日期:', dueDate, '天数差:', daysDiff);
-            
+
+            const daysDiff = Math.ceil(
+              (dueDate - today) / (1000 * 60 * 60 * 24)
+            );
+            console.log("到期日期:", dueDate, "天数差:", daysDiff);
+
             if (daysDiff < 0) {
               // 逾期
               overdue.push({
                 ...record,
-                daysOverdue: Math.abs(daysDiff)
+                daysOverdue: Math.abs(daysDiff),
               });
             } else if (daysDiff <= 3) {
               // 即将到期（包括当天）
               upcoming.push({
                 ...record,
-                daysLeft: daysDiff
+                daysLeft: daysDiff,
               });
             }
           }
         });
-        
+
         this.overdueBooks = overdue;
         this.upcomingDueBooks = upcoming;
-        console.log('逾期图书:', overdue.length, '即将到期:', upcoming.length);
-        
+        console.log("逾期图书:", overdue.length, "即将到期:", upcoming.length);
+
         // 检查提醒
         this.checkReminders();
       } catch (error) {
@@ -3552,79 +2918,7 @@ export default {
       }
     },
 
-    // 检查并显示提醒
-    checkReminders() {
-      const userId = this.user?._uid || this.user?.id;
-      if (!userId) return;
-      
-      const reminderKey = `reminders_${userId}`;
-      const shownReminders = JSON.parse(localStorage.getItem(reminderKey) || '{}');
-      
-      // 逾期提醒（每次登录都显示）
-      if (this.overdueBooks.length > 0) {
-        const overdueBooksText = this.overdueBooks.map(book => 
-          `${book._book_name || book.bookName} (逾期 ${book.daysOverdue} 天)`
-        ).join('\n');
-        alert(`您有逾期的图书，请尽快归还：\n${overdueBooksText}`);
-      }
-      
-      // 即将到期提醒（只显示一次）
-      this.upcomingDueBooks.forEach(book => {
-        const reminderType = book.daysLeft === 0 ? 'due_today' : 'due_soon';
-        const key = `${book._hid}_${reminderType}`;
-        
-        if (!shownReminders[key]) {
-          let message = '';
-          if (book.daysLeft === 0) {
-            message = `图书 "${book._book_name || book.bookName}" 今天到期，请及时归还。`;
-          } else {
-            const timeText = book.daysLeft === 1 ? '明天' : `${book.daysLeft}天后`;
-            message = `图书 "${book._book_name || book.bookName}" ${timeText}到期，请及时归还。`;
-          }
-          
-          alert(message);
-          shownReminders[key] = true;
-        }
-      });
-      
-      // 保存提醒状态
-      localStorage.setItem(reminderKey, JSON.stringify(shownReminders));
-    },
-
-    // 显示提醒详情
-    showReminders() {
-      let message = '';
-      
-      if (this.overdueBooks.length > 0) {
-        message += '逾期图书：\n';
-        this.overdueBooks.forEach(book => {
-          message += `- ${book._book_name || book.bookName} (逾期 ${book.daysOverdue} 天)\n`;
-        });
-        message += '\n';
-      }
-      
-      if (this.upcomingDueBooks.length > 0) {
-        message += '即将到期图书：\n';
-        this.upcomingDueBooks.forEach(book => {
-          let dueText = '';
-          if (book.daysLeft === 0) {
-            dueText = '今天到期';
-          } else if (book.daysLeft === 1) {
-            dueText = '明天到期';
-          } else {
-            dueText = `${book.daysLeft}天后到期`;
-          }
-          message += `- ${book._book_name || book.bookName} (${dueText})\n`;
-        });
-      }
-      
-      if (message) {
-        alert(message);
-      } else {
-        alert('暂无提醒');
-      }
-    },
-
+    
     // 公告分页切换方法
     changeAnnouncementPage(page) {
       if (page === "...") return;
@@ -3633,40 +2927,39 @@ export default {
     },
   },
   async mounted() {
-
-if (this.currentPage === 'visualization') {
-    
-      await this.loadVisualizationData();
-      // 加载词云数据
-      const recordsRes = await axios.get('/api/borrow-records');
-      this.updateWordCloud(recordsRes.data.data.historylist);
-    }
-
     // 添加全局点击监听器来关闭用户菜单
-    document.addEventListener('click', this.handleClickOutside);
-    
+    document.addEventListener("click", this.handleClickOutside);
+
     // 启动轮播
     this.startCarousel();
-    
+
     // 加载分类信息
     await this.loadBookCategories();
-    
+
     // 加载图书数据
     await this.loadSearchPage();
-    
+
     // 加载本地用户信息
     this.loadUserFromStorage();
-    
+
     // 监听 storage 事件
     if (typeof window !== "undefined" && window.addEventListener) {
       window.addEventListener("storage", this.onStorageChange);
     }
-    
+
     // 添加页面可见性监听
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    if (typeof document !== "undefined") {
+      document.addEventListener(
+        "visibilitychange",
+        this.handleVisibilityChange
+      );
     }
-    
+// 添加全局点击监听器来关闭消息面板
+  document.addEventListener("click", (event) => {
+    if (this.showMessagePanel && !event.target.closest('.ai-assistant')) {
+      this.showMessagePanel = false;
+    }
+  });
     // 只有在已登录时才加载需要登录的数据
     if (this.isLoggedIn) {
       await this.loadPersonalData();
@@ -3677,43 +2970,43 @@ if (this.currentPage === 'visualization') {
         this.checkOverdueBooks();
       }, 60000); // 每分钟检查一次
     }
-    
+
     // 添加定时检查登录状态 - 改为更短的时间间隔
     this.checkLoginStatus = setInterval(() => {
       this.loadUserFromStorage();
     }, 30000); // 减少到500毫秒
   },
 
-
-
   beforeDestroy() {
     this.stopCarousel();
-    document.removeEventListener('click', this.handleClickOutside);
+      document.removeEventListener("click", this.handleDocumentClick);//1219日
+    document.removeEventListener("click", this.handleClickOutside);
     if (typeof window !== "undefined" && window.removeEventListener) {
       window.removeEventListener("storage", this.onStorageChange);
     }
-    
+
     // 移除页面可见性监听
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    if (typeof document !== "undefined") {
+      document.removeEventListener(
+        "visibilitychange",
+        this.handleVisibilityChange
+      );
     }
-    
+
     // 清除逾期检查定时器
     if (this.overdueCheckTimer) {
       clearInterval(this.overdueCheckTimer);
     }
-    
+
     // 清除登录状态检查定时器
     if (this.checkLoginStatus) {
       clearInterval(this.checkLoginStatus);
     }
   },
 };
-
 </script>
 
 <style>
-
 .search-input-wrapper {
   position: relative;
   flex: 1;
@@ -3766,7 +3059,7 @@ if (this.currentPage === 'visualization') {
 .search-input-wrapper:has(.selected-tags) input {
   padding-left: 120px;
 }
- /* 搜索状态 */
+/* 搜索状态 */
 .search-status {
   margin: 10px 0;
   padding: 8px 16px;
@@ -3792,7 +3085,6 @@ if (this.currentPage === 'visualization') {
 .clear-filters-btn:hover {
   color: #0d47a1;
 }
-
 
 /* 重置默认样式 - 统一页面元素的外边距、内边距和盒模型 */
 * {
@@ -3974,9 +3266,15 @@ h2 {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* 用户下拉菜单样式 */
@@ -3994,7 +3292,7 @@ h2 {
 }
 
 .user-dropdown::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -6px;
   right: 20px;
@@ -4024,6 +3322,7 @@ h2 {
 
 /* 逾期提醒助手样式 */
 .ai-assistant {
+  position: relative;
   margin-right: 15px;
   display: flex;
   align-items: center;
@@ -4033,8 +3332,147 @@ h2 {
   font-size: 24px;
   cursor: pointer;
   transition: opacity 0.3s;
+  position: relative;
+}
+.unread-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ff4d4f;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.message-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 350px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 10px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.message-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 350px;
+}
+
+.no-messages {
+  text-align: center;
+  padding: 30px;
+  color: #999;
+}
+
+.message-item {
+  display: flex;
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.message-item:hover {
+  background-color: #f9f9f9;
+}
+
+.message-item.unread {
+  background-color: #f0f8ff;
+}
+
+.message-content {
+  flex: 1;
+}
+
+.message-title {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.message-text {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+.message-time {
+  font-size: 12px;
+  color: #999;
+  margin-top: 5px;
+}
+
+.dismiss-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #ccc;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+}
+
+.dismiss-btn:hover {
+  color: #999;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .message-panel {
+    width: 300px;
+    right: -50px;
+  }
+}
+/*以上为消息*/
 .ai-icon.disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -4236,17 +3674,17 @@ h2 {
 
 /* 新书标志样式 */
 .new-tag {
-  background-color: #4CAF50;
+  background-color: #4caf50;
 }
 
 /* 热门标志样式 */
 .hot-tag {
-  background-color: #FF5722;
+  background-color: #ff5722;
 }
 
 /* 调整封面容器样式以支持标志定位 */
 .book-cover {
-  position: relative;  /* 添加这行以支持绝对定位的标志 */
+  position: relative; /* 添加这行以支持绝对定位的标志 */
   width: 100%;
   height: 200px;
   margin-bottom: 10px;
@@ -4483,7 +3921,7 @@ h2 {
 .action-buttons {
   display: flex;
   gap: 15px;
-  margin-left: auto; 
+  margin-left: auto;
 }
 
 /* 借阅按钮样式 - 设置背景色、内边距、字体大小和圆角 */
@@ -4569,10 +4007,10 @@ h2 {
 /* 按钮 */
 /* 图书操作按钮容器样式 */
 .book-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-  }
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
 /* 通用按钮样式 - 设置背景色、边框和过渡效果 */
 button {
   background: #3498db;
@@ -4610,7 +4048,6 @@ button:hover {
   cursor: not-allowed;
 }
 
-
 /* 归还 */
 /* 归还按钮样式 - 设置背景色 */
 .return-btn {
@@ -4645,7 +4082,6 @@ button:hover {
 .back-btn:hover {
   background-color: #2c3e50;
 }
-
 
 /* 个人信息 */
 /* 个人信息区块 - 设置背景色、圆角和阴影 */
@@ -5169,7 +4605,7 @@ footer {
     font-size: 13px;
   }
 
-/* 公告列表项适配 - 设置内边距 */
+  /* 公告列表项适配 - 设置内边距 */
   .announcement-list li {
     padding: 15px;
   }
@@ -5442,8 +4878,6 @@ footer {
   font-weight: normal;
 }
 
-
-
 /* 回到顶部区块 */
 /* 回到顶部按钮样式 - 设置定位、尺寸和阴影 */
 .back-to-top {
@@ -5603,284 +5037,4 @@ footer {
 .login-btn:hover {
   background-color: #0d7a8f;
 }
-
-/* 可视化页面样式 */
-.visualization-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.visualization-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.visualization-header h1 {
-  font-size: 2.5em;
-  color: #2c3e50;
-  margin-bottom: 10px;
-}
-
-.subtitle {
-  color: #7f8c8d;
-  font-size: 1.2em;
-}
-
-.dashboard-section {
-  background: white;
-  border-radius: 10px;
-  padding: 25px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-  color: #2c3e50;
-}
-
-.section-title .icon {
-  margin-right: 10px;
-  font-size: 1.5em;
-}
-
-/* 榜单样式 */
-.leaderboard-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-.leaderboard-card {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.leaderboard-card h3 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #2c3e50;
-}
-
-.leaderboard-item {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  margin-bottom: 10px;
-  background: white;
-  border-radius: 6px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-.rank {
-  width: 30px;
-  height: 30px;
-  background: #3498db;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 15px;
-  font-weight: bold;
-}
-
-.reader-info {
-  flex: 1;
-}
-
-.reader-id {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.reader-dept {
-  color: #7f8c8d;
-  font-size: 0.9em;
-}
-
-.reader-stats {
-  text-align: right;
-}
-
-/* 图表容器样式 */
-.chart-container {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-.date-filter {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.date-input {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.update-btn {
-  padding: 8px 16px;
-  background: #1194ae;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-/* 实时动态样式 */
-.realtime-stream {
-  height: 200px;
-  overflow: hidden;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.activity-item {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  margin-bottom: 10px;
-  background: white;
-  border-radius: 6px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-.activity-time {
-  margin-right: 15px;
-  color: #7f8c8d;
-  font-size: 0.9em;
-}
-
-.activity-content {
-  flex: 1;
-}
-
-/* 动画效果 */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.5s;
-}
-
-.fade-enter, .fade-leave-to {
-  opacity: 0;
-}
-
-/* 借阅图谱样式 */
-.visualization-container {
-  padding: 20px;
-}
-
-.chart-section {
-  margin-bottom: 40px;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.chart-section h3 {
-  margin-bottom: 20px;
-  color: #2c3e50;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-}
-
-.chart-section h3::before {
-  content: '';
-  display: inline-block;
-  width: 4px;
-  height: 18px;
-  background: #3498db;
-  margin-right: 10px;
-  border-radius: 2px;
-}
-
-.chart-controls {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  align-items: center;
-}
-
-.chart-controls select,
-.chart-controls input {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.chart-controls button {
-  padding: 8px 16px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.chart-controls button:hover {
-  background: #2980b9;
-}
-
-.chart-wrapper {
-  width: 100%;
-  min-height: 400px;
-}
-
-.pie-charts-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-.pie-chart-item {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.pie-chart-item h4 {
-  text-align: center;
-  margin-bottom: 10px;
-  color: #34495e;
-  font-size: 16px;
-}
-
-.chart-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 400px;
-  background: #f8f9fa;
-  border: 2px dashed #dee2e6;
-  border-radius: 8px;
-  color: #6c757d;
-  text-align: center;
-}
-
-.chart-placeholder p {
-  margin: 10px 0;
-  font-size: 16px;
-}
-
-.chart-placeholder p:first-child {
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-
 </style>
