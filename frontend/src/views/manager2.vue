@@ -602,30 +602,36 @@
                   <h2>为 "{{ currentAssignAdminName }}" 分配角色</h2>
                   <form @submit.prevent="submitRoleAssignment">
                     <div class="role-selection">
-                      <div 
-                        v-for="role in roles" 
-                        :key="role._id" 
-                        class="role-checkbox"
-                      >
-                        <label>
-                          <input 
-                            type="checkbox" 
-                            :value="role._id"
-                            :checked="selectedRoleIds.includes(role._id)"
-                            @change="toggleRoleSelection(role._id)"
-                          />
-                          <strong>{{ role._rname }}</strong> ({{ role._rcode }})
-                          <div class="role-description">{{ role._rdesc }}</div>
-                          <div class="role-permissions" v-if="role.permissions && role.permissions.length > 0">
-                            <strong>拥有权限:</strong>
-                            <ul>
-                              <li v-for="permission in role.permissions" :key="permission._pid">
-                                {{ permission._pname }} ({{ permission._pcode }})
-                              </li>
-                            </ul>
-                          </div>
-                        </label>
-                      </div>
+                      <!-- 使用表格形式展示角色列表 -->
+                      <table class="role-table">
+                        <thead>
+                          <tr>
+                            <th width="5%">选择</th>
+                            <th width="15%">角色编码</th>
+                            <th width="20%">角色名称</th>
+                            <th width="40%">角色描述</th>
+                            <th width="20%">权限数量</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="role in roles" :key="role._rid">
+                            <td>
+                              <input 
+                                type="checkbox" 
+                                :value="role._rid"
+                                v-model="selectedRoleIds"
+                              />
+                            </td>
+                            <td>{{ role._rcode }}</td>
+                            <td>{{ role._rname }}</td>
+                            <td>{{ role._rdesc || '-' }}</td>
+                            <td>{{ role.permissions ? role.permissions.length : 0 }} 个权限</td>
+                          </tr>
+                          <tr v-if="roles.length === 0">
+                            <td colspan="5" class="no-data">暂无角色数据</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                     
                     <div class="modal-buttons">
@@ -665,7 +671,7 @@
                         <div v-if="admin.roles && admin.roles.length > 0">
                           <span 
                             v-for="role in admin.roles" 
-                            :key="role._id"
+                            :key="role._rid"
                             class="role-tag"
                           >
                             {{ role._rname }}
@@ -839,7 +845,7 @@
                   </thead>
                   <tbody>
                     <tr v-for="role in currentPageRoles" :key="role._id">
-                      <td>{{ role._id }}</td>
+                      <td>{{ role._rid }}</td>
                       <td>{{ role._rname }}</td>
                       <td>{{ role._rcode }}</td>
                       <td>{{ role._rdesc }}</td>
@@ -3300,9 +3306,14 @@ export default {
     async resetPassword(id) {
       if (!confirm('确定要重置该用户的密码吗？')) return;
       
+      // 先获取用户信息，以获得正确的用户类型
+      const user = this.users.find(u => u._uid === id);
+      if (!user) {
+        this.$message.error('未找到用户信息');
+        return;
+      }
+      
       try {
-        // 根据API文档，重置密码需要验证码，这里简化处理
-        // 实际应用中应该先获取验证码
         const res = await fetch('/api/auth/password', {
           method: 'PUT',
           headers: { 
@@ -3311,9 +3322,9 @@ export default {
           },
           body: JSON.stringify({
             _uid: id,
-            _password: 'Default123!', // 设置默认密码
-            _captcha: '0000', // 简化处理，实际需要获取验证码
-            _usertype: 'student' // 需要根据用户类型设置
+            _password: 'Default123!',
+            _captcha: '0000',
+            _usertype: user._utype // 使用实际的用户类型而不是硬编码
           })
         });
         const result = await res.json()
@@ -3324,7 +3335,7 @@ export default {
         }
       } catch (err) {
         console.error(err)
-        this.$message.error('重置密码失败')
+        this.$message.error('重置密码失败: ' + err.message)
       }
     },
     // 显示用户批量上传弹窗
@@ -4042,8 +4053,8 @@ export default {
     // 提交角色分配
     async submitRoleAssignment() {
       try {
-        const res = await fetch(`/api/admins/${this.currentAssignAdminId}/roles`, {
-          method: 'PUT',
+        const res = await fetch(`/api/user-roles/${this.currentAssignAdminId}`, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -5898,18 +5909,91 @@ button:disabled:hover {
   margin-right: 5px;
 }
 
+/* 角色分配表格样式 */
+.role-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.role-table th,
+.role-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.role-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.role-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.role-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.role-table .no-data {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* 表格内复选框样式 */
+.role-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
 /* 角色管理样式 */
 .permission-list {
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0;
+  background: #f8fafc;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.permission-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.permission-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.permission-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.permission-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .permission-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.permission-item:hover {
+  background: #f1f5f9;
+  transform: translateX(2px);
 }
 
 .permission-item:last-child {
@@ -5920,32 +6004,247 @@ button:disabled:hover {
   display: flex;
   align-items: flex-start;
   cursor: pointer;
+  gap: 12px;
 }
 
+/* 美化复选框 */
 .permission-item input[type="checkbox"] {
-  margin-right: 10px;
-  margin-top: 4px;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-radius: 4px;
+  margin: 2px 0 0 0;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.permission-item input[type="checkbox"]:checked {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.permission-item input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.permission-item input[type="checkbox"]:hover:not(:checked) {
+  border-color: #94a3b8;
+}
+
+.permission-content {
+  flex: 1;
+}
+
+.permission-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .permission-name {
-  font-weight: bold;
-  margin-right: 5px;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 14px;
 }
 
 .permission-code {
-  color: #666;
-  font-family: monospace;
-  margin-right: 5px;
+  color: #64748b;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
 }
 
 .permission-desc {
-  color: #888;
-  font-size: 0.9em;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
 }
 
+/* 选中状态 */
+.permission-item.selected {
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  margin-left: -3px;
+}
+
+/* 分类标题（如果需要分组） */
+.permission-category {
+  padding: 12px 20px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* 搜索框样式 */
+.permission-search {
+  padding: 12px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: white;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 头部统计信息 */
+.permission-stats {
+  padding: 16px 20px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stats-text {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.stats-count {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* 模态框样式优化 */
 .modal-content.large {
-  width: 600px;
+  width: 700px;
   max-width: 90vw;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+/* 空状态 */
+.permission-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.permission-empty svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .permission-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .permission-item {
+    padding: 14px 16px;
+  }
+  
+  .modal-content.large {
+    margin: 10px;
+    max-width: calc(100vw - 20px);
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.permission-item {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 批量操作栏 */
+.permission-batch-actions {
+  padding: 12px 20px;
+  background: #f1f5f9;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.batch-btn {
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  border-radius: 4px;
+  color: #64748b;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.batch-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.batch-btn.primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.batch-btn.primary:hover {
+  background: #2563eb;
+}
+
+/* 权限图标 */
+.permission-icon {
+  width: 20px;
+  height: 20px;
+  background: #e0f2fe;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0369a1;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 </style>
