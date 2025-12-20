@@ -5,7 +5,7 @@ const fs = require('fs');
 const router = express.Router();
 const { User, Role } = require('../models');
 const { authenticate } = require('../middleware/auth');
-const { optimizedBatchImportStudents } = require('../utils/optimizedUserImport');
+const { optimizedBatchImportStudents } = require('../utils/optimizeduserimport');
 const { 
   parseUserFile, 
   validateStudents, 
