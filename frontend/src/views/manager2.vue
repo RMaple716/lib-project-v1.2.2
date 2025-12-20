@@ -352,7 +352,7 @@
                     <td>{{ book._isbn }}</td>
                     <td>{{ book._press }}</td>
                     <td>{{ book._num }}</td>
-                    <td>{{ book._available_num !== undefined ? book._available_num : 'N/A' }}</td>
+                    <td>{{ book._available_copies !== undefined ? book._available_copies : 'N/A' }}</td>
                     <td>
                       <button class="edit-button" @click="editBook(book)">编辑</button>
                       <button class="delete-button" @click="deleteBook(book._bid)">删除</button>
@@ -2358,8 +2358,8 @@ export default {
         
         const tokenData = JSON.parse(jsonPayload);
     
-        // 使用管理员ID获取完整管理员信息
-        const response = await fetch(`/api/admins/${tokenData._uid}`, {
+        //  使用专门的接口获取当前用户信息
+        const response = await fetch(`/api/auth/current-user`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -3315,17 +3315,14 @@ export default {
       }
       
       try {
-        const res = await fetch('/api/auth/password', {
-          method: 'PUT',
+         const res = await fetch('/api/auth/admin/reset-password', {
+          method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
-            _uid: id,
-            _password: 'Default123!',
-            _captcha: '0000',
-            _usertype: user._utype // 使用实际的用户类型而不是硬编码
+            _uid: id
           })
         });
         const result = await res.json()
