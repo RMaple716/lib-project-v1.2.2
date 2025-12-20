@@ -42,7 +42,7 @@ const { checkUserPermission } = require('../utils/permissions');
 function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    
+    console.log('认证中间件 - Authorization 头:', authHeader);
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -73,6 +73,7 @@ function authenticate(req, res, next) {
  * @returns {void}
  */
 function requireTerminalAdmin(req, res, next) {
+  console.log('检查终端管理员权限，用户类型:', req.user ? req.user._utype : '未认证');
   if (!req.user || !req.user._utype.includes('admin_t')) {
     return res.status(403).json({
       success: false,

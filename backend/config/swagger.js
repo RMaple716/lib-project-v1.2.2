@@ -1588,7 +1588,9 @@ const options = {
                   _tid: 1,
                   _times: 15,
                   _create_time: "2024-01-15T10:30:00.000Z",
-                  _type_name: "计算机科学"
+                  _type_name: "计算机科学",
+                  _total_copies: 5,
+                  _available_copies: 4
                 },
                 {
                   _bid: 2,
@@ -1601,7 +1603,9 @@ const options = {
                   _tid: 2,
                   _times: 25,
                   _create_time: "2024-01-10T08:15:00.000Z",
-                  _type_name: "科幻小说"
+                  _type_name: "科幻小说",
+                  _total_copies: 3,
+                  _available_copies: 1
                 }
               ]
             }
@@ -1662,9 +1666,11 @@ const options = {
               _create_time: "2024-01-15T10:30:00.000Z",
               category: {
                 _type_name: "计算机科学"
-              }
-            },
-            available_copies: 4
+              },
+              _total_copies: 5,
+              _available_copies: 4
+            }
+            
           }
         },
         CreateBookSuccess: {

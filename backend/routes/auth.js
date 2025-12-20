@@ -4,6 +4,8 @@ const { User } = require('../models');
 const { generateToken, verifyToken } = require('../utils/jwt');
 const svgCaptcha = require('svg-captcha');
 const emailService = require('../utils/email');
+const bcrypt = require('bcryptjs');
+const { authenticate, requireTerminalAdmin } = require('../middleware/auth');
 
 // 存储验证码的临时存储（生产环境建议使用Redis）
 const captchaStore = new Map();
@@ -280,6 +282,12 @@ router.post('/register', async (req, res) => {
   }
 });
 
+
+
+
+
+
+
 /**
  * @swagger
  * /api/auth/password:
@@ -370,75 +378,75 @@ router.post('/register', async (req, res) => {
  *                 $ref: '#/components/examples/ServerError'
  */
 
-// 重置密码
+// 通过验证码的重置密码
 router.put('/password', async (req, res) => {
   try {
     const { _uid, _password, _captcha, _usertype } = req.body;
     
     console.log('重置密码请求:', { _uid, _usertype, _password, _captcha });
-    
-    // 输入验证
-    if (!_uid || !_password || !_captcha) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'MISSING_FIELDS',
-        message: '请提供用户ID、新密码和验证码'
-      });
-    }
 
-    // 验证验证码
-    const storedCaptcha = captchaStore.get(_uid);
-    if (!storedCaptcha || storedCaptcha !== _captcha.toUpperCase()) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'CAPTCHA_INCORRECT',
-        message: '验证码错误'
-      });
-    }
-
-    // 密码强度验证
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
-    if (!passwordRegex.test(_password)) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'PASSWORD_TOO_SIMPLE',
-        message: '密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位'
-      });
-    }
-
-    // 查找用户
-    const whereCondition = { _uid };
-    if (_usertype) {
-      whereCondition._utype = _usertype;
-    }
-
-    const user = await User.findOne({ where: whereCondition });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'USER_NOT_EXIST',
-        message: '用户不存在'
-      });
-    }
-
-    // 更新密码
-    await user.update({ _password: _password });
-
-    // 清除已使用的验证码
-    captchaStore.delete(_uid);
-
-    res.status(200).json({
-      success: true,
-      message: '重置密码成功',
-      data: {
-        _uid: user._uid,
-        _utype: user._utype,
-        _account: user._account,
-        _name: user._name,
-        _email: user._email
+      // 输入验证
+      if (!_uid || !_password || !_captcha) {
+        return res.status(400).json({
+          success: false,
+          errorCode: 'MISSING_FIELDS',
+          message: '请提供用户ID、新密码和验证码'
+        });
       }
-    });
+
+      // 验证验证码
+      const storedCaptcha = captchaStore.get(_uid);
+      if (!storedCaptcha || storedCaptcha !== _captcha.toUpperCase()) {
+        return res.status(400).json({
+          success: false,
+          errorCode: 'CAPTCHA_INCORRECT',
+          message: '验证码错误'
+        });
+      }
+
+      // 密码强度验证
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+      if (!passwordRegex.test(_password)) {
+        return res.status(400).json({
+          success: false,
+          errorCode: 'PASSWORD_TOO_SIMPLE',
+          message: '密码过于简单，需包含字母、数字和特殊字符，且长度不少于8位'
+        });
+      }
+
+      // 查找用户
+      const whereCondition = { _uid };
+      if (_usertype) {
+        whereCondition._utype = _usertype;
+      }
+
+      const user = await User.findOne({ where: whereCondition });
+
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          errorCode: 'USER_NOT_EXIST',
+          message: '用户不存在'
+        });
+      }
+
+      // 更新密码
+      await user.update({ _password: _password });
+
+      // 清除已使用的验证码
+      captchaStore.delete(_uid);
+
+      res.status(200).json({
+        success: true,
+        message: '重置密码成功',
+        data: {
+          _uid: user._uid,
+          _utype: user._utype,
+          _account: user._account,
+          _name: user._name,
+          _email: user._email
+        }
+      });
 
   } catch (error) {
     console.error('重置密码错误:', error);
@@ -504,7 +512,6 @@ router.put('/password', async (req, res) => {
  *               server_error:
  *                 $ref: '#/components/examples/ServerError'
  */
-
 // 获取验证码
 router.get('/captcha', async (req, res) => {
   try {
@@ -838,6 +845,158 @@ router.post('/password', async (req, res) => {
     });
   } catch (error) {
     console.error('忘记密码错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/admin/reset-password:
+ *   post:
+ *     summary: 管理员重置用户密码
+ *     description: 终端管理员可以绕过验证码直接重置指定用户的密码
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - _uid
+ *             properties:
+ *               _uid:
+ *                 type: integer
+ *                 description: 用户ID
+ *                 example: 123
+ *     responses:
+ *       200:
+ *         description: 密码重置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         _uid:
+ *                           type: integer
+ *                           description: 用户ID
+ *                           example: 123
+ *                         _account:
+ *                           type: string
+ *                           description: 用户账号
+ *                           example: "student001"
+ *                         _name:
+ *                           type: string
+ *                           description: 用户姓名
+ *                           example: "张三"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               missingParameters:
+ *                 summary: 缺少必要参数
+ *                 value:
+ *                   success: false
+ *                   errorCode: "INVALID_PARAMETERS"
+ *                   message: "请提供用户ID"
+ *       403:
+ *         description: 需要终端管理员权限
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               errorCode: "PERMISSION_DENIED"
+ *               message: "需要终端管理员权限"
+ *       404:
+ *         description: 用户不存在
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               errorCode: "USER_NOT_FOUND"
+ *               message: "用户不存在"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ *     examples:
+ *       successExample:
+ *         summary: 密码重置成功
+ *         value:
+ *           success: true
+ *           message: "用户密码已成功重置"
+ *           data:
+ *             _uid: 123
+ *             _account: "student001"
+ *             _name: "张三"
+ */
+router.post('/admin/reset-password', authenticate, requireTerminalAdmin, async (req, res) => {
+  try {
+    // 从请求体中获取参数
+    const { _uid } = req.body;
+    const newPassword = '123456qwert*'
+    // 参数验证
+    if (!_uid) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'INVALID_PARAMETERS',
+        message: '请提供用户ID'
+      });
+    }
+    
+    // 查找用户
+    const user = await User.findOne({
+      where: { _uid },
+      attributes: ['_uid', '_account', '_name', '_utype']
+    });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        errorCode: 'USER_NOT_FOUND',
+        message: '用户不存在'
+      });
+    }
+    
+    // 使用与模型相同的哈希算法和盐值强度重置密码
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    // 更新用户密码
+    await User.update(
+      { _password: hashedPassword },
+      { where: { _uid } }
+    );
+    
+    // 记录操作日志（在实际项目中可能需要更详细的日志系统）
+    console.log(`终端管理员 ${req.user._name} (${req.user._uid}) 已重置用户 ${user._name} (${user._uid}) 的密码`);
+    
+    // 返回成功响应
+    res.status(200).json({
+      success: true,
+      message: '用户密码已成功重置',
+      data: {
+        _uid: user._uid,
+        _account: user._account,
+        _name: user._name
+      }
+    });
+  } catch (error) {
+    console.error('管理员重置用户密码错误:', error);
     res.status(500).json({
       success: false,
       errorCode: 'SERVER_ERROR',
