@@ -25,4 +25,13 @@ const Department = sequelize.define('Department', {
   timestamps: false
 });
 
+// 添加关联方法
+Department.associate = function(models) {
+  // 院系有多个专业
+  Department.hasMany(models.Major, {
+    foreignKey: '_did',
+    as: 'majors'
+  });
+};
+
 module.exports = Department;

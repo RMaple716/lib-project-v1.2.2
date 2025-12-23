@@ -6,6 +6,8 @@ const Category = require('./Category');
 const BorrowRecord = require('./BorrowRecord');
 const Announcement = require('./Announcement');
 const Message = require('./Message');
+// 添加消息类型模型
+const Mtype = require('./Mtype');
 // 添加院系、专业、班级和工作部门模型
 const Department = require('./Department');
 const Major = require('./Major');
@@ -17,225 +19,71 @@ const Role = require('./Role');
 const RolePermission = require('./RolePermission');
 const UserRole = require('./UserRole');
 
+//添加图书预约模型
+const BookOrder = require('./BookOrder');
+
 // 定义模型关联
 const defineAssociations = () => {
   try {
-    // Book 关联
-    Book.belongsTo(Category, {
-      foreignKey: {
-        name: '_tid',
-        allowNull: false
-      },
-      as: 'category',
-      constraints: true
-    });
+    // 确保所有模型的associate方法都被调用
+    if (typeof Book.associate === 'function') Book.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof Category.associate === 'function') Category.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof Department.associate === 'function') Department.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof BorrowRecord.associate === 'function') BorrowRecord.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof Major.associate === 'function') Major.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof Class.associate === 'function') Class.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof User.associate === 'function') User.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof Mtype.associate === 'function') Mtype.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof Role.associate === 'function') Role.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, RolePermission, UserRole });
+    if (typeof Permission.associate === 'function') Permission.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Role, RolePermission, UserRole });
+    if (typeof RolePermission.associate === 'function') RolePermission.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, UserRole });
+    if (typeof UserRole.associate === 'function') UserRole.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission });
+    if (typeof Message.associate === 'function') Message.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof BookOrder.associate === 'function') BookOrder.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    // Book与Category的关联已在Book模型文件中定义
     
-    Book.hasMany(BorrowRecord, {
-      foreignKey: {
-        name: '_bid',
-        allowNull: false
-      },
-      as: 'borrowRecords',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // Book与BorrowRecord的关联已在Book模型文件中定义
 
-    // Category 关联
-    Category.hasMany(Book, {
-      foreignKey: {
-        name: '_tid',
-        allowNull: false
-      },
-      as: 'books',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // Category与Book的关联已在Category模型文件中定义
 
-    // BorrowRecord 关联
-    BorrowRecord.belongsTo(Book, {
-      foreignKey: {
-        name: '_bid',
-        allowNull: false
-      },
-      as: 'book',
-      constraints: true
-    });
+    // BorrowRecord与Book的关联已在BorrowRecord模型文件中定义
     
-    BorrowRecord.belongsTo(User, {
-      foreignKey: {
-        name: '_uid',
-        allowNull: false
-      },
-      as: 'user',
-      constraints: true
-    });
+    // BorrowRecord与User的关联已在BorrowRecord模型文件中定义
 
-    // User 关联
-    User.hasMany(BorrowRecord, {
-      foreignKey: {
-        name: '_uid',
-        allowNull: false
-      },
-      as: 'borrowRecords',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // User与BorrowRecord的关联已在User模型文件中定义
     
-    // User 与 Department 的关联
-    User.belongsTo(Department, {
-      foreignKey: {
-        name: '_did',
-        allowNull: true
-      },
-      as: 'department',
-      constraints: true
-    });
+    // User与Department的关联已在User模型文件中定义
     
-    // User 与 Major 的关联
-    User.belongsTo(Major, {
-      foreignKey: {
-        name: '_mid',
-        allowNull: true
-      },
-      as: 'major',
-      constraints: true
-    });
+    // User与Major的关联已在User模型文件中定义
     
-    // User 与 Class 的关联
-    User.belongsTo(Class, {
-      foreignKey: {
-        name: '_cid',
-        allowNull: true
-      },
-      as: 'class',
-      constraints: true
-    });
-    
-    // User 与 WorkDepartment 的关联
-    User.belongsTo(WorkDepartment, {
-      foreignKey: {
-        name: '_wdid',
-        allowNull: true
-      },
-      as: 'workDepartment',
-      constraints: true
-    });
+    // User与WorkDepartment的关联已在User模型文件中定义
 
-    // 院系关联
-    Department.hasMany(Major, {
-      foreignKey: {
-        name: '_did',
-        allowNull: false
-      },
-      as: 'majors',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // Department与Major的关联已在Department模型文件中定义
 
-    Department.hasMany(User, {
-      foreignKey: {
-        name: '_did',
-        allowNull: true
-      },
-      as: 'teachers',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // Department与User的关联已在Department模型文件中定义
 
-    // 专业关联
-    Major.belongsTo(Department, {
-      foreignKey: {
-        name: '_did',
-        allowNull: false
-      },
-      as: 'department',
-      constraints: true
-    });
+    // Major与Department的关联已在Major模型文件中定义
 
-    Major.hasMany(Class, {
-      foreignKey: {
-        name: '_cid',
-        allowNull: false
-      },
-      as: 'classes',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // Major与Class的关联已在Major模型文件中定义
 
-    // 班级关联
-    Class.belongsTo(Major, {
-      foreignKey: {
-        name: '_mid',
-        allowNull: false
-      },
-      as: 'major',
-      constraints: true
-    });
+    // Class与Major的关联已在Class模型文件中定义
 
-    Class.hasMany(User, {
-      foreignKey: {
-        name: '_cid',
-        allowNull: true
-      },
-      as: 'students',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // Class与User的关联已在Class模型文件中定义
 
-    // 工作部门关联
-    WorkDepartment.hasMany(User, {
-      foreignKey: {
-        name: '_wdid',
-        allowNull: true
-      },
-      as: 'tempWorkers',
-      constraints: true,
-      onDelete: 'RESTRICT'
-    });
+    // WorkDepartment与User的关联已在WorkDepartment模型文件中定义
 
-    // RBAC 模型关联
-    // 角色-权限关联
-    Role.belongsToMany(Permission, {
-      through: RolePermission,
-      foreignKey: '_rid',
-      otherKey: '_pid',
-      as: 'permissions'
-    });
+    // Role与Permission的关联已在Role和Permission模型文件中定义
 
-    Permission.belongsToMany(Role, {
-      through: RolePermission,
-      foreignKey: '_pid',
-      otherKey: '_rid',
-      as: 'roles'
-    });
-
-    // 用户-角色关联
-    User.belongsToMany(Role, {
-      through: UserRole,
-      foreignKey: '_uid',
-      otherKey: '_rid',
-      as: 'roles'
-    });
-
-    Role.belongsToMany(User, {
-      through: UserRole,
-      foreignKey: '_rid',
-      otherKey: '_uid',
-      as: 'users'
-    });
+    // Role与User的关联已在Role和User模型文件中定义
     
     // 消息模型关联
-    // 用户作为发送者
-    User.hasMany(Message, {
-      foreignKey: '_sender_id',
-      as: 'sentMessages'
-    });
+    // User作为发送者与Message的关联已在User模型文件中定义
     
-    // 用户作为接收者
-    User.hasMany(Message, {
-      foreignKey: '_receiver_id',
-      as: 'receivedMessages'
-    });
+    // User作为接收者与Message的关联已在User模型文件中定义
+    
+    // Message与Mtype的关联已在Message模型文件中定义
+    
+    // Mtype与Message的关联已在Mtype模型文件中定义
 
     console.log('模型关联定义成功');
   } catch (error) {
@@ -338,7 +186,7 @@ const syncDatabase = async () => {
         type: 'foreign key',
         name: 'book_category_tid_fkey',
         references: {
-          table: 't_category',
+          table: 't_type',
           field: '_tid'
         },
         onDelete: 'RESTRICT',
@@ -397,25 +245,64 @@ const syncDatabase = async () => {
         onUpdate: 'CASCADE'
       });
 
+      // 为Message表的_mtid字段创建外键约束
+      await sequelize.getQueryInterface().addConstraint('t_messages', {
+        fields: ['_mtid'],
+        type: 'foreign key',
+        name: 'message_mtid_fkey',
+        references: {
+          table: 't_mtypes',
+          field: '_mtid'
+        },
+        onDelete: 'RESTRICT',
+        onUpdate: 'CASCADE'
+      });
+      
+      // Mtype表的唯一约束已在模型定义中通过indexes选项设置
+
       console.log('所有外键约束创建成功');
     } catch (error) {
       console.log('外键约束可能已存在或创建失败:', error.message);
     }
     console.log('数据库表同步成功 =>');
+    // 所有模型关联已在前面定义，无需重复调用
+    console.log('所有模型关联已建立');
     
+     // 初始化RBAC系统
+    const { initRbac } = require('../scripts/initRbac');
+    await initRbac();
+
     await createDefaultWorkDepartment();
     // 创建默认管理员账户（如果不存在）
     await createDefaultAdmin();
     
-    // 初始化RBAC系统
-    const { initRbac } = require('../scripts/initRbac');
-    await initRbac();
+    await createDefaultMessageTypes();
+   
   } catch (error) {
     console.error('数据库表同步失败 =< :', error);
   }
 };
 
 
+const createDefaultMessageTypes = async () => {
+  const defaultTypes = [
+    { _mtname: '系统通知', _mtcomment: '系统相关通知'},
+    { _mtname: '意见建议', _mtcomment: '用户反馈的意见和建议' },
+    { _mtname: '意见回馈', _mtcomment: '对用户反馈的回复和处理结果' },
+    { _mtname: '读者荐购', _mtcomment: '关于读者推荐图书的请求消息' }
+  ];
+
+  try {
+    for (const type of defaultTypes) {
+      await Mtype.findOrCreate({
+        where: { _mtname: type._mtname },
+        defaults: { _mtcomment: type._mtcomment }
+      });
+    }
+} catch (error) {
+    console.error('默认消息类型创建失败:', error);
+  }
+};
 const createDefaultWorkDepartment = async () => {
    const department = await WorkDepartment.findOrCreate({ 
       where: { _wdname: '校图书馆' } 
@@ -476,6 +363,7 @@ module.exports = {
   BorrowRecord,
   Announcement,
   Message,
+  Mtype,
   Permission,
   Role,
   RolePermission,

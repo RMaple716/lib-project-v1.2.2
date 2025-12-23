@@ -43,4 +43,21 @@ const UserRole = sequelize.define('UserRole', {
   updatedAt: false
 });
 
+/**
+ * 添加关联方法
+ */
+UserRole.associate = function(models) {
+  // 用户角色关联表与用户的关联
+  UserRole.belongsTo(models.User, {
+    foreignKey: '_uid',
+    as: 'user'
+  });
+
+  // 用户角色关联表与角色的关联
+  UserRole.belongsTo(models.Role, {
+    foreignKey: '_rid',
+    as: 'role'
+  });
+};
+
 module.exports = UserRole;

@@ -31,4 +31,25 @@ const Major = sequelize.define('Major', {
   timestamps: false
 });
 
+// 添加关联方法
+Major.associate = function(models) {
+  // 专业有多个班级
+  Major.hasMany(models.Class, {
+    foreignKey: '_mid',
+    as: 'classes'
+  });
+  
+  // 专业属于一个院系
+  Major.belongsTo(models.Department, {
+    foreignKey: '_did',
+    as: 'department'
+  });
+
+  // 专业有多个学生
+  Major.hasMany(models.User, {
+    foreignKey: '_mid',
+    as: 'students'
+  });
+};
+
 module.exports = Major;

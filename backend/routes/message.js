@@ -3,7 +3,8 @@ const router = express.Router();
 const { Message, User } = require('../models');
 const { authenticate, requirePermission } = require('../middleware/auth');
 const { Op } = require('sequelize');
-
+//需要实现的功能（其他函数）：图书预约消息提醒、借阅到期提醒消息等。
+//以及：
 /**
  * @swagger
  * tags:
@@ -98,7 +99,7 @@ router.get('/', authenticate, requirePermission('message.view'), async (req, res
 
     // 如果指定了类型，添加类型条件
     if (type !== undefined) {
-      whereClause._type = type;
+      whereClause._mtid = type;
     }
 
     // 查询消息列表
@@ -109,9 +110,15 @@ router.get('/', authenticate, requirePermission('message.view'), async (req, res
           model: User,
           as: 'sender',
           attributes: ['_uid', '_name', '_account']
+        },
+        {
+          model: User,
+          as: 'receiver',
+          attributes: ['_uid', '_name', '_account']
         }
+
       ],
-      attributes: ['_mid', '_title', '_content', '_type', '_status', '_create_time', '_read_time'],
+      attributes: ['_mid', '_title', '_content', '_mtid', '_status', '_create_time', '_read_time'],
       order: [['_create_time', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset)
@@ -511,14 +518,14 @@ router.put('/read-all', authenticate, requirePermission('message.edit'), async (
  *                 _receiver_id: 5
  *                 _title: "系统维护通知"
  *                 _content: "系统将于本周六进行维护，请提前做好准备"
- *                 _type: 1
+ *                 _mtid: 1
  *             borrowingReminder:
  *               summary: 借阅提醒
  *               value:
  *                 _receiver_id: 10
  *                 _title: "图书即将到期提醒"
  *                 _content: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借"
- *                 _type: 2
+ *                 _mtid: 2
  *     responses:
  *       200:
  *         description: 消息发送成功
@@ -563,7 +570,7 @@ router.put('/read-all', authenticate, requirePermission('message.edit'), async (
 // 发送消息
 router.post('/', authenticate, requirePermission('message.create'), async (req, res) => {
   try {
-    const { _receiver_id, _title, _content, _type = 4 } = req.body;
+    const { _receiver_id, _title, _content, _mtid } = req.body;
 
     // 验证必填字段
     if (!_receiver_id || !_title || !_content) {
@@ -585,12 +592,12 @@ router.post('/', authenticate, requirePermission('message.create'), async (req, 
     }
 
     // 创建消息
-    const newMessage = await Message.create({
+    const newMessage = await Message.createWithDefaultMtid({
       _sender_id: req.user._uid,
       _receiver_id,
       _title,
       _content,
-      _type,
+      _mtid,
       _status: 0, // 默认为未读
       _create_time: new Date()
     });
@@ -620,6 +627,7 @@ router.post('/', authenticate, requirePermission('message.create'), async (req, 
     });
   }
 });
+
 
 /**
  * @swagger

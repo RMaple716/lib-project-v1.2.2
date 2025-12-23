@@ -282,12 +282,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-
-
-
-
-
-
 /**
  * @swagger
  * /api/auth/password:

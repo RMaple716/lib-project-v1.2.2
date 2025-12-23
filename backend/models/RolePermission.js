@@ -43,4 +43,21 @@ const RolePermission = sequelize.define('RolePermission', {
   updatedAt: false
 });
 
+/**
+ * 添加关联方法
+ */
+RolePermission.associate = function(models) {
+  // 角色权限关联表与角色的关联
+  RolePermission.belongsTo(models.Role, {
+    foreignKey: '_rid',
+    as: 'role'
+  });
+
+  // 角色权限关联表与权限的关联
+  RolePermission.belongsTo(models.Permission, {
+    foreignKey: '_pid',
+    as: 'permission'
+  });
+};
+
 module.exports = RolePermission;

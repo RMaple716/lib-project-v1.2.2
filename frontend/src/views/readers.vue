@@ -515,10 +515,10 @@
                     <div class="action-buttons">
                       <button
                         v-if="isLoggedIn"
-                        @click="currentBook.available_count > 0 ? borrowBook(currentBook._bid) : reserveBook(currentBook)"
+                        @click="currentBook._available_copies > 0 ? borrowBook(currentBook._bid) : reserveBook(currentBook)"
                         class="borrow-btn"
                       >
-                        {{ currentBook.available_count > 0 ? '借阅图书' : '预约图书' }}
+                        {{ currentBook._available_copies > 0 ? '借阅图书' : '预约图书' }}
                       </button>
                       <button
                         v-else

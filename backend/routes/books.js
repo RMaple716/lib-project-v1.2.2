@@ -1,4 +1,5 @@
 const { parseFile, validateBooks, generateCSVTemplate, cleanupTempFile } = require('../utils/fileParser');
+const BookOrderService = require('../utils/BookOrderService');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -773,7 +774,6 @@ router.put('/:hid/return', authenticate, requirePermission('book.return'), async
         message: '借阅记录不存在'
       });
     }
-    const book = borrowRecord.book;
     // 更新借阅记录状态为已归还
     await borrowRecord.update({
       _status: 1 ,// 已归还状态
@@ -792,6 +792,7 @@ router.put('/:hid/return', authenticate, requirePermission('book.return'), async
     await user.update({
       lend_num: Math.max(0, user.lend_num - 1)
     });
+    await BookOrderService.updateOrderQueue(book._bid);
 
     res.json({
       success: true,

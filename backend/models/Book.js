@@ -99,7 +99,7 @@ Book.associate = function(models) {
    */
   Book.hasMany(models.BorrowRecord, {
     foreignKey: '_bid',
-    as: 'borrowRecords'
+    as: 'bookBorrowRecords'
   });
 };
 

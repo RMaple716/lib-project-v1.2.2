@@ -171,11 +171,29 @@ User.associate = function(models) {
     foreignKey: '_wdid',
     as: 'workDepartment'
   });
+
+  // 学生与专业的关联
+  User.belongsTo(models.Major, {
+    foreignKey: '_mid',
+    as: 'major'
+  });
   
   // 用户与借阅记录的关联
   User.hasMany(models.BorrowRecord, {
     foreignKey: '_uid',
-    as: 'borrowRecords'
+    as: 'userBorrowRecords'
+  });
+
+  // 用户作为发送者与消息的关联
+  User.hasMany(models.Message, {
+    foreignKey: '_sender_id',
+    as: 'sender'
+  });
+
+  // 用户作为接收者与消息的关联
+  User.hasMany(models.Message, {
+    foreignKey: '_receiver_id',
+    as: 'receiver'
   });
   
   // 用户与角色的关联（RBAC权限系统）
