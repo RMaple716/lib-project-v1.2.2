@@ -216,13 +216,13 @@ router.get('/', authenticate, requirePermission('borrowRecord.view'), async (req
         {
           model: Book,
           as: 'book',
-          attributes: ['_bid','_book_name','_author']
+          attributes: ['_bid','_book_name','_author','_isbn']
         }
       ],
       order: [['_begin_time', 'DESC']],
       limit: 50,
     });
-
+    
     res.json({
       success: true,
       message: '获取借阅记录成功',

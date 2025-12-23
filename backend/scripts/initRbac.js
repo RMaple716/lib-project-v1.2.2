@@ -1,4 +1,4 @@
-const { Permission, Role, RolePermission } = require('../models');
+const { sequelize, Permission, Role, RolePermission } = require('../models');
 
 /**
  * 初始化RBAC系统
@@ -96,7 +96,18 @@ async function initRbac() {
       { _pname: '查看管理员列表', _pcode: 'admin.view', _pmodule: 'admin', _pdesc: '查看管理员列表和详情' },
       { _pname: '添加管理员', _pcode: 'admin.add', _pmodule: 'admin', _pdesc: '添加新管理员' },
       { _pname: '编辑管理员信息', _pcode: 'admin.edit', _pmodule: 'admin', _pdesc: '编辑管理员信息' },
-      { _pname: '删除管理员', _pcode: 'admin.delete', _pmodule: 'admin', _pdesc: '删除管理员' }
+      { _pname: '删除管理员', _pcode: 'admin.delete', _pmodule: 'admin', _pdesc: '删除管理员' },
+      //消息管理权限
+      { _pname: '查看消息列表', _pcode: 'message.view', _pmodule: 'message', _pdesc: '查看消息列表' },
+      { _pname: '创建消息', _pcode: 'message.create', _pmodule: 'message', _pdesc: '创建消息' },
+      { _pname: '编辑消息', _pcode: 'message.edit', _pmodule: 'message', _pdesc: '编辑消息' },
+      //图书逾期相关
+      { _pname: '查看逾期记录', _pcode:'overdueReminder.view', _pmodule: 'overdueReminder', _pdesc: '查看逾期记录' },
+      { _pname: '发送逾期提醒', _pcode:'overdueReminder.send', _pmodule: 'overdueReminder', _pdesc: '发送逾期提醒' },
+      //图书预约相关
+      { _pname: '预约图书', _pcode: 'book.order', _pmodule: 'book', _pdesc: '预约图书' },
+      { _pname: '查看预约记录', _pcode: 'book.order.view', _pmodule: 'book', _pdesc: '查看图书预约记录' }
+
     ];
 
     console.log('创建权限...');
@@ -173,33 +184,60 @@ async function initRbac() {
     const allPermissions = await Permission.findAll();
 
     // 为终端管理员分配所有权限
-    await terminalAdminRole[0].setPermissions(allPermissions);
+    const terminalAdminRoleInstance = terminalAdminRole[0];
+    if (terminalAdminRoleInstance && typeof terminalAdminRoleInstance.setPermissions === 'function') {
+      await terminalAdminRoleInstance.setPermissions(allPermissions);
+    } else {
+      console.error('无法为终端管理员设置权限：角色实例无效或缺少setPermissions方法');
+    }
 
     
 
     // 为读者管理员分配读者相关权限
     const readerPermissions = allPermissions.filter(p => 
-      p._pmodule === 'user' || p._pcode === 'borrowRecord.view'
+      p._pmodule === 'user' || p._pcode === 'borrowRecord.view' || p._pmodule === 'message'
     );
-    await readerAdminRole[0].setPermissions(readerPermissions);
+    const readerAdminRoleInstance = readerAdminRole[0];
+    if (readerAdminRoleInstance && typeof readerAdminRoleInstance.setPermissions === 'function') {
+      await readerAdminRoleInstance.setPermissions(readerPermissions);
+    } else {
+      console.error('无法为读者管理员设置权限：角色实例无效或缺少setPermissions方法');
+    }
 
     // 为图书管理员分配图书相关权限
     const bookPermissions = allPermissions.filter(p => 
-      p._pmodule === 'book' || p._pcode === 'category.view'
+      p._pmodule === 'book' || p._pcode === 'category.view' || p._pmodule === 'message'
+      || p._pcode === 'book.order.view'
     );
-    await bookAdminRole[0].setPermissions(bookPermissions);
+    const bookAdminRoleInstance = bookAdminRole[0];
+    if (bookAdminRoleInstance && typeof bookAdminRoleInstance.setPermissions === 'function') {
+      await bookAdminRoleInstance.setPermissions(bookPermissions);
+    } else {
+      console.error('无法为图书管理员设置权限：角色实例无效或缺少setPermissions方法');
+    }
 
     // 为借阅管理员分配借阅相关权限
     const borrowPermissions = allPermissions.filter(p => 
-      p._pmodule === 'borrowRecord' || p._pcode === 'book.view' || p._pcode === 'user.view'
+      p._pmodule === 'borrowRecord' || p._pcode === 'book.view' || p._pcode === 'user.view' || p._pmodule === 'message'
+      || p._pcode === 'book.order.view'
     );
-    await borrowAdminRole[0].setPermissions(borrowPermissions);
+    const borrowAdminRoleInstance = borrowAdminRole[0];
+    if (borrowAdminRoleInstance && typeof borrowAdminRoleInstance.setPermissions === 'function') {
+      await borrowAdminRoleInstance.setPermissions(borrowPermissions);
+    } else {
+      console.error('无法为借阅管理员设置权限：角色实例无效或缺少setPermissions方法');
+    }
 
     // 为公告管理员分配公告相关权限
     const announcementPermissions = allPermissions.filter(p => 
-      p._pmodule === 'announcement'
+      p._pmodule === 'announcement' || p._pmodule === 'message'
     );
-    await announcementAdminRole[0].setPermissions(announcementPermissions);
+    const announcementAdminRoleInstance = announcementAdminRole[0];
+    if (announcementAdminRoleInstance && typeof announcementAdminRoleInstance.setPermissions === 'function') {
+      await announcementAdminRoleInstance.setPermissions(announcementPermissions);
+    } else {
+      console.error('无法为公告管理员设置权限：角色实例无效或缺少setPermissions方法');
+    }
 
 
     // 为普通用户分配基本权限
@@ -210,9 +248,16 @@ async function initRbac() {
       p._pcode === 'book.renew' ||    // 续借图书
       p._pcode === 'borrowRecord.view' || // 查看借阅记录
       p._pcode === 'announcement.view' || // 查看公告
-      p._pcode === 'message.view'     // 查看消息
+      p._pmodule === 'message'           // 消息相关权限
+      || p._pcode === 'book.order'       // 预约图书
+      || p._pcode === 'book.order.view'  // 查看预约记录
     );
-    await userRole[0].setPermissions(userPermissions);
+    const userRoleInstance = userRole[0];
+    if (userRoleInstance && typeof userRoleInstance.setPermissions === 'function') {
+      await userRoleInstance.setPermissions(userPermissions);
+    } else {
+      console.error('无法为普通用户设置权限：角色实例无效或缺少setPermissions方法');
+    }
 
     console.log('RBAC系统初始化完成');
   } catch (error) {

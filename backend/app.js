@@ -28,6 +28,9 @@ const roleRoutes = require('./routes/roles');
 const userRoleRoutes = require('./routes/userRoles');
 const adminRoutes = require('./routes/admins');
 const recommendationRoutes = require('./routes/recommendations');
+const overdueReminderRoutes = require('./routes/overdue-reminder');
+const { setupOverdueReminderSchedule } = require('./scripts/overdueReminder');
+const bookOrderRoutes = require('./routes/bookOrder');
 
 // 创建统一的日志记录器
 const logger = winston.createLogger({
@@ -91,6 +94,8 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/user-roles', userRoleRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/overdue-reminder', overdueReminderRoutes);
+app.use('/api/book-order', bookOrderRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -173,7 +178,7 @@ async function startServer() {
         }
       });
     });
-
+   setupOverdueReminderSchedule();
   } catch (error) {
     logger.error(`启动服务器失败: ${error.message}`);
     process.exit(1);

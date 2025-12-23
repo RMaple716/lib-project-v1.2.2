@@ -486,10 +486,10 @@
                     <div class="action-buttons">
                       <button
                         v-if="isLoggedIn"
-                        @click="currentBook.available_count > 0 ? borrowBook(currentBook._bid) : reserveBook(currentBook)"
+                        @click="currentBook._available_copies > 0 ? borrowBook(currentBook._bid) : reserveBook(currentBook)"
                         class="borrow-btn"
                       >
-                        {{ currentBook.available_count > 0 ? '借阅图书' : '预约图书' }}
+                        {{ currentBook._available_copies > 0 ? '借阅图书' : '预约图书' }}
                       </button>
                       <button
                         v-else
@@ -510,8 +510,8 @@
             <div class="book-detail-footer">
               <div class="footer-content">
                 <div class="additional-info">
-                  <span class="info-item">馆藏总数：{{ currentBook._num }}</span>
-                  <span class="info-item">剩余数量：{{ currentBook.available_count }}</span>
+                  <span class="info-item">馆藏总数：{{ currentBook._total_copies }}</span>
+                  <span class="info-item">剩余数量：{{ currentBook._available_copies }}</span>
                 </div>
                 <div class="footer-actions">
                   <button @click="changePage('search')" class="secondary-btn">

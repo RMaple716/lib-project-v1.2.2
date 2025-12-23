@@ -2157,7 +2157,8 @@ const options = {
                   book: {
                     _bid: 1,
                     _book_name: "JavaScript高级程序设计",
-                    _author: "Nicholas C. Zakas"
+                    _author: "Nicholas C. Zakas",
+                    _isbn:"19787115275790"
                   }
                 },
                 {
@@ -2175,7 +2176,8 @@ const options = {
                   book: {
                     _bid: 2,
                     _book_name: "三体",
-                    _author: "刘慈欣"
+                    _author: "刘慈欣",
+                    _isbn:"19787115275791"
                   }
                 }
               ]

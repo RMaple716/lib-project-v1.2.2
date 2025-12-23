@@ -425,7 +425,7 @@ router.post('/students/optimized', authenticate, upload.single('file'), async (r
     }
 
     const validStudents = validation.validStudents;
-    
+    //console.log("我瞧瞧学生数据:", validStudents);
     // 获取导入选项
     const options = {
       batchSize: parseInt(req.body.batchSize) || 50,
@@ -436,7 +436,7 @@ router.post('/students/optimized', authenticate, upload.single('file'), async (r
 
     // 使用优化函数批量导入学生
     const result = await optimizedBatchImportStudents(validStudents, options);
-    console.log('优化导入学生结果:', result);
+    //console.log('优化导入学生结果:', result);
     // 清理临时文件
     cleanupTempFile(filePath);
 

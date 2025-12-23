@@ -3,6 +3,42 @@ const fs = require('fs');
 const ExcelJS = require('exceljs');
 const { Department, Major, Class, WorkDepartment } = require('../models');
 
+const parseClassInfo = (classString) => {
+  const parts = classString.split('-');
+  
+  if (parts.length >= 3) {
+    // 格式：院系-专业-班级
+    return {
+      departmentName: parts[0],
+      majorName: parts[1],
+      className: parts.slice(2).join('-')
+    };
+  } else if (parts.length === 2) {
+    if (parts[0].includes('学院') || parts[0].includes('系') || parts[0].includes('部')) {
+      // 格式：院系-班级
+      return {
+        departmentName: parts[0],
+        majorName: null,
+        className: parts[1]
+      };
+    } else {
+      // 格式：专业-班级
+      return {
+        departmentName: null,
+        majorName: parts[0],
+        className: parts[1]
+      };
+    }
+  } else {
+    // 只有班级名
+    return {
+      departmentName: null,
+      majorName: null,
+      className: classString
+    };
+  }
+};
+
 
 /**
  * 解析上传的用户文件
@@ -11,7 +47,6 @@ const { Department, Major, Class, WorkDepartment } = require('../models');
  */
 const parseUserFile = async (filePath) => {
   try {
-
     if (!fs.existsSync(filePath)) {
       throw new Error('文件不存在');
     }
@@ -202,7 +237,7 @@ const parseXLSXFile = async (filePath) => {
         continue;
       }
 
-      // 构建数据对象
+      // 创建数据对象
       const rowData = {};
       row.eachCell((cell, colNumber) => {
         if (headers[colNumber - 1]) {
@@ -269,19 +304,22 @@ const validateStudents = (students) => {
         errors: rowErrors
       });
     } else {
+      // 解析班级信息
+      const classInfo = parseClassInfo(student['班级'].toString().trim());
+      console.log(`解析班级信息: ${student['班级']} =>`, classInfo);
       // 如果没有错误，添加到有效学生列表
       validStudents.push({
         _account: student['账号'].toString().trim(),
         _name: student['姓名'].toString().trim(),
         _email: student['邮箱'].toString().trim(),
-        _className: student['班级'].toString().trim(),
-        _password: student['密码'] ? student['密码'].toString().trim() : '123456', // 默认密码
-        _cname: student['班级'].toString().trim(),
-        _mname: student['专业'] ? student['专业'].toString().trim() : null
+        _cname: classInfo.className,
+        _dname: classInfo.departmentName,
+        _mname: classInfo.majorName,
+        _password: student['密码'] ? student['密码'].toString().trim() : '123456'
       });
+      
     }
   }
-
   return {
     valid: errors.length === 0,
     errors,
@@ -540,13 +578,13 @@ const findOrCreateDepartment = async (departmentName) => {
  */
 const findOrCreateMajor = async (majorName, departmentId) => {
   let major = await Major.findOne({
-    where: { name: majorName }
+    where: { _mname: majorName }
   });
 
   if (!major) {
     major = await Major.create({
-      name: majorName,
-      department_id: departmentId
+      _mname: majorName,
+      _did: departmentId
     });
     console.log(`自动创建专业: ${majorName}`);
   }
@@ -621,37 +659,25 @@ const getOrCreateClassWithHierarchy = async (className) => {
 
   // 如果班级不存在，则尝试解析班级名称并创建层级结构
   if (!classRecord) {
-    console.log(`班级 ${className} 不存在，尝试创建相关院系和专业`);
-    // 班级名称格式假设为: "专业名-班级名" 或 "院系名-专业名-班级名"
-    const parts = className.split('-');
-
-    if (parts.length === 2) {
-      // 格式: "专业名-班级名"
-      const [majorName, classOnlyName] = parts;
-
-      // 创建默认院系（如果专业不存在）
-      const department = await findOrCreateDepartment('默认院系');
-
-      // 创建专业（如果不存在）
-      const major = await findOrCreateMajor(majorName, department._did);
-
-      // 创建班级
+    const classInfo = parseClassInfo(className);
+    
+    if (classInfo.departmentName && classInfo.majorName) {
+      // 有院系和专业信息
+      const department = await findOrCreateDepartment(classInfo.departmentName);
+      const major = await findOrCreateMajor(classInfo.majorName, department._did);
       classRecord = await findOrCreateClass(className, major._mid);
-    } else if (parts.length >= 3) {
-      // 格式: "院系名-专业名-班级名"
-      const [departmentName, majorName, ...classParts] = parts;
-      const classOnlyName = classParts.join('-');
-
-      // 创建院系（如果不存在）
-      const department = await findOrCreateDepartment(departmentName);
-
-      // 创建专业（如果不存在）
-      const major = await findOrCreateMajor(majorName, department._did);
-
-      // 创建班级
+    } else if (classInfo.departmentName) {
+      // 只有院系信息
+      const department = await findOrCreateDepartment(classInfo.departmentName);
+      const major = await findOrCreateMajor('默认专业', department._did);
+      classRecord = await findOrCreateClass(className, major._mid);
+    } else if (classInfo.majorName) {
+      // 只有专业信息
+      const department = await findOrCreateDepartment('默认院系');
+      const major = await findOrCreateMajor(classInfo.majorName, department._did);
       classRecord = await findOrCreateClass(className, major._mid);
     } else {
-      // 如果无法解析，则使用默认院系和专业
+      // 只有班级信息
       const department = await findOrCreateDepartment('默认院系');
       const major = await findOrCreateMajor('默认专业', department._did);
       classRecord = await findOrCreateClass(className, major._mid);

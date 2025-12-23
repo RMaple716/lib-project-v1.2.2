@@ -9,7 +9,7 @@ const { sequelize } = require('../config/database');
  * @property {number} _receiver_id - 接收者ID
  * @property {string} _title - 消息标题
  * @property {string} _content - 消息内容
- * @property {number} _type - 消息类型 (1: 系统通知, 2: 借阅提醒, 3: 预约通知, 4: 其他)
+ * @property {number} _mtid - 消息类型ID，关联到消息类型表
  * @property {number} _status - 消息状态 (0: 未读, 1: 已读)
  * @property {Date} _create_time - 创建时间
  * @property {Date|null} _read_time - 阅读时间
@@ -46,12 +46,11 @@ const Message = sequelize.define('Message', {
     field: '_content',
     comment: '消息内容'
   },
-  _type: {
+  _mtid: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 1,
-    field: '_type',
-    comment: '消息类型: 1-系统通知, 2-借阅提醒, 3-预约通知, 4-其他'
+    field: '_mtid',
+    comment: '消息类型ID，关联到t_mtypes表'
   },
   _status: {
     type: DataTypes.INTEGER,
@@ -91,6 +90,13 @@ Message.associate = function(models) {
     foreignKey: '_receiver_id',
     as: 'receiver'
   });
+
+  // 消息与消息类型的关联
+  Message.belongsTo(models.Mtype, {
+    foreignKey: '_mtid',
+    as: 'mtype'
+  });
+
 };
 
 /**
@@ -109,6 +115,19 @@ Message.prototype.markAsRead = async function() {
  */
 Message.prototype.isRead = function() {
   return this._status === 1;
+};
+
+/**
+ * 创建消息，自动设置默认的消息类型ID
+ * @param {Object} messageData - 消息数据
+ * @returns {Promise<Message>} 创建的消息实例
+ */
+Message.createWithDefaultMtid = async function(messageData) {
+  // 如果没有提供_mtid，则设置为默认值1
+  if (!messageData._mtid) {
+    messageData._mtid = 1;
+  }
+  return await this.create(messageData);
 };
 
 module.exports = Message;

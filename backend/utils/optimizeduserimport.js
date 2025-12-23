@@ -1,415 +1,74 @@
 const { User, Role, Class, Major, Department, sequelize, UserRole } = require('../models');
 const { Op } = require('sequelize');
-//const { findOrCreateDepartment, findOrCreateMajor, findOrCreateClass } = require('./userFileParser');
+const bcrypt = require('bcryptjs');
 
-/**
- * 优化后的批量导入学生函数
- * @param {Array} students - 学生数据数组
- * @param {Object} options - 导入选项
- * @returns {Promise<Object>} 导入结果
- */
-const optimizedBatchImportStudents = async (students, options = {}) => {
-  const {
-    batchSize = 50, // 每批处理的学生数量
-    parallelBatches = 3, // 并行处理的批次数量
-    skipExisting = true, // 是否跳过已存在的账号
-    logProgress = false // 是否记录进度
-  } = options;
+// 辅助函数：创建统一的响应格式
+const createResponse = (success, message, data = null) => ({
+  success,
+  message,
+  data
+});
 
-  let transaction;
-  let total = 0;
-  let imported = 0;
-  let skipped = 0;
-  let errors = [];
-  console.log("这样吗？那开始导入学生数据了，来看看效率如何吧！");
+// 辅助函数：错误处理
+const handleError = (error, context) => {
+  console.error(`${context}失败:`, error);
+  return createResponse(false, `${context}失败`, { error: error.message });
+};
+
+// 辅助函数：事务管理
+const withTransaction = async (callback) => {
+  const transaction = await sequelize.transaction();
   try {
-    // 开始事务
-    transaction = await sequelize.transaction();
-    console.log("来了来了，事务开始了！");
-    // 统计变量
-    total = students.length;
-    console.log(`准备导入 ${total} 名学生...,嗯，还算可以`);
-    // 预处理所有需要的班级、院系数据
-    const classNames = [...new Set(students.map(s => s._cname))];
-    
-    // 检查数据格式，判断是否包含院系和专业信息
-    const hasDepartmentAndMajor = classNames.some(cn => cn.split('-').length >= 3);
-    console.log("数据包含院系和专业信息吗？", hasDepartmentAndMajor);
-    
-    // 初始化变量
-    let classRecords = [];
-    let classMap = new Map();
-    let majorMap = new Map();
-    if (hasDepartmentAndMajor) {
-      // 如果数据包含院系和专业信息
-      const departments = [...new Set(classNames.map(cn => {
-        const parts = cn.split('-');
-        return parts.length >= 3 ? parts[0] : '默认院系';
-      }))];
-
-      console.log("让我们看看院系信息：", departments);
-      // 批量创建或获取院系
-      const departmentRecords = await batchFindOrCreateDepartment(departments, transaction);
-
-      console.log("班级记录：", departmentRecords);
-      // 批量创建或获取班级
-      classRecords = await batchFindOrCreateClass(classNames, transaction, null);
-
-      // 从班级记录中提取专业ID，创建专业记录
-      const majorIds = [...new Set(classRecords.map(c => c._mid).filter(id => id))];
-    
-      if (majorIds.length > 0) {
-        console.log("找找专业ID列表：", majorIds);
-        const majors = await Major.findAll({
-        where: {
-          _mid: { [Op.in]: majorIds }
-        },
-        transaction
-      });
-      
-        // 创建专业ID到记录的映射
-        majorMap = new Map(majors.map(m => [m._mid, m]));
-      
-        // 获取缺失的专业记录
-        const missingMajorIds = majorIds.filter(id => !majorMap.has(id));
-      if (missingMajorIds.length > 0) {
-        // 为缺失的专业创建记录（使用默认院系）
-        const defaultDepartmentId = departmentRecords.find(d => d._dname === '默认院系')?._did || departmentRecords[0]._did;
-        
-          // 仍然缺失的专业需要创建
-          const majorsToCreate = missingMajorIds.map(id => ({
-            _mid: id,
-            _mname: `专业${id}`,
-            _did: defaultDepartmentId
-          }));
-        
-        if (majorsToCreate.length > 0) {
-            const createdMajors = await Major.bulkCreate(majorsToCreate, {
-              transaction,
-              returning: true
-          });
-          
-            // 添加到映射
-            for (const major of createdMajors) {
-              majorMap.set(major._mid, major);
-            }
-        }
-      }
-    }
-
-    // 创建映射关系
-    classMap = new Map(classRecords.map(c => [c._cname, c]));
-    console.log("班级映射关系已创建，包含", classMap.size, "个班级记录");
-   } else{
-    console.log("哦，原来只是没有找到院系和专业信息啊，那我们就直接根据提供的班级信息找找吧！");
-    
-    // 处理缺少院系和专业信息的情况
-    // 批量创建或获取班级（不指定院系和专业）
-    classRecords = await batchFindOrCreateClass(classNames, transaction, null);
-    
-    // 创建班级名称到记录的映射
-    classMap = new Map(classRecords.map(c => [c._cname, c]));
-    
-    // 检查是否有缺失的班级记录
-    const missingClasses = classNames.filter(name => !classMap.has(name));
-    if (missingClasses.length > 0) {
-      console.warn(`警告：无法找到以下班级的记录：${missingClasses.join(", ")}`);
-    }
-    
-    // 获取所有专业ID
-    const majorIds = [...new Set(classRecords.map(c => c._mid).filter(id => id))];
-    
-    // 如果有专业ID，获取专业信息
-    let majors = [];
-    if (majorIds.length > 0) {
-      majors = await Major.findAll({
-        where: {
-          _mid: { [Op.in]: majorIds }
-        },
-        transaction
-      });
-    }
-    
-    // 创建专业ID到记录的映射
-    majorMap = new Map(majors.map(m => [m._mid, m]));
-    
-    // 检查是否有缺失的专业记录
-    const missingMajorIds = majorIds.filter(id => !majorMap.has(id));
-    if (missingMajorIds.length > 0) {
-      console.warn(`警告：无法找到以下专业的记录：${missingMajorIds.join(", ")}`);
-      
-      // 获取或创建默认院系
-      let defaultDepartment = await Department.findOne({
-        where: { _did: 1 },
-        transaction
-      });
-      
-      if (!defaultDepartment) {
-        defaultDepartment = await Department.create({
-          _dname: "默认院系",
-          _did: 1
-        }, { transaction });
-      }
-      
-      const defaultDepartmentId = defaultDepartment._did; // 使用默认院系ID
-      const majorsToCreate = missingMajorIds.map(id => ({
-        _mid: id,
-        _mname: `专业${id}`,
-        _did: defaultDepartmentId
-      }));
-      
-      if (majorsToCreate.length > 0) {
-        const createdMajors = await Major.bulkCreate(majorsToCreate, {
-          transaction,
-          returning: true
-        });
-        
-        // 添加到映射
-        for (const major of createdMajors) {
-          majorMap.set(major._mid, major);
-        }
-      }
-    }
-    
-    console.log("成功创建班级映射关系，包含", classMap.size, "个班级");
-    console.log("成功创建专业映射关系，包含", majorMap.size, "个专业");
-   }
-   console.log("开始获取读者角色...");
-    // 获取读者角色
-    const readerRole = await Role.findOne({ 
-      where: { _rcode: 'reader' } 
-    }, { transaction });
-
-    if (!readerRole) {
-      throw new Error('读者角色不存在');
-    }
-
-    // 分批处理学生
-    const batches = [];
-    for (let i = 0; i < students.length; i += batchSize) {
-      console.log(`准备第 ${i / batchSize + 1} 批学生数据...`);
-      batches.push(students.slice(i, i + batchSize));
-    }
-
-    // 处理每个批次
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex += parallelBatches) {
-      console.log(`处理批次 ${batchIndex + 1} 到 ${Math.min(batchIndex + parallelBatches, batches.length)}...`);
-      const currentBatches = batches.slice(batchIndex, batchIndex + parallelBatches);
-
-      // 并行处理多个批次
-      const batchResults = await Promise.all(
-        currentBatches.map(async (batch, idx) => {
-          const batchNumber = batchIndex + idx;
-          const batchStart = batchNumber * batchSize;
-
-          // 准备批量插入的用户数据
-          const usersToCreate = [];
-          const roleAssignments = [];
-          const batchErrors = [];
-
-          // 检查账号是否已存在
-          if (skipExisting) {
-            const existingAccounts = batch.map(s => s._account);
-            const existingUsers = await User.findAll({
-              where: {
-                _account: { [Op.in]: existingAccounts }
-              },
-              attributes: ['_account'],
-              transaction
-            });
-
-            const existingAccountSet = new Set(existingUsers.map(u => u._account));
-
-            for (const student of batch) {
-              if (existingAccountSet.has(student._account)) {
-                skipped++;
-                batchErrors.push({
-                  account: student._account,
-                  error: '账号已存在'
-                });
-                continue;
-              }
-
-              // 获取班级记录
-              let classRecord = classMap.get(student._cname);
-              if (!classRecord) {
-                console.log("班级不存在，尝试创建：", student._cname);
-                try {
-                  // 尝试创建班级
-                  const newClass = await Class.create({
-                    _cname: student._cname,
-                    _mid: 1 // 使用默认专业ID
-                  }, { transaction });
-                  
-                  // 添加到映射
-                  classMap.set(student._cname, newClass);
-                  classRecord = newClass;
-                  
-                  console.log("成功创建班级：", student._cname);
-                } catch (error) {
-                  console.error("创建班级失败：", error);
-                  batchErrors.push({
-                    account: student._account,
-                    error: `班级 ${student._cname} 不存在且创建失败: ${error.message}`
-                  });
-                  skipped++;
-                  continue;
-                }
-              }
-
-              // 准备用户数据
-              usersToCreate.push({
-                _utype: 'student',
-                _account: student._account,
-                _name: student._name,
-                _password: student._password,
-                _email: student._email,
-                _cid: classRecord._cid,
-                _mid: classRecord._mid,
-                _max_num: 10,
-                lend_num: 0,
-                _access: 1,
-                _create_time: new Date()
-              });
-            console.log("准备分配角色了没？", student._account);
-              // 准备角色分配数据
-              roleAssignments.push({
-                _uid: null, // 将在创建用户后设置
-                _rid: readerRole._rid
-              });
-            }
-          } else {
-            // 不检查账号是否已存在，直接创建
-            for (const student of batch) {
-              // 获取班级记录
-              let classRecord = classMap.get(student._cname);
-              if (!classRecord) {
-                console.log("班级不存在，尝试创建：", student._cname);
-                try {
-                  // 尝试创建班级
-                  const newClass = await Class.create({
-                    _cname: student._cname,
-                    _mid: 1 // 使用默认专业ID
-                  }, { transaction });
-                  
-                  // 添加到映射
-                  classMap.set(student._cname, newClass);
-                  classRecord = newClass;
-                  
-                  console.log("成功创建班级：", student._cname);
-                } catch (error) {
-                  console.error("创建班级失败：", error);
-                  batchErrors.push({
-                    account: student._account,
-                    error: `班级 ${student._cname} 不存在且创建失败: ${error.message}`
-                  });
-                  skipped++;
-                  continue;
-                }
-              }
-
-              // 准备用户数据
-              usersToCreate.push({
-                _utype: 'student',
-                _account: student._account,
-                _name: student._name,
-                _password: student._password,
-                _email: student._email,
-                _cid: classRecord._cid,
-                _mid: classRecord._mid,
-                _max_num: 10,
-                lend_num: 0,
-                _access: 1,
-                _create_time: new Date()
-              });
-
-              // 准备角色分配数据
-              roleAssignments.push({
-                _uid: null, // 将在创建用户后设置
-                _rid: readerRole._rid
-              });
-            }
-          }
-
-          // 批量创建用户
-          if (usersToCreate.length > 0) {
-            console.log('批量创建用户数量:', usersToCreate.length);
-            const createdUsers = await User.bulkCreate(usersToCreate, {
-              transaction,
-              validate: true,
-              returning: true
-            });
-
-            // 更新角色分配数据中的用户ID
-            const updatedRoleAssignments = createdUsers.map((user, index) => ({
-              _uid: user._uid,
-              _rid: roleAssignments[index]._rid
-            }));
-            console.log('批量创建用户成功，分配角色数量:', updatedRoleAssignments.length);
-            // 批量分配角色，使用ignoreDuplicates选项避免唯一性冲突
-            await UserRole.bulkCreate(updatedRoleAssignments, {
-              transaction,
-              ignoreDuplicates: true  // 忽略重复记录，而不是报错
-            });
-
-            imported += createdUsers.length;
-
-            if (logProgress) {
-              console.log(`已处理 ${batchStart + usersToCreate.length}/${total} 条学生记录`);
-            }
-          }
-
-          return {
-            batchNumber,
-            processed: usersToCreate.length,
-            errors: batchErrors
-          };
-        })
-      );
-
-      // 收集批次错误
-      for (const result of batchResults) {
-        console.log(`批次 ${result.batchNumber} 处理完成，处理数量: ${result.processed}，错误数量: ${result.errors.length}`);
-        errors.push(...result.errors.map(err => ({
-          ...err,
-          batch: result.batchNumber
-        })));
-      }
-    }
-
-    // 提交事务
+    const result = await callback(transaction);
     await transaction.commit();
-
-     return {
-      success: true,
-      message: `批量导入学生完成，成功导入 ${imported} 个，跳过 ${skipped} 个`,
-      data: {
-        total,
-        imported,
-        skipped,
-        errors
-      }
-     };
+    return result;
   } catch (error) {
-    console.error('批量导入学生失败:', error);
-
-    // 回滚事务
-    if (transaction) {
-      await transaction.rollback();
-    }
-
-    return {
-      success: false,
-      message: '批量导入学生失败',
-      error: error.message,
-      data: {
-        total: total || 0,
-        imported: imported || 0,
-        skipped: skipped || 0,
-        error: error.message
-      }
-    };
+    await transaction.rollback();
+    throw error;
   }
+};
+
+// 辅助函数：批量创建
+const batchCreate = async (Model, data, transaction) => {
+  if (data.length === 0) return [];
+  return await Model.bulkCreate(data, {
+    transaction,
+    returning: true
+  });
+};
+
+// 辅助函数：数据验证
+const validateStudentData = (student) => {
+  const required = ['_account', '_name', '_email', '_cname', '_dname', '_mname', '_password'];
+  const missing = required.filter(field => !student[field]);
+  if (missing.length > 0) {
+    throw new Error(`缺少必要字段: ${missing.join(', ')}`);
+  }
+};
+
+const parseClassInfo = (student) => {
+  return {
+    className: student._cname,
+    departmentName: student._dname,
+    majorName: student._mname
+  };
+};
+
+// 辅助函数：创建班级（如果需要）
+const createClassIfNeeded = async (className, classMap, transaction) => {
+  if (!classMap.has(className)) {
+    try {
+      const newClass = await Class.create({
+        _cname: className,
+        _mid: 1 // 使用默认专业ID
+      }, { transaction });
+      classMap.set(className, newClass);
+      return newClass;
+    } catch (error) {
+      throw new Error(`创建班级 ${className} 失败: ${error.message}`);
+    }
+  }
+  return classMap.get(className);
 };
 
 /**
@@ -419,189 +78,304 @@ const optimizedBatchImportStudents = async (students, options = {}) => {
  * @returns {Promise<Array>} 院系记录数组
  */
 const batchFindOrCreateDepartment = async (departmentNames, transaction) => {
-  const departments = [];
-  const departmentsToCreate = [];
-
-  // 查询所有院系
   const existingDepartments = await Department.findAll({
-    where: {
-      _dname: { [Op.in]: departmentNames }
-    },
+    where: { _dname: { [Op.in]: departmentNames } },
     transaction
   });
 
-  // 创建院系名称到记录的映射
   const existingMap = new Map(existingDepartments.map(d => [d._dname, d]));
+  const departmentsToCreate = departmentNames
+    .filter(name => !existingMap.has(name))
+    .map(name => ({ _dname: name }));
 
-  // 确定需要创建的院系
-  for (const name of departmentNames) {
-    if (!existingMap.has(name)) {
-      departmentsToCreate.push({
-        _dname: name
-      });
-    }
-  }
-
-  // 批量创建新院系
   if (departmentsToCreate.length > 0) {
-    const createdDepartments = await Department.bulkCreate(departmentsToCreate, {
-      transaction,
-      returning: true
-    });
-
-    // 添加到映射
-    for (const dept of createdDepartments) {
-      existingMap.set(dept._dname, dept);
-    }
+    const createdDepartments = await batchCreate(Department, departmentsToCreate, transaction);
+    createdDepartments.forEach(dept => existingMap.set(dept._dname, dept));
   }
 
-  // 返回所有院系记录
-  return departmentNames.map(name => existingMap.get(name));
+  return Array.from(existingMap.values());
 };
 
 /**
  * 批量创建或获取专业
- * @param {Array} majorNames - 专业名称数组
+ * @param {Array} majorInfos - 专业信息数组
  * @param {Array} departmentRecords - 院系记录数组
  * @param {Object} transaction - 数据库事务
  * @returns {Promise<Array>} 专业记录数组
  */
-const batchFindOrCreateMajor = async (majorNames, departmentRecords, transaction) => {
-  const majors = [];
-  const majorsToCreate = [];
-
-  // 创建院系名称到ID的映射
+const batchFindOrCreateMajor = async (majorInfos, departmentRecords, transaction) => {
   const departmentMap = new Map(departmentRecords.map(d => [d._dname, d._did]));
-
-  // 查询所有专业
+  
+  // 提取所有纯专业名称
+  const pureMajorNames = majorInfos.map(info => info.majorName);
+  
+  // 查询所有已存在的专业
   const existingMajors = await Major.findAll({
-    where: {
-      _mname: { [Op.in]: majorNames }
-    },
+    where: { _mname: { [Op.in]: pureMajorNames } },
     transaction
   });
 
-  // 创建专业名称到记录的映射
   const existingMap = new Map(existingMajors.map(m => [m._mname, m]));
+  const majorsToCreate = [];
 
-  // 确定需要创建的专业
-  for (const name of majorNames) {
-    if (!existingMap.has(name)) {
-      // 获取专业所属的院系ID
-      const departmentName = [...departmentMap.keys()].find(d => majorNames.includes(`${d}-${name}`)) || '默认院系';
-      const departmentId = departmentMap.get(departmentName);
+  // 准备需要创建的专业信息
+  for (const info of majorInfos) {
+    if (!existingMap.has(info.majorName)) {
+      const departmentId = info.departmentName 
+        ? departmentMap.get(info.departmentName)
+        : null;
+
+      if (!departmentId && info.departmentName) {
+        console.warn(`院系 ${info.departmentName} 不存在，跳过创建专业 ${info.majorName}`);
+        continue;
+      }
 
       majorsToCreate.push({
-        _mname: name,
-        _did: departmentId
+        _mname: info.majorName,
+        _did: departmentId || 1 // 如果没有院系，使用默认院系ID
       });
     }
   }
 
   // 批量创建新专业
   if (majorsToCreate.length > 0) {
-    const createdMajors = await Major.bulkCreate(majorsToCreate, {
-      transaction,
-      returning: true
-    });
-
-    // 添加到映射
-    for (const major of createdMajors) {
-      existingMap.set(major._mname, major);
-    }
+    const createdMajors = await batchCreate(Major, majorsToCreate, transaction);
+    createdMajors.forEach(major => existingMap.set(major._mname, major));
   }
 
-  // 返回所有专业记录
-  return majorNames.map(name => existingMap.get(name));
+  return Array.from(existingMap.values());
 };
 
 /**
  * 批量创建或获取班级
  * @param {Array} classNames - 班级名称数组
+ * @param {Map} classInfoMap - 班级信息映射
+ * @param {Map} majorMap - 专业映射
  * @param {Object} transaction - 数据库事务
- * @param {number} defaultMajorId - 默认专业ID（可选）
  * @returns {Promise<Array>} 班级记录数组
  */
-const batchFindOrCreateClass = async (classNames, transaction, defaultMajorId = null) => {
-  const classes = [];
-  const classesToCreate = [];
-
-  // 查询所有班级
+const batchFindOrCreateClass = async (classNames, classInfoMap, majorMap, transaction) => {
   const existingClasses = await Class.findAll({
-    where: {
-      _cname: { [Op.in]: classNames }
-    },
+    where: { _cname: { [Op.in]: classNames } },
     transaction
   });
 
-  // 创建班级名称到记录的映射
   const existingMap = new Map(existingClasses.map(c => [c._cname, c]));
+  const classesToCreate = [];
 
-  // 确定需要创建的班级
-  for (const name of classNames) {
-    if (!existingMap.has(name)) {
-      // 查询已存在的班级，从中获取专业ID
-      // 这里我们假设班级名称格式为"院系-专业-班级"或"专业-班级"
-      // 我们尝试查找相似的班级名称来获取专业ID
-      
-      let majorId = defaultMajorId || 1; // 使用提供的默认专业ID或默认值
-      
-      // 如果没有提供默认专业ID，尝试查找相似名称的班级来获取专业ID
-      if (!defaultMajorId) {
-        // 尝试查找完全相同的班级名称（可能大小写不同）
-        const exactMatch = await Class.findOne({
-          where: {
-            _cname: {
-              [Op.iLike]: name
-            }
-          },
-          attributes: ['_mid'],
-          transaction
-        });
-        
-        if (exactMatch) {
-          majorId = exactMatch._mid;
-        } else {
-          const similarClasses = await Class.findAll({
-        where: {
-          _cname: {
-            [Op.like]: `%${name.split('-').slice(-1)[0]}%`
-          }
-        },
-        attributes: ['_cname', '_mid'],
-        limit: 1,
-        transaction
-      });
-      
-          if (similarClasses.length > 0) {
-            // 使用相似班级的专业ID
-            majorId = similarClasses[0]._mid;
-          }
+  for (const className of classNames) {
+    if (!existingMap.has(className)) {
+      const classInfo = classInfoMap.get(className);
+      let majorId = null;
+
+      if (classInfo && classInfo.majorName) {
+        const major_id = majorMap.get(classInfo.majorName);
+        if (!major_id) {
+          console.log("我瞧瞧专业信息:", major_id);
+          throw new Error(`专业 ${classInfo.majorName} 不存在，无法为班级 ${className} 创建记录`);
         }
-      }
+        majorId = major_id;
+        } else {
+        throw new Error(`班级 ${className} 的专业信息缺失，无法创建记录`);
+        }
 
       classesToCreate.push({
-        _cname: name,
+        _cname: className,
         _mid: majorId
       });
     }
   }
 
-  // 批量创建新班级
   if (classesToCreate.length > 0) {
-    const createdClasses = await Class.bulkCreate(classesToCreate, {
-      transaction,
-      returning: true
-    });
-
-    // 添加到映射
-    for (const cls of createdClasses) {
-      existingMap.set(cls._cname, cls);
-    }
+    const createdClasses = await batchCreate(Class, classesToCreate, transaction);
+    createdClasses.forEach(cls => existingMap.set(cls._cname, cls));
   }
 
-  // 返回所有班级记录
-  return classNames.map(name => existingMap.get(name));
+  return Array.from(existingMap.values());
+};
+
+/**
+ * 优化后的批量导入学生函数
+ * @param {Array} students - 学生数据数组
+ * @param {Object} options - 导入选项
+ * @returns {Promise<Object>} 导入结果
+ */
+// 修改 optimizedBatchImportStudents 函数中的数据处理部分
+const optimizedBatchImportStudents = async (students, options = {}) => {
+  const {
+    batchSize = 50,
+    parallelBatches = 3,
+    skipExisting = true,
+    logProgress = false
+  } = options;
+
+  const stats = {
+    total: students.length,
+    imported: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  try {
+    return await withTransaction(async (transaction) => {
+      // 收集所有院系、专业、班级
+      const departmentSet = new Set();
+      const majorSet = new Set();
+      const classSet = new Set();
+      const classInfoMap = new Map();
+
+      students.forEach(student => {
+        const info = {
+          className: student._cname,
+          departmentName: student._dname,
+          majorName: student._mname
+        };
+        classInfoMap.set(student._cname, info);
+        if (info.departmentName) departmentSet.add(info.departmentName);
+        if (info.majorName) majorSet.add(info.majorName);
+        if (info.className) classSet.add(info.className);
+      });
+
+      // 创建或获取院系
+      const departmentRecords = await batchFindOrCreateDepartment(Array.from(departmentSet), transaction);
+
+      // 创建或获取专业
+      const majorInfos = Array.from(majorSet).map(majorName => {
+        const student = students.find(s => s._mname === majorName);
+        return {
+          majorName,
+          departmentName: student ? student._dname : null
+        };
+      });
+      const majorRecords = await batchFindOrCreateMajor(majorInfos, departmentRecords, transaction);
+      const majorMap = new Map(majorRecords.map(m => [m._mname, m._mid]));
+
+      // 创建或获取班级
+      const classRecords = await batchFindOrCreateClass(
+        Array.from(classSet),
+        classInfoMap,
+        majorMap,
+        transaction
+      );
+      const classMap = new Map(classRecords.map(c => [c._cname, c]));
+
+      // 获取读者角色
+      const readerRole = await Role.findOne({
+        where: { _rcode: 'reader' },
+        transaction
+      });
+
+      if (!readerRole) {
+        throw new Error('读者角色不存在');
+      }
+
+      // 分批处理学生
+      const batches = [];
+      for (let i = 0; i < students.length; i += batchSize) {
+        batches.push(students.slice(i, i + batchSize));
+      }
+
+      // 处理每个批次
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex += parallelBatches) {
+        const currentBatches = batches.slice(batchIndex, batchIndex + parallelBatches);
+
+        const batchResults = await Promise.all(
+          currentBatches.map(async (batch, idx) => {
+            const batchNumber = batchIndex + idx;
+            const batchErrors = [];
+            const usersToCreate = [];
+            const roleAssignments = [];
+
+            for (const student of batch) {
+              try {
+                validateStudentData(student);
+
+                if (skipExisting) {
+                  const existingUser = await User.findOne({
+                    where: { _account: student._account },
+                    transaction
+                  });
+
+                  if (existingUser) {
+                    stats.skipped++;
+                    continue;
+                  }
+                }
+
+                const classRecord = classMap.get(student._cname);
+                if (!classRecord) {
+                  throw new Error(`班级 ${student._cname} 不存在`);
+                }
+
+                const hashedPassword = await bcrypt.hash(student._password, 10);
+
+                usersToCreate.push({
+                  _utype: 'student',
+                  _account: student._account,
+                  _name: student._name,
+                  _password: hashedPassword,
+                  _email: student._email,
+                  _cid: classRecord._cid,
+                  _mid: classRecord._mid,
+                  _max_num: 10,
+                  lend_num: 0,
+                  _access: 1,
+                  _create_time: new Date()
+                });
+
+                roleAssignments.push({
+                  _rid: readerRole._rid
+                });
+              } catch (error) {
+                batchErrors.push({
+                  account: student._account,
+                  error: error.message
+                });
+              }
+            }
+
+            if (usersToCreate.length > 0) {
+              const createdUsers = await batchCreate(User, usersToCreate, transaction);
+              
+              const userRoleAssignments = createdUsers.map((user, index) => ({
+                _uid: user._uid,
+                _rid: roleAssignments[index]._rid
+              }));
+
+              await UserRole.bulkCreate(userRoleAssignments, {
+                transaction,
+                ignoreDuplicates: true
+              });
+
+              stats.imported += createdUsers.length;
+            }
+
+            return {
+              batchNumber,
+              processed: usersToCreate.length,
+              errors: batchErrors
+            };
+          })
+        );
+
+        // 收集错误
+        batchResults.forEach(result => {
+          stats.errors.push(...result.errors.map(err => ({
+            ...err,
+            batch: result.batchNumber
+          })));
+        });
+
+        if (logProgress) {
+          console.log(`已处理 ${Math.min((batchIndex + parallelBatches) * batchSize, stats.total)}/${stats.total} 条学生记录`);
+        }
+      }
+
+      return createResponse(true, `批量导入学生完成，成功导入 ${stats.imported} 个，跳过 ${stats.skipped} 个`, stats);
+    });
+  } catch (error) {
+    return handleError(error, '批量导入学生');
+  }
 };
 
 module.exports = {
