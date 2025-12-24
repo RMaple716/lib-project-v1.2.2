@@ -1600,7 +1600,7 @@ const options = {
                   _book_name: "三体",
                   _isbn: "9787536692930",
                   _total_copies: 5,
-                  _available_copies:3,
+                  _available_copies: 3,
                   _author: "刘慈欣",
                   _press: "重庆出版社",
                   _cover_url: "https://example.com/cover2.jpg",

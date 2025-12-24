@@ -1440,7 +1440,7 @@ router.get('/', async (req, res) => {
  *                 _book_name: "JavaScript高级程序设计"
  *                 _isbn: "9787115275790"
  *                 _total_copies: 5,
- *                 _available_copies:3,
+ *                 _available_copies: 3,
  *                 _author: "Nicholas C. Zakas"
  *                 _press: "人民邮电出版社"
  *                 _tid: 1
@@ -1451,7 +1451,7 @@ router.get('/', async (req, res) => {
  *                 _book_name: "三体"
  *                 _isbn: "9787536692930"
  *                 _total_copies: 5,
- *                 _available_copies:3,
+ *                 _available_copies: 3,
  *                 _author: "刘慈欣"
  *                 _press: "重庆出版社"
  *                 _tid: 2
