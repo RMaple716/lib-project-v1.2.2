@@ -118,7 +118,7 @@
             <li>
               <a href="#" @click.prevent="changePage('feedback_admin')">
                 <i class="fas fa-comments"></i>
-                <span>意见建议回馈</span>
+                <span>消息管理</span>
               </a>
             </li>
             <li class="logout-item">
@@ -239,7 +239,7 @@
                   </button>
                   <button class="action-btn" @click="changePage('feedback_admin')">
                     <i class="fas fa-comments"></i>
-                    <span>意见建议回馈</span>
+                    <span>消息管理</span>
                   </button>
                   <button class="action-btn" @click="changePage('announcement_admin')">
                     <i class="fas fa-bullhorn"></i>
@@ -318,7 +318,8 @@
                         <li>请使用我们提供的模板文件进行批量上传</li>
                         <li>支持 CSV、Excel 格式</li>
                         <li>文件大小不能超过 10MB</li>
-                        <li>系统会自动处理重复图书（更新库存）</li>
+                        <li>学生模板支持直接导入学院、专业和班级信息</li>  <!-- 添加说明 -->
+                        <li>系统会自动跳过已存在的账号</li>
                       </ul>
                     </div>
                     
@@ -1001,12 +1002,12 @@
                     <td>{{ lend.book?._isbn || '-' }}</td>
                     <td>{{ lend.user?._name || '未知用户' }}</td>
                     <td>{{ formatDate(lend._begin_time) }}</td>
-                    <td>{{ formatDate(lend._end_time) }}</td>
+                    <td>{{ formatDate(lend._end_date) }}</td>
                     <td>{{ getLendStatusText(lend._status) }}</td>
                     <td>
                       <button 
                         class="lend-action delay-btn" 
-                        @click="delayLend(lend._hid, lend._end_time)"
+                        @click="delayLend(lend._hid, lend._end_date)"
                         :disabled="lend._status !== 0 && lend._status !== 3"
                       >
                         延期
@@ -1020,9 +1021,12 @@
               <div id="delayModal" class="modal" v-if="showDelayModal">
                 <div class="modal-content">
                   <span class="close-button" @click="closeDelayModal">&times;</span>
-                  <h2>延期归还</h2>
+                  <h2>图书续借</h2>
                   <form @submit.prevent="submitDelay">
-                    <p>确认要为此借阅记录办理续借手续吗？系统将在原归还日期基础上自动延长30天。</p>
+                    <p>确认要为此借阅记录办理续借手续吗？</p>
+                    <p>当前归还日期：{{ formatDate(currentDelayEndDate) }}</p>
+                    <p>预计新归还日期：{{ newReturnDate }}</p>
+                    <p>系统将在原归还日期基础上自动延长30天。</p>
                     <div class="modal-buttons">
                       <button type="button" class="cancel-button" @click="closeDelayModal">取消</button>
                       <button type="submit" class="submit-button">确认续借</button>
@@ -1366,7 +1370,7 @@ export default {
       // 分类管理相关
       categories: [],
       categoryCurrentPage: 1,
-      categoryRowsPerPage: 5,
+      categoryRowsPerPage: 10,
       categorySearchType: '_type_name',
       categorySearchKeyword: '',
       filteredCategories: [],
@@ -1381,19 +1385,20 @@ export default {
       // 借阅管理相关
       lends: [],
       lendCurrentPage: 1,
-      lendRowsPerPage: 8,
+      lendRowsPerPage: 10,
       lendSearchType: '_bid',
       lendSearchKeyword: '',
       filteredLends: [],
       showDelayModal: false,
       currentDelayHid: null,
+      currentDelayEndDate: null, // 添加当前归还日期
       newReturnDate: '',
 
       // 用户管理相关
       users: [],
       filteredUsers: [],
       userCurrentPage: 1,
-      userRowsPerPage: 8,
+      userRowsPerPage: 10,
       userSearchType: '_username',
       userSearchKeyword: '',
       showAddUserModalFlag: false,
@@ -1418,7 +1423,7 @@ export default {
       admins: [],
       filteredAdmins: [],
       adminCurrentPage: 1,
-      adminRowsPerPage: 8,
+      adminRowsPerPage: 10,
       adminSearchType: '_username',
       adminSearchKeyword: '',
       showAddAdminModalFlag: false,
@@ -1451,7 +1456,7 @@ export default {
         permissionIds: []
       },
       roleCurrentPage: 1,
-      roleRowsPerPage: 8,
+      roleRowsPerPage: 10,
       roleSearchType: '_rname',
       roleSearchKeyword: '',
       filteredRoles: [],
@@ -1459,7 +1464,7 @@ export default {
       // 公告管理相关
       announcements: [],
       announcementCurrentPage: 1,
-      announcementRowsPerPage: 8,
+      announcementRowsPerPage: 10,
       announcementSearchType: '_title',
       announcementSearchKeyword: '',
       filteredAnnouncements: [],
@@ -3055,12 +3060,13 @@ export default {
 },
     
     delayLend(hid, endDate) {
-      this.currentDelayHid = hid
-      // 默认延期一个月
-      const newDate = new Date(endDate)
-      newDate.setMonth(newDate.getMonth() + 1)
-      this.newReturnDate = this.formatDate(newDate)
-      this.showDelayModal = true
+      this.currentDelayHid = hid;
+      this.currentDelayEndDate = endDate; // 添加当前归还日期
+      // 默认延期一个月（30天）
+      const newDate = new Date(endDate);
+      newDate.setDate(newDate.getDate() + 30); // 修改为增加30天，而不是一个月
+      this.newReturnDate = this.formatDate(newDate);
+      this.showDelayModal = true;
     },
     closeDelayModal() {
       this.showDelayModal = false
@@ -3411,7 +3417,7 @@ export default {
         
         switch(userType.toLowerCase()) {
           case 'student':
-            url = '/api/user-import/students/template';
+            url = '/api/user-import/students/template';  // 学生模板已更新，支持学院、专业、班级
             filename = '学生导入模板.csv';
             break;
           case 'teacher':
@@ -3459,12 +3465,11 @@ export default {
         return;
       }
 
-      // 根据文件名或用户选择确定用户类型
       const filename = this.selectedUserFile.name.toLowerCase();
       let uploadUrl = '';
 
       if (filename.includes('学生') || filename.includes('student')) {
-        uploadUrl = '/api/user-import/students';
+        uploadUrl = '/api/user-import/students/optimized';  // 使用优化后的接口
       } else if (filename.includes('教师') || filename.includes('teacher')) {
         uploadUrl = '/api/user-import/teachers';
       } else if (filename.includes('临时') || filename.includes('tempworker')) {
@@ -3476,7 +3481,7 @@ export default {
         
         switch(userType.toLowerCase()) {
           case 'student':
-            uploadUrl = '/api/user-import/students';
+            uploadUrl = '/api/user-import/students/optimized';  // 使用优化后的接口
             break;
           case 'teacher':
             uploadUrl = '/api/user-import/teachers';
@@ -4383,7 +4388,7 @@ export default {
       // 标记为已处理 
       async markAsProcessed(feedbackId) {
         try {
-          const response = await this.$http.put(`/api/feedback/${feedbackId}/process`);
+          const response = await this.$http.put(`/api/messages/${feedbackId}/read`); // 使用消息API的read接口
           if (response.data.success) {
             // 更新本地数据 - computed会自动更新分页
             const index = this.feedbacks.findIndex(f => f._fid === feedbackId);
@@ -4403,7 +4408,7 @@ export default {
       async deleteFeedback(feedbackId) {
         if (confirm('确定要删除这条反馈吗？')) {
           try {
-            const response = await this.$http.delete(`/api/feedback/${feedbackId}`);
+            const response = await this.$http.delete(`/api/messages/${feedbackId}`); // 使用消息API的delete接口
             if (response.data.success) {
               // 从本地数据中移除 - computed会自动更新分页
               this.feedbacks = this.feedbacks.filter(f => f._fid !== feedbackId);
@@ -4420,14 +4425,143 @@ export default {
       // 初始化意见建议数据
       async loadFeedbacks() {
         try {
-          const response = await this.$http.get('/api/feedbacks');
-          this.feedbacks = response.data;
+          // 管理员获取所有类型为"意见建议"的消息 (类型2)
+          const response = await this.$http.get('/api/messages/all', {
+            params: {
+              type: 2,  // 类型2是"意见建议"
+            }
+          });
+          this.feedbacks = response.data.data.messages.map(msg => ({
+            ...msg,
+            _fid: msg._mid,  // 将消息ID映射为反馈ID
+            _sender_id: msg._sender_id,
+            _email: msg._email || (msg.sender && msg.sender._email) || ''
+          }));
           this.filteredFeedbacks = this.feedbacks;
           this.feedbackCurrentPage = 1; // 重置到第一页
         } catch (error) {
           console.error('加载意见建议数据失败:', error);
         }
       },
+
+      // 提交回复
+      async submitReply() {
+        if (!this.replyForm.subject || !this.replyForm.content) {
+          alert('请填写回复主题和内容');
+          return;
+        }
+
+        try {
+          // 使用现有的消息API发送回复
+          const response = await this.$http.post('/api/messages', {
+            _receiver_id: this.currentFeedback._sender_id, // 回复给原始反馈的发送者
+            _title: this.replyForm.subject,
+            _content: this.replyForm.content,
+            _mtid: 3,  // 使用类型3（意见回馈）作为回复类型
+          });
+
+          if (response.data.success) {
+            this.$message.success('回复提交成功');
+            this.closeReplyFeedbackModal();
+            
+            // 重新加载反馈列表以更新显示
+            await this.loadFeedbacks();
+          } else {
+            this.$message.error(response.data.message || '回复失败');
+          }
+        } catch (error) {
+          console.error('提交回复失败:', error);
+          this.$message.error('回复失败，请重试');
+        }
+      },
+
+      // 关闭回复反馈弹窗
+      closeReplyFeedbackModal() {
+        this.showReplyFeedbackModal = false;
+        this.replyForm = {
+          subject: '',
+          content: ''
+        };
+      },
+
+      async handleFeedbackSubmit() {
+      this.feedbackError = "";
+      if (!this.feedbackName || !this.feedbackName.trim()) {
+        this.feedbackError = "请填写姓名";
+        return;
+      }
+
+      if (!this.feedbackMessage || !this.feedbackMessage.trim()) {
+        this.feedbackError = "请填写意见内容";
+        return;
+      }
+
+      try {
+        // 使用现有的消息API提交反馈，使用类型2（意见建议）
+        const response = await this.$http.post('/api/messages', {
+          _receiver_id: 1,  // 发送给管理员（ID为1）
+          _title: this.feedbackType + ': ' + this.feedbackName,
+          _content: this.feedbackMessage,
+          _mtid: 2,  // 类型2表示"意见建议"
+          _email: this.feedbackEmail  // 保存用户邮箱
+        });
+
+        if (response.data.success) {
+          alert("感谢您的反馈，已提交！");
+          this.clearFeedbackForm();
+          this.feedbackTab = "history";
+          
+          // 重新加载反馈历史
+          await this.loadFeedbackHistory();
+        } else {
+          this.feedbackError = response.data.message || "提交失败";
+        }
+      } catch (error) {
+        console.error("提交反馈失败:", error);
+        this.feedbackError = error.response?.data?.message || "提交失败，请重试";
+      }
+    },
+
+    clearFeedbackForm() {
+      this.feedbackName = "";
+      this.feedbackEmail = "";
+      this.feedbackType = "建议";
+      this.feedbackMessage = "";
+      this.feedbackError = "";
+    },
+
+    async loadFeedbackHistory() {
+      try {
+        // 获取发送给当前用户的反馈回复消息
+        const response = await this.$http.get('/api/messages', {
+          params: {
+            type: 4  // 获取类型为"其他"的消息
+          }
+        });
+        
+        if (response.data.success) {
+          // 格式化数据以匹配前端显示需求
+          this.feedbackHistory = response.data.data.messages.map(msg => ({
+            name: msg._title,
+            email: msg._email || (msg.sender && msg.sender._email) || '',
+            type: msg._title.split(':')[0] || this.feedbackType,
+            message: msg._content,
+            date: new Date(msg._create_time).toISOString().split("T")[0],
+            status: msg._status === 1 ? "已读" : "未读",
+            reply: "",
+            _fid: msg._mid,
+            _uid: msg._sender_id,
+            _status: msg._status,
+            _create_time: msg._create_time
+          }));
+        }
+      } catch (error) {
+        console.error(
+          "加载意见建议历史失败:",
+          error.response?.data || error.message
+        );
+      }
+    },
 
       // 意见建议分页切换 
       changeFeedbackPage(page) {
@@ -6277,6 +6411,20 @@ button:disabled:hover {
   color: #0369a1;
   font-size: 12px;
   flex-shrink: 0;
+}
+
+/* 延期归还弹窗按钮样式 */
+#delayModal .modal-content {
+  display: flex;
+  flex-direction: column;
+  width: 450px;
+}
+#delayModal .modal-buttons {
+  display: flex;
+  justify-content: flex-end; /* 按钮靠右对齐 */
+  gap: 10px;
+  margin-top: 100px; /* 将按钮推到底部 */
+  padding-top: 15px; /* 添加一些顶部间距 */
 }
 
 </style>
