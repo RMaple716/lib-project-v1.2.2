@@ -458,8 +458,8 @@ const validateTempWorkers = (tempWorkers) => {
 const generateStudentTemplate = () => {
   // 创建CSV内容
   const headers = ['账号', '姓名', '邮箱', '班级', '密码'];
-  const example = ['20210001', '张三', 'zhangsan@example.com', '计算机科学与技术1班', '123456'];
-  const description = ['#必填', '#必填', '#必填', '#必填（班级名称）', '#必填'];
+  const example = ['20210001', '张三', 'zhangsan@example.com', '计算机与网络空间安全学院-计算机科学与技术-计科1班', '123456'];
+  const description = ['#必填', '#必填', '#必填', '#必填（学院名-专业名-班级名）', '#必填'];
   const wrapWithQuotes = (arr) => arr.map(item => `"${item}"`).join(',');
 
   const rows = [

@@ -52,7 +52,8 @@ async function standardizeRowFields(row, dbConnection) {
     return {
       _book_name: '',
       _isbn: '',
-      _num: '',
+      _total_copies: '',
+      _available_copies: '',
       _author: '',
       _press: '',
       _tid: null,
@@ -63,7 +64,8 @@ async function standardizeRowFields(row, dbConnection) {
   const fieldMappings = {
     '_book_name': ['图书名称', '书名', '名称', 'title', 'book_name', '_book_name'],
     '_isbn': ['ISBN', '书号', 'isbn', '_isbn'],
-    '_num': ['库存', '数量', '库存数量', 'stock', 'num', '_num'],
+    '_total_copies': ['库存', '数量', '库存数量', 'stock', 'total_copies', '_total_copies'],
+    '_available_copies': ['可借数量', '可用数量', 'available_copies', '_available_copies'],
     '_author': ['作者', '著者', 'author', '_author'],
     '_press': ['出版社', '出版单位', 'press', 'publisher', '_press'],
     '_type_name': ['分类名称', '类型名称', '类别名称', '图书类别', '分类', '类别', 'category_name', '_type_name'],
@@ -484,7 +486,8 @@ async function validateBooks(booksData, dbConnection) {
       const formattedBook = {
         _book_name: book._book_name.trim(),
         _isbn: book._isbn.trim(),
-        _num: parseInt(book._num) || 0,
+        _total_copies: parseInt(book._total_copies) || 0,
+        _available_copies: parseInt(book._available_copies) || 0,
         _author: book._author.trim(),
         _press: book._press.trim(),
         _cover_url: book._cover_url?.trim() || null,
@@ -519,9 +522,9 @@ async function validateBooks(booksData, dbConnection) {
  * 生成CSV模板
  */
 function generateCSVTemplate() {
-  const headers = ['图书名称', 'ISBN', '库存数量', '作者', '出版社', '图书类别', '封面URL'];
-  const example = ['JavaScript高级程序设计', '9787115275790', '10', 'Nicholas C. Zakas', '人民邮电出版社', '编程', 'https://example.com/cover.jpg'];
-  const description = ['#必填', '必填', '必填 整数', '必填', '必填', '必填（可以是数字ID或类别名称）', '可选'];
+  const headers = ['图书名称', 'ISBN', '库存数量',' 可借数量', '作者', '出版社', '图书类别', '封面URL'];
+  const example = ['JavaScript高级程序设计', '9787115275790', '10', '10', 'Nicholas C. Zakas', '人民邮电出版社', '编程', 'https://example.com/cover.jpg'];
+  const description = ['#必填', '必填', '必填 整数', '必填 整数', '必填', '必填', '必填（可以是数字ID或类别名称）', '可选'];
   const wrapWithQuotes = (arr) => arr.map(item => `"${item}"`).join(',');
   
   const rows = [
