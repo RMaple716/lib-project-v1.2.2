@@ -11,6 +11,144 @@ const { Op } = require('sequelize');
  *   name: Messages
  *   description: 读者端消息管理
  */
+/**
+ * @swagger
+ * /api/messages/all:
+ *   get:
+ *     summary: 获取消息列表
+ *     description: 获取筛选后的消息列表，按创建时间倒序排列
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: 页码
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         description: 每页数量
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: integer
+ *           enum: [0, 1]
+ *         description: "消息状态筛选 (0: 未读, 1: 已读)"
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: integer
+ *           enum: [1, 2, 3, 4]
+ *         description: "消息类型筛选 (1: 系统通知, 2: 借阅提醒, 3: 预约通知, 4: 其他)"
+ *     responses:
+ *       200:
+ *         description: 获取消息列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/MessageListResponse'
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+router.get('/all', authenticate, requirePermission('message.view'), async(req, res) => {
+   try {
+    const { page = 1, limit = 10, status, type, receiver , sender} = req.query;
+    const offset = (page - 1) * limit;
+    // 确保whereClause变量在任何情况下都被定义
+    let whereClause = {};
+
+    if(receiver !== undefined){
+      whereClause._receiver = receiver;
+    }
+    if(sender !== undefined){
+        whereClause._sender = sender;
+      }
+    // 如果指定了状态，添加状态条件
+    if (status !== undefined) {
+      whereClause._status = status;
+    }
+
+    // 如果指定了类型，添加类型条件
+    if (type !== undefined) {
+      whereClause._mtid = type;
+    }
+
+    // 查询消息列表
+    const { count, rows: messages } = await Message.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'sender',
+          attributes: ['_uid', '_name', '_account']
+        },
+        {
+          model: User,
+          as: 'receiver',
+          attributes: ['_uid', '_name', '_account']
+        }
+
+      ],
+      attributes: ['_mid', '_title', '_content', '_mtid', '_status', '_create_time', '_read_time'],
+      order: [['_create_time', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    // 计算总页数
+    const totalPages = Math.ceil(count / limit);
+
+    res.json({
+      success: true,
+      message: '获取消息列表成功',
+      data: {
+        messages,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages
+        }
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+  
+});
+
+
+
 
 /**
  * @swagger
