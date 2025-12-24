@@ -524,13 +524,16 @@
                   <!-- 按钮区 -->
                   <div class="category-actions-section">
                     <div class="action-buttons">
+                      <!-- 图书详情页面的预约按钮 -->
                       <button
                         v-if="isLoggedIn"
-                        @click="currentBook._available_copies > 0 ? handleBorrow(currentBook._bid) : handleOrder(currentBook._bid)"
+                        @click="handleOrder(currentBook._bid)"
+                        :disabled="isBookOrdered || currentBook._available_copies > 0"
                         class="borrow-btn"
                       >
-                        {{ currentBook._available_copies > 0 ? '借阅图书' : '预约图书' }}
+                        {{ currentBook._available_copies > 0 ? '借阅图书' : (isBookOrdered ? '已预约' : '预约图书') }}
                       </button>
+
                       <button
                         v-else
                         @click="goToAuth('login')"
@@ -794,6 +797,10 @@
                 </div>
                 <!-- 已登录才显示的内容 -->
                 <div v-else>
+                  <!-- 在这里添加调试按钮 -->
+                  <button @click="forceRefreshBorrowingInfo" class="debug-btn" style="position: fixed; top: 100px; right: 20px; z-index: 1000; background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 4px; font-size: 14px;">
+                    强制刷新借阅信息
+                  </button>
                   <div class="personal-search">
                     <select v-model="borrowingSearchType" class="search-select">
                       <option value="book">按图书名称查询</option>
@@ -859,94 +866,97 @@
                           <th>截止日期</th>
                           <th v-if="borrowingStatus === 'returned'">归还日期</th>
                           <th>状态</th>
+                          <th v-if="borrowingStatus === 'borrowing'">操作</th>
                         </template>
                         <!-- 预约中状态 -->
                         <template v-else>
                           <th>预约日期</th>
                           <th>预约状态</th>
-                          <th>通知方式</th>
+                          <th>操作</th>
                         </template>
-                        <th v-if="borrowingStatus === 'borrowing'">操作</th>
                       </tr>
                     </thead>
+
                     <tbody>
-                      <tr v-if="borrowingList.length === 0">
-                        <td
-                          :colspan="borrowingStatus === 'ordering' ? 7 : (borrowingStatus === 'returned' ? 8 : 7)"
-                          style="text-align: center; padding: 20px"
-                        >
-                          暂无{{ borrowingStatus === 'ordering' ? '预约' : '借阅' }}记录
-                        </td>
-                      </tr>
-                      <tr
-                        v-for="(record, index) in filteredBorrowingList"
-                        :key="record.id"
-                      >
-                        <td>{{ index + 1 }}</td>
-                        <td>{{ record.isbn }}</td>
-                        <td>{{ record.bookName }}</td>
-                        
-                        <!-- 借阅中和已归还状态的内容 -->
-                        <template v-if="borrowingStatus !== '_'">
-                          <td>{{ record.borrowDate }}</td>
-                          <td>{{ record.dueDate }}</td>
-                          <td v-if="borrowingStatus === 'returned'">{{ record.returnDate }}</td>
-                          <td>
-                            <span
-                              class="status-tag"
-                              :class="record.status === 'borrowing' ? 'borrowing' : 'returned'"
-                            >
-                              {{ record.status === "borrowing" ? "借阅中" : "已归还" }}
-                            </span>
-                          </td>
-                          <td v-if="borrowingStatus === 'borrowing'">
-                            <button
-                              v-if="record.status === 'borrowing'"
-                              class="return-btn"
-                              @click="returnBook(record.id)"
-                            >
-                              还书
-                            </button>
-                            <button
-                              v-if="record.status === 'borrowing'"
-                              class="delay-btn"
-                              @click="renewBook(record.id)"
-                            >
-                              续借
-                            </button>
-                          </td>
-                        </template>
-                        
-                        <!-- 预约中状态的内容 -->
-                        <template v-else>
-                          <td>{{ record.reserveDate || record._otime }}</td>
-                          <td>
-                            <span
-                              class="status-tag"
-                              :class="getReserveStatusClass(record.reserveStatus || record._ostatus)"
-                            >
-                              {{ getReserveStatusText(record.reserveStatus || record._ostatus) }}
-                            </span>
-                          </td>
-                          <td>
-                            <button
-                              v-if="record.reserveStatus === 'ready' || record._ostatus === 'ready'"
-                              class="confirm-btn"
-                              @click="convertOrderToBorrow(record.id || record._oid)"
-                            >
-                              立即借阅
-                            </button>
-                            <button
-                              v-else-if="record.reserveStatus === 'pending' || record._ostatus === 'pending'"
-                              class="cancel-btn"
-                              @click="cancelOrder(record.id || record._oid)"
-                            >
-                              取消预约
-                            </button>
-                          </td>
-                        </template>
-                      </tr>
-                    </tbody>
+  <tr v-if="filteredBorrowingList.length === 0">
+    <td
+      :colspan="borrowingStatus === 'ordering' ? 7 : (borrowingStatus === 'returned' ? 8 : 7)"
+      style="text-align: center; padding: 20px"
+    >
+      暂无{{ borrowingStatus === 'ordering' ? '预约' : '借阅' }}记录
+    </td>
+  </tr>
+  <tr
+    v-for="(record, index) in filteredBorrowingList"
+    :key="record.id"
+  >
+    <td>{{ index + 1 }}</td>
+    <td>{{ record.isbn }}</td>
+    <td>{{ record.bookName }}</td>
+    
+    <!-- 借阅中和已归还状态的内容 -->
+    <template v-if="record.type === 'borrowing'">
+      <td>{{ record.borrowDate }}</td>
+      <td>{{ record.dueDate }}</td>
+      <td v-if="borrowingStatus === 'returned'">{{ record.returnDate }}</td>
+      <td>
+        <span
+          class="status-tag"
+          :class="record.status === 'borrowing' ? 'borrowing' : 'returned'"
+        >
+          {{ record.status === "borrowing" ? "借阅中" : "已归还" }}
+        </span>
+      </td>
+      <td v-if="borrowingStatus === 'borrowing'">
+        <button
+          v-if="record.status === 'borrowing'"
+          class="return-btn"
+          @click="returnBook(record.id)"
+        >
+          还书
+        </button>
+        <button
+          v-if="record.status === 'borrowing'"
+          class="delay-btn"
+          @click="renewBook(record.id)"
+        >
+          续借
+        </button>
+      </td>
+    </template>
+    
+    <!-- 预约中状态的内容 -->
+    <template v-else-if="record.type === 'ordering'">
+      <td>{{ record.borrowDate }}</td>
+      <td>
+        <span class="status-tag ordering">
+          {{ record.status }}
+        </span>
+      </td>
+      <td>
+        <button
+          v-if="record.reserveStatus === 'ready'"
+          class="confirm-btn"
+          @click="convertOrderToBorrow(record.id)"
+        >
+          确认取书
+        </button>
+        <button
+          v-else-if="record.reserveStatus === 'pending'"
+          class="cancel-btn"
+          @click="cancelOrder(record.id)"
+        >
+          取消预约
+        </button>
+      </td>
+    </template>
+  </tr>
+</tbody>
+
+
+
+
+                    
                   </table>
                 </div>
               </div>
@@ -1400,6 +1410,14 @@ export default {
     };
   },
   computed: {
+    isBookOrdered() {
+    if (!this.currentBook || !this.currentBook._bid) return false;
+    return this.allBorrowingRecords.some(record => 
+      record.type === 'ordering' && 
+      record.bookId === this.currentBook._bid && 
+      ['pending', 'ready'].includes(record.reserveStatus)
+    );
+  },
     unreadMessageCount() {
       return this.messages.filter(msg => !msg.status).length;
     },
@@ -1770,6 +1788,41 @@ export default {
     },
   },
   methods: {
+    // 添加强制刷新借阅信息的方法
+    async forceRefreshBorrowingInfo() {
+    try {
+    console.log('强制刷新借阅信息...');
+    await this.loadBorrowingInfo();
+    console.log('强制刷新完成');
+    } catch (error) {
+    console.error('强制刷新失败:', error);
+    }
+    },
+    checkDataConsistency() {
+    // 检查是否有重复的预约记录
+    const bookOrders = {};
+    const duplicates = [];
+    
+    this.allBorrowingRecords.forEach(record => {
+      if (record.type === 'ordering') {
+        const key = `${record.bookId}_${record.reserveStatus}`;
+        if (bookOrders[key]) {
+          duplicates.push({
+            bookId: record.bookId,
+            status: record.reserveStatus,
+            records: [bookOrders[key], record]
+          });
+        } else {
+          bookOrders[key] = record;
+        }
+      }
+    });
+    
+    if (duplicates.length > 0) {
+      console.warn('发现重复的预约记录:', duplicates);
+      // 可以选择自动清理或提示用户
+    }
+  },
      // 从后端加载图书类别列表并映射为 {label,value} 格式
     async loadBookCategories() {
       try {
@@ -1990,8 +2043,8 @@ export default {
       }
     },
     async loadBorrowingInfo() {
-      try {
-        // 获取借阅记录
+  try {
+    // 获取借阅记录
     const borrowResponse = await axios.get("/api/borrow-records/my");
     const borrowRecords = borrowResponse.data.data?.ownlist || [];
 
@@ -1999,59 +2052,56 @@ export default {
     const orderResponse = await axios.get("/api/book-order/my-orders");
     const orderRecords = orderResponse.data.data?.rows || [];
 
-         // 处理借阅记录
+    // 处理借阅记录
     this.borrowingList = borrowRecords.map((record) => ({
       id: record._hid,
       bookId: record._bid,
       bookName: (record.book && (record.book._book_name || record.book._name)) || record._book_name || "",
       isbn: (record.book && record.book._isbn) || record._isbn || "",
-      coverUrl: (record.book && record.book._cover_url) || record._cover_url || "",
       author: (record.book && record.book._author) || record._author || "",
       borrowDate: record._begin_time ? new Date(record._begin_time).toISOString().split("T")[0] : "",
       dueDate: record._end_date ? new Date(record._end_date).toISOString().split("T")[0] : "",
       returnDate: record._status === 1 ? (record._end_date ? new Date(record._end_date).toISOString().split("T")[0] : "") : "",
       status: record._status === 1 ? "returned" : "borrowing",
-      type: 'borrowing' // 标记为借阅类型
+      type: 'borrowing'
     }));
 
-// 处理预约记录
+    // 处理预约记录
     this.orderingList = orderRecords.map((order) => ({
       id: order._oid,
       bookId: order._bid,
       bookName: order.book ? (order.book._book_name || order.book._name) : '未知图书',
       isbn: order.book ? order.book._isbn : '',
-      coverUrl: order.book ? order.book._cover_url : '',
       author: order.book ? order.book._author : '未知作者',
-      reserveDate: order._otime ? new Date(order._otime).toISOString().split("T")[0] : '',
-      reserveStatus: order._ostatus,
-      status: this.getReserveStatusText(order._ostatus),
-      type: 'ordering' // 标记为预约类型
+      borrowDate: order._otime ? new Date(order._otime).toISOString().split("T")[0] : '', // 预约日期
+      dueDate: '', // 预约记录不需要截止日期
+      status: this.getReserveStatusText(order._ostatus), // 使用预约状态
+      reserveStatus: order._ostatus, // 保留原始状态用于判断
+      type: 'ordering'
     }));
-         // 保存完整副本以供检索使用
+
+    // 保存完整副本以供检索使用
     this.allBorrowingRecords = [
       ...this.borrowingList,
       ...this.orderingList
     ];
 
-
-         // 统计借阅状态
+    // 统计借阅状态
     this.borrowingStats = {
       total: this.borrowingList.length + this.orderingList.length,
       borrowing: this.borrowingList.filter(r => r.status === "borrowing").length,
       returned: this.borrowingList.filter(r => r.status === "returned").length,
       ordering: this.orderingList.length
     };
-// 更新用户信息中的借阅数量
-    if (this.isLoggedIn && this.userInfo) {
-      await this.loadPersonalData();
-    }
-      } catch (error) {
-        alert(
-          "加载借阅信息失败: " +
-            (error.response?.data?.message || error.message)
-        );
-      }
-    },
+    
+    console.log('加载的借阅记录:', this.borrowingList);
+    console.log('加载的预约记录:', this.orderingList);
+    console.log('所有记录:', this.allBorrowingRecords);
+  } catch (error) {
+    console.error("加载借阅信息失败:", error);
+    alert("加载借阅信息失败: " + (error.response?.data?.message || error.message));
+  }
+},
 
     async loadSearchPage() {
     try {
@@ -2479,46 +2529,100 @@ getReserveStatusText(status) {
 
    // 处理预约逻辑
   async handleOrder(bookId) {
-    try {
-      const response = await axios.post('/api/book-order/order', { bookId });
-      if (response.data.success) {
-        alert("预约成功");
-        // 重新加载图书数据
-        await this.loadSearchPage();
-        // 重新加载借阅信息以更新预约统计
-        if (this.isLoggedIn) {
-          await this.loadBorrowingInfo();
-        }
-      } else {
-        alert("预约失败: " + response.data.message);
-      }
-    } catch (error) {
-      console.error("预约失败:", error);
-      alert("预约失败: " + (error.response?.data?.message || error.message));
-    }
-  },
-  // 取消预约
-  async cancelOrder(orderId) {
-    if (!confirm("确定要取消预约吗？")) {
+  try {
+    // 使用最新的数据进行检查
+    const hasExistingOrder = this.allBorrowingRecords.some(record => 
+      record.type === 'ordering' && 
+      record.bookId === bookId && 
+      ['pending', 'ready'].includes(record.reserveStatus)
+    );
+    
+    console.log('检查预约状态:', {
+      bookId,
+      hasExistingOrder,
+      allRecords: this.allBorrowingRecords.filter(r => r.type === 'ordering' && r.bookId === bookId)
+    });
+    
+    if (hasExistingOrder) {
+      alert('您已经预约过这本书了，请勿重复预约');
       return;
     }
     
-    try {
-      const response = await axios.put(`/api/book-order/cancel/${orderId}`);
-      if (response.data.success) {
-        alert("取消预约成功");
-        // 重新加载借阅信息
-        await this.loadBorrowingInfo();
-        // 重新加载图书数据
-        await this.loadSearchPage();
-      } else {
-        alert("取消预约失败: " + response.data.message);
-      }
-    } catch (error) {
-      console.error("取消预约失败:", error);
-      alert("取消预约失败: " + (error.response?.data?.message || error.message));
+    console.log('发送预约请求，bookId:', bookId);
+    const response = await axios.post('/api/book-order/order', { bookId });
+    console.log('预约响应:', response);
+    
+    if (response.data.success) {
+      alert("预约成功");
+      
+      // 立即重新从服务器加载最新数据
+      await this.loadBorrowingInfo();
+      
+      // 重新加载图书数据
+      await this.loadSearchPage();
+    } else {
+      alert("预约失败: " + response.data.message);
     }
-  },
+  } catch (error) {
+    console.error("预约失败:", error);
+    alert("预约失败: " + (error.response?.data?.message || error.message));
+  }
+},
+
+  // 取消预约
+  // 
+  async cancelOrder(orderId) {
+  if (!confirm("确定要取消预约吗？")) {
+    return;
+  }
+  
+  try {
+    console.log('取消预约，orderId:', orderId);
+    
+    const response = await axios.put(`/api/book-order/cancel/${orderId}`);
+    console.log('取消预约响应:', response);
+    
+    if (response && response.data && response.data.success) {
+      alert("取消预约成功");
+      
+      // 立即从本地数据中移除这个预约记录
+      this.allBorrowingRecords = this.allBorrowingRecords.filter(
+        record => !(record.type === 'ordering' && record.id === orderId)
+      );
+      
+      // 更新预约列表
+      this.orderingList = this.orderingList.filter(
+        record => record.id !== orderId
+      );
+      
+      // 重新计算统计
+      this.borrowingStats = {
+        total: this.borrowingList.length + this.orderingList.length,
+        borrowing: this.borrowingList.filter(r => r.status === "borrowing").length,
+        returned: this.borrowingList.filter(r => r.status === "returned").length,
+        ordering: this.orderingList.length
+      };
+      
+      console.log('取消后的预约列表:', this.orderingList);
+      console.log('取消后的统计:', this.borrowingStats);
+      
+      // 重新加载图书数据（更新可借数量）
+      await this.loadSearchPage();
+      
+      // 可选：重新从服务器加载最新数据以确保一致性
+      // await this.loadBorrowingInfo();
+    } else {
+      const errorMsg = response?.data?.message || "取消预约失败";
+      console.error('取消预约失败:', errorMsg);
+      alert(errorMsg);
+    }
+  } catch (error) {
+    console.error("取消预约失败:", error);
+    alert("取消预约失败: " + (error.response?.data?.message || error.message));
+  }
+},
+
+
    // 将预约转换为借阅
   async convertOrderToBorrow(orderId) {
     try {
@@ -3126,6 +3230,8 @@ getReserveStatusText(status) {
     
     
   async mounted() {
+    // 检查数据一致性
+  this.checkDataConsistency();
     // 加载消息相关数据
   if (this.isLoggedIn) {
     await this.loadMessages();
@@ -3224,6 +3330,36 @@ getReserveStatusText(status) {
 </script>
 
 <style>
+/* 调试按钮样式 */
+.debug-btn {
+  background: #ff6b6b !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: background-color 0.3s !important;
+  z-index: 1000 !important;
+}
+
+.debug-btn:hover {
+  background: #ff5252 !important;
+}
+
+/* 如果按钮是固定定位的，确保它显示在最前面 */
+.debug-btn.fixed {
+  position: fixed !important;
+  top: 100px !important;
+  right: 20px !important;
+  z-index: 9999 !important;
+}
+
+.status-tag.ordering {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
 /* 消息触发器样式 */
 .message-trigger {
   position: relative;
