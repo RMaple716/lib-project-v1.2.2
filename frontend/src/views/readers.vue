@@ -31,50 +31,61 @@
 
         <!-- 登录按钮 / 用户头像 -->
         <div class="auth-links">
-          <!-- 小助手机器人 -->
-          <!-- 替换原有的 AI 助手部分 -->
-          <div class="ai-assistant" @click="toggleMessagePanel">
-            <div 
-              class="ai-icon"
-              :class="{ 'disabled': !isLoggedIn }"
-              :title="isLoggedIn ? '点击查看消息列表' : '请先登录'"
-            >
-              🤖
-              <span v-if="unreadMessageCount > 0" class="unread-badge">{{ unreadMessageCount }}</span>
+          <!-- 消息面板触发器 -->
+          <div class="message-trigger" @click="toggleMessagePanel">
+            <i class="envelope-icon">✉️</i>
+            <span v-if="unreadMessageCount > 0" class="unread-count">
+              {{ unreadMessageCount }}
+            </span>
+          </div>
+          <!-- 消息面板 -->
+          <div v-show="showMessagePanel" class="message-panel" @click.stop>
+            <div class="message-header">
+              <h3>消息中心</h3>
+              <button class="close-btn" @click="toggleMessagePanel">×</button>
             </div>
             
-            <!-- 消息面板 -->
-            <div v-show="showMessagePanel" class="message-panel" @click.stop>
-              <div class="message-header">
-                <h3>消息中心</h3>
-                <button class="close-btn" @click="toggleMessagePanel">×</button>
+            <div class="message-list">
+              <div v-if="messages.length === 0" class="no-messages">
+                暂无消息
               </div>
-              <div class="message-list">
-                <div v-if="messages.length === 0" class="no-messages">
-                  暂无消息
+              
+              <div 
+                v-else 
+                v-for="message in messages" 
+                :key="message._mid"
+                class="message-item"
+                :class="{ unread: !message._status }"
+                @click="viewMessageDetail(message)"
+              >
+                <div class="message-title">
+                  <strong>{{ message._title }}</strong>
+                  <span class="message-time">{{ formatDate(message._create_time) }}</span>
                 </div>
-                <div 
-                  v-for="message in messages" 
-                  :key="message.id" 
-                  class="message-item"
-                  :class="{ 'unread': !message.read }"
-                >
-                  <div class="message-content">
-                    <div class="message-title">{{ message.title }}</div>
-                    <div class="message-text">{{ message.text }}</div>
-                    <div class="message-time">{{ message.time }}</div>
-                  </div>
-                  <button 
-                    class="dismiss-btn" 
-                    @click="dismissMessage(message.id)"
-                    title="关闭消息"
-                  >
-                    ×
-                  </button>
+                <div class="message-preview">
+                  {{ message._content.substring(0, 50) }}...
+                </div>
+                <div v-if="!message._status" class="unread-indicator">未读</div>
+              </div>
+            </div>
+          </div>
+          <!-- 消息详情模态框 -->
+          <div v-if="showMessageDetail" class="message-detail-modal" @click="closeMessageDetail">
+            <div class="message-detail-content" @click.stop>
+              <div class="message-detail-header">
+                <h3>{{ currentMessage?._title }}</h3>
+                <button class="close-btn" @click="closeMessageDetail">×</button>
+              </div>
+              <div class="message-detail-body">
+                <p><strong>发送者：</strong>{{ currentMessage?.sender?._name || '系统' }}</p>
+                <p><strong>时间：</strong>{{ formatDate(currentMessage?._create_time) }}</p>
+                <div class="message-content">
+                  <pre>{{ currentMessage?._content }}</pre>
                 </div>
               </div>
             </div>
           </div>
+           <!-- 用户头像/登录按钮 -->
           <div v-if="isLoggedIn" class="user-menu" @click.stop="toggleUserMenu">
             <img
               v-if="avatarUrl"
@@ -515,7 +526,7 @@
                     <div class="action-buttons">
                       <button
                         v-if="isLoggedIn"
-                        @click="currentBook._available_copies > 0 ? borrowBook(currentBook._bid) : reserveBook(currentBook)"
+                        @click="currentBook._available_copies > 0 ? handleBorrow(currentBook._bid) : handleOrder(currentBook._bid)"
                         class="borrow-btn"
                       >
                         {{ currentBook._available_copies > 0 ? '借阅图书' : '预约图书' }}
@@ -537,8 +548,8 @@
             <div class="book-detail-footer">
               <div class="footer-content">
                 <div class="additional-info">
-                  <span class="info-item">馆藏总数：{{ currentBook._num }}</span>
-                  <span class="info-item">可借数量：{{ currentBook.available_count }}</span>
+                  <span class="info-item">馆藏总数：{{ currentBook._total_copies }}</span>
+                  <span class="info-item">可借数量：{{ currentBook._available_copies }}</span>
                 </div>
                 <div class="footer-actions">
                   <button @click="changePage('search')" class="secondary-btn">
@@ -750,7 +761,7 @@
                         </div>
                         <div class="info-item">
                           <label>当前借阅：</label>
-                          <span>{{ userInfo?._lend_num || userInfo?.lend_num || "--" }}</span>
+                          <span>{{ userInfo?.lend_num || userInfo?.lend_num || "--" }}</span>
                         </div>
                         <div class="info-actions">
                           <button @click="toggleEdit" class="edit-btn">更换邮箱</button>
@@ -830,10 +841,10 @@
                       已归还 ({{ borrowingStats?.returned || 0 }})
                     </button>
                     <button
-                      :class="{ active: borrowingStatus === '_' }"
-                      @click="borrowingStatus = '_'"
+                      :class="{ active: borrowingStatus === 'ordering' }"
+                      @click="borrowingStatus = 'ordering'"
                     >
-                      预约中 ({{ borrowingStats?.returned || 0 }})
+                      预约中 ({{ borrowingStats?.ordering || 0 }})
                     </button>
                   </div>
                   <table id="borrowing-table">
@@ -843,7 +854,7 @@
                         <th>ISBN</th>
                         <th>图书名称</th>
                         <!-- 借阅中和已归还状态 -->
-                        <template v-if="borrowingStatus !== '_'">
+                        <template v-if="borrowingStatus !== 'ordering'">
                           <th>借阅日期</th>
                           <th>截止日期</th>
                           <th v-if="borrowingStatus === 'returned'">归还日期</th>
@@ -861,10 +872,10 @@
                     <tbody>
                       <tr v-if="borrowingList.length === 0">
                         <td
-                          :colspan="borrowingStatus === '_' ? 7 : (borrowingStatus === 'returned' ? 8 : 7)"
+                          :colspan="borrowingStatus === 'ordering' ? 7 : (borrowingStatus === 'returned' ? 8 : 7)"
                           style="text-align: center; padding: 20px"
                         >
-                          暂无{{ borrowingStatus === '_' ? '预约' : '借阅' }}记录
+                          暂无{{ borrowingStatus === 'ordering' ? '预约' : '借阅' }}记录
                         </td>
                       </tr>
                       <tr
@@ -908,36 +919,29 @@
                         
                         <!-- 预约中状态的内容 -->
                         <template v-else>
-                          <td>{{ record.reserveDate }}</td>
+                          <td>{{ record.reserveDate || record._otime }}</td>
                           <td>
                             <span
                               class="status-tag"
-                              :class="{
-                                'waiting': record.reserveStatus === 'waiting',
-                                'available': record.reserveStatus === 'available',
-                                'expired': record.reserveStatus === 'expired',
-                                'cancelled': record.reserveStatus === 'cancelled',
-                                'received': record.reserveStatus === 'received'
-                              }"
+                              :class="getReserveStatusClass(record.reserveStatus || record._ostatus)"
                             >
-                              {{ getReserveStatusText(record.reserveStatus) }}
+                              {{ getReserveStatusText(record.reserveStatus || record._ostatus) }}
                             </span>
                           </td>
-                          <td>{{ record.notificationMethod }}</td>
                           <td>
                             <button
-                              v-if="record.reserveStatus === 'waiting'"
-                              class="cancel-btn"
-                              @click="cancelReservation(record.id)"
+                              v-if="record.reserveStatus === 'ready' || record._ostatus === 'ready'"
+                              class="confirm-btn"
+                              @click="convertOrderToBorrow(record.id || record._oid)"
                             >
-                              取消预约
+                              立即借阅
                             </button>
                             <button
-                              v-if="record.reserveStatus === 'available'"
-                              class="confirm-btn"
-                              @click="confirmReceive(record.id)"
+                              v-else-if="record.reserveStatus === 'pending' || record._ostatus === 'pending'"
+                              class="cancel-btn"
+                              @click="cancelOrder(record.id || record._oid)"
                             >
-                              确认取书
+                              取消预约
                             </button>
                           </td>
                         </template>
@@ -1301,8 +1305,24 @@ export default {
   },
   data() {
     return {
+      // 消息系统相关
       showMessagePanel: false,
       messages: [], // 消息列表
+      currentMessage: null, // 当前查看的消息详情
+      showMessageDetail: false, // 是否显示消息详情
+      // 意见建议相关
+      feedbackTab: "new", // new 或 history
+      feedbackHistory: [],
+      currentFeedbackPage: 1,
+      feedbacksPerPage: 5,
+      
+      // 意见建议表单数据
+      feedbackName: "",
+      feedbackEmail: "",
+      feedbackType: "建议",
+      feedbackMessage: "",
+      feedbackError: "",
+      // 登录提醒相关
       hasShownLoginReminder: false, // 是否已显示登录提醒
       clickedSearch: false, // 添加这个标志位来跟踪是否点击了检索按钮或选择了分类
       showUserDropdown: false, // 控制用户下拉菜单显示状态
@@ -1320,11 +1340,6 @@ export default {
       borrowingHistory: [],
       announcements: [],
       currentBook: null,
-      feedbackName: "",
-      feedbackEmail: "",
-      feedbackType: "建议",
-      feedbackMessage: "",
-      feedbackError: "",
       carouselImages: [slide1, slide2, slide3, slide4, slide5],
       topIcon: topIcon,
       carouselIndex: 0,
@@ -1349,15 +1364,6 @@ export default {
       borrowingSearchType: "book",
       borrowingSearchQuery: "",
       borrowingStatus: "all",
-
-      // 逾期提醒消息
-      overdueMessages: [],
-
-      // 意见建议页面相关数据
-      feedbackTab: "new", // new 或 history
-      feedbackHistory: [],
-      currentFeedbackPage: 1,
-      feedbacksPerPage: 5,
 
       // 搜索结果页面相关数据
       currentSearchResultPageNum: 1,
@@ -1391,16 +1397,11 @@ export default {
       // 公告分页相关状态（每页显示3个公告）
       currentAnnouncementPage: 1,
       announcementsPerPage: 3,
-      // 逾期检测相关
-      overdueBooks: [],
-      upcomingDueBooks: [],
-      reminderFlags: {},
-      overdueCheckTimer: null,
     };
   },
   computed: {
     unreadMessageCount() {
-      return this.messages.filter(msg => !msg.read).length;
+      return this.messages.filter(msg => !msg.status).length;
     },
     isLoggedIn() {
       return !!localStorage.getItem("token") && !!this.user;
@@ -1721,37 +1722,41 @@ export default {
         this.totalSearchResultPages
       );
     },
-    // 我的借阅：基于当前过滤状态返回要显示的借阅记录
     filteredBorrowingList() {
-      if (!Array.isArray(this.borrowingList)) return [];
-      if (this.borrowingStatus === "borrowing") {
-        return this.borrowingList.filter((r) => r.status === "borrowing");
-      }
-      if (this.borrowingStatus === "returned") {
-        return this.borrowingList.filter((r) => r.status === "returned");
-      } else if (this.borrowingSearchType === "date") {
-        // 按日期范围筛选
-        if (this.borrowingStartDate) {
-          result = result.filter(
-            (record) => record.borrowDate >= this.borrowingStartDate
-          );
+    if (!Array.isArray(this.allBorrowingRecords)) return [];
+    
+    let result = [...this.allBorrowingRecords];
+    
+    // 根据状态筛选
+    if (this.borrowingStatus === "borrowing") {
+      result = result.filter(r => r.type === 'borrowing' && r.status === "borrowing");
+    } else if (this.borrowingStatus === "returned") {
+      result = result.filter(r => r.type === 'borrowing' && r.status === "returned");
+    } else if (this.borrowingStatus === 'ordering') { // 预约状态
+      result = result.filter(r => r.type === 'ordering');
+    }
+
+    // 搜索筛选
+    if (this.borrowingSearchQuery) {
+      const query = this.borrowingSearchQuery.toLowerCase();
+      result = result.filter(record => {
+        if (this.borrowingSearchType === "book") {
+          return (record.bookName || '').toLowerCase().includes(query);
+        } else if (this.borrowingSearchType === "author") {
+          return (record.author || '').toLowerCase().includes(query);
         }
-        if (this.borrowingEndDate) {
-          result = result.filter(
-            (record) => record.borrowDate <= this.borrowingEndDate
-          );
-        }
-      }
-      // 默认返回全部
-      return this.borrowingList;
-    },
+        return false;
+      });
+    }
+
+    return result;
+  },
 
     // 当前借阅数量（按借阅记录计数，同一本书借两本计2）
     currentBorrowCount() {
-      if (!Array.isArray(this.allBorrowingRecords)) return 0;
-      return this.allBorrowingRecords.filter((r) => r.status === "borrowing")
-        .length;
-    },
+  // 直接使用用户信息中的借阅数量，这应该是最准确的
+  return this.user?.lend_num || this.userInfo?.lend_num || 0;
+},
 
     avatarUrl() {
       // 优先使用 user.avatar 或 user._avatar 或 user.avatar_url 等常见字段
@@ -1765,6 +1770,773 @@ export default {
     },
   },
   methods: {
+     // 从后端加载图书类别列表并映射为 {label,value} 格式
+    async loadBookCategories() {
+      try {
+        const res = await axios.get("/api/categories");
+        const list =
+          (res && res.data && res.data.data && res.data.data.catlist) || [];
+        const mapped = [{ label: "全部", value: "" }].concat(
+          list.map((c) => ({
+            label: c._type_name || c._typeName || String(c),
+            value:
+              c._tid !== undefined && c._tid !== null
+                ? c._tid
+                : c._type_name || "",
+          }))
+        );
+        this.bookCategories = mapped;
+      } catch (e) {
+        console.warn(
+          "加载分类失败，使用默认分类列表",
+          e && e.response ? e.response.data : e
+        );
+        // 回退到默认静态分类，保证页面不空
+        this.bookCategories = [
+          { label: "全部", value: "" },
+          { label: "科技", value: "科技" },
+          { label: "小说", value: "小说" },
+          { label: "金融", value: "金融" },
+          { label: "教育", value: "教育" },
+          { label: "生活", value: "生活" },
+          { label: "历史", value: "历史" },
+          { label: "童书", value: "童书" },
+          { label: "励志", value: "励志" },
+        ];
+      }
+    },
+
+    searchBorrowing() {
+      try {
+        const q = (this.borrowingSearchQuery || "").trim().toLowerCase();
+        // 如果查询为空，恢复完整列表
+        if (!q) {
+          this.borrowingList = Array.isArray(this.allBorrowingRecords)
+            ? [...this.allBorrowingRecords]
+            : [];
+          this.borrowingStats = {
+            total: this.borrowingList.length,
+            borrowing: this.borrowingList.filter(
+              (r) => r.status === "borrowing"
+            ).length,
+            returned: this.borrowingList.filter((r) => r.status === "returned")
+              .length,
+          };
+          return;
+        }
+
+        let filtered = [];
+        if (this.borrowingSearchType === "book") {
+          filtered = this.allBorrowingRecords.filter((r) =>
+            (r.bookName || "").toLowerCase().includes(q)
+          );
+        } else if (this.borrowingSearchType === "author") {
+          filtered = this.allBorrowingRecords.filter((r) =>
+            (r.author || "").toLowerCase().includes(q)
+          );
+        } else if (this.borrowingSearchType === "date") {
+          filtered = this.allBorrowingRecords.filter((r) => {
+            const borrowDate = (r.borrowDate || "").toLowerCase();
+            const dueDate = (r.dueDate || "").toLowerCase();
+            return borrowDate.includes(q) || dueDate.includes(q);
+          });
+        } else {
+          // 全字段模糊匹配
+          filtered = this.allBorrowingRecords.filter((r) => {
+            const hay = `${r.bookName || ""} ${r.author || ""} ${
+              r.borrowDate || ""
+            } ${r.dueDate || ""}`.toLowerCase();
+            return hay.includes(q);
+          });
+        }
+
+        this.borrowingList = filtered;
+        this.borrowingStats = {
+          total: this.borrowingList.length,
+          borrowing: this.borrowingList.filter((r) => r.status === "borrowing")
+            .length,
+          returned: this.borrowingList.filter((r) => r.status === "returned")
+            .length,
+        };
+      } catch (e) {
+        console.warn("searchBorrowing error", e);
+      }
+    },
+
+    filterNewAndHotBooks() {
+      // 新书推荐：按添加时间排序，取最新的30本
+      this.newBooks = [...this.books]
+        .sort((a, b) => new Date(b._add_time) - new Date(a._add_time))
+        .slice(0, 30)
+        .map((book) => ({ ...book, isNew: true, isHot: false })); // 标记为新书
+
+      // 热门推荐：按借阅次数排序，取借阅次数最多的30本
+      this.hotBooks = [...this.books]
+        .sort((a, b) => b._times - a._times)
+        .slice(0, 30)
+        .map((book) => ({ ...book, isNew: false, isHot: true })); // 标记为热门
+
+      // 为其他图书添加标志
+      this.books = this.books.map((book) => {
+        // 检查是否在新书或热门列表中
+        const inNewList = this.newBooks.some((nb) => nb._bid === book._bid);
+        const inHotList = this.hotBooks.some((hb) => hb._bid === book._bid);
+
+        return {
+          ...book,
+          isNew: inNewList,
+          isHot: inHotList,
+        };
+      });
+    },
+
+    // 图片加载错误处理，recordOrBook 可以是包含 id/ _bid / bookId 的对象
+    handleImgError(event, recordOrBook) {
+      try {
+        const key =
+          recordOrBook &&
+          (recordOrBook._bid || recordOrBook.bookId || recordOrBook.id);
+        if (key) {
+          this.$set(this.imgErrorMap, key, true);
+        }
+        if (event && event.target) {
+          event.target.style.display = "none";
+        }
+      } catch (e) {
+        console.warn("handleImgError error", e);
+      }
+    },
+
+    // 处理相对路径或非http的封面地址，返回可用于<img>的完整URL或空字符串
+    getFullCoverUrl(src) {
+      if (!src) return "";
+      try {
+        if (/^https?:\/\//i.test(src)) return src;
+        if (src.startsWith("/")) return window.location.origin + src;
+        return src;
+      } catch (e) {
+        return src;
+      }
+    },
+
+    async loadAnnouncements() {
+      try {
+        const response = await axios.get("/api/announcements");
+        const res = response && response.data ? response.data : {};
+        const payload = res.data || {};
+
+        // 后端返回格式示例: { success: true, message: '...', data: { annlist: [...] } }
+        // 兼容多种可能的返回结构，优先取 payload.annlist
+        let list = [];
+        if (Array.isArray(payload)) {
+          list = payload;
+        } else if (Array.isArray(payload.annlist)) {
+          list = payload.annlist;
+        } else if (Array.isArray(res.annlist)) {
+          list = res.annlist;
+        } else if (Array.isArray(res.data)) {
+          list = res.data;
+        }
+
+        // 归一化字段以匹配模板中使用的字段（例如模板中使用 _id、_title、_date、_content）
+        this.announcements = list.map((a) => ({
+          _id: a._aid || a._id || a.id || null,
+          _title: a._title || a.title || "",
+          _date: a._date || a.date || "",
+          _content: a._content || a.content || "",
+          _publisher: a._publisher || a.publisher || "",
+        }));
+      } catch (error) {
+        alert(
+          "加载公告失败: " + (error.response?.data?.message || error.message)
+        );
+      }
+    },
+
+    async loadBorrowingHistory() {
+      try {
+        // 获取我的借阅记录（全部，包括已归还）
+        const response = await axios.get("/api/borrow-records/my");
+        const records =
+          (response &&
+            response.data &&
+            response.data.data &&
+            response.data.data.ownlist) ||
+          [];
+
+        this.borrowingHistory = records.map((record) => ({
+          _hid: record._hid,
+          bookId: record._bid,
+          bookName:
+            (record.book && (record.book._book_name || record.book._name)) ||
+            record._book_name ||
+            "",
+          borrowDate: record._begin_time
+            ? new Date(record._begin_time).toISOString().split("T")[0]
+            : "",
+          returnDate:
+            record._status === 1
+              ? record._end_date
+                ? new Date(record._end_date).toISOString().split("T")[0]
+                : ""
+              : "",
+          status: record._status === 1 ? "已还" : "借阅中",
+        }));
+      } catch (error) {
+        alert(
+          "加载借阅历史失败: " +
+            (error.response?.data?.message || error.message)
+        );
+      }
+    },
+    async loadBorrowingInfo() {
+      try {
+        // 获取借阅记录
+    const borrowResponse = await axios.get("/api/borrow-records/my");
+    const borrowRecords = borrowResponse.data.data?.ownlist || [];
+
+    // 获取预约记录
+    const orderResponse = await axios.get("/api/book-order/my-orders");
+    const orderRecords = orderResponse.data.data?.rows || [];
+
+         // 处理借阅记录
+    this.borrowingList = borrowRecords.map((record) => ({
+      id: record._hid,
+      bookId: record._bid,
+      bookName: (record.book && (record.book._book_name || record.book._name)) || record._book_name || "",
+      isbn: (record.book && record.book._isbn) || record._isbn || "",
+      coverUrl: (record.book && record.book._cover_url) || record._cover_url || "",
+      author: (record.book && record.book._author) || record._author || "",
+      borrowDate: record._begin_time ? new Date(record._begin_time).toISOString().split("T")[0] : "",
+      dueDate: record._end_date ? new Date(record._end_date).toISOString().split("T")[0] : "",
+      returnDate: record._status === 1 ? (record._end_date ? new Date(record._end_date).toISOString().split("T")[0] : "") : "",
+      status: record._status === 1 ? "returned" : "borrowing",
+      type: 'borrowing' // 标记为借阅类型
+    }));
+
+// 处理预约记录
+    this.orderingList = orderRecords.map((order) => ({
+      id: order._oid,
+      bookId: order._bid,
+      bookName: order.book ? (order.book._book_name || order.book._name) : '未知图书',
+      isbn: order.book ? order.book._isbn : '',
+      coverUrl: order.book ? order.book._cover_url : '',
+      author: order.book ? order.book._author : '未知作者',
+      reserveDate: order._otime ? new Date(order._otime).toISOString().split("T")[0] : '',
+      reserveStatus: order._ostatus,
+      status: this.getReserveStatusText(order._ostatus),
+      type: 'ordering' // 标记为预约类型
+    }));
+         // 保存完整副本以供检索使用
+    this.allBorrowingRecords = [
+      ...this.borrowingList,
+      ...this.orderingList
+    ];
+
+
+         // 统计借阅状态
+    this.borrowingStats = {
+      total: this.borrowingList.length + this.orderingList.length,
+      borrowing: this.borrowingList.filter(r => r.status === "borrowing").length,
+      returned: this.borrowingList.filter(r => r.status === "returned").length,
+      ordering: this.orderingList.length
+    };
+// 更新用户信息中的借阅数量
+    if (this.isLoggedIn && this.userInfo) {
+      await this.loadPersonalData();
+    }
+      } catch (error) {
+        alert(
+          "加载借阅信息失败: " +
+            (error.response?.data?.message || error.message)
+        );
+      }
+    },
+
+    async loadSearchPage() {
+    try {
+      const response = await axios.get("/api/books");
+      if (response.data.success) {
+        this.books = response.data.data.booklist;
+        this.filterNewAndHotBooks();
+        this.currentPageNum = 1;
+      }
+    } catch (error) {
+      this.$message.error("加载图书失败: " + (error.response?.data?.message || error.message));
+    }
+  },
+    async renewBook(hid) {
+      if (!hid) return;
+      try {
+        const response = await axios.put(`/api/books/${hid}/renew`);
+        if (response && response.data && response.data.success) {
+          alert("续借成功");
+          await Promise.all([
+            this.loadBorrowingInfo(),
+            this.loadBorrowingHistory(),
+          ]);
+        } else {
+          alert(
+            "续借失败: " +
+              ((response && response.data && response.data.message) || "")
+          );
+        }
+      } catch (error) {
+        console.error("续借失败:", error.response?.data || error.message);
+        alert("续借失败: " + (error.response?.data?.message || error.message));
+      }
+    },
+
+    async returnBook(hid) {
+  if (!hid) return;
+  
+  try {
+    const response = await axios.put(`/api/books/${hid}/return`);
+    if (response.data.success) {
+      this.$message.success("还书成功");
+      
+      // 重新获取最新的用户信息，而不是手动减一
+      if (this.isLoggedIn) {
+        await this.loadPersonalData(); // 这会从后端获取最新的用户信息
+      }
+      
+      // 重新加载借阅信息
+      await Promise.all([
+        this.loadBorrowingInfo(),
+        this.loadBorrowingHistory(),
+      ]);
+      
+      // 重新加载图书数据
+      await this.loadSearchPage();
+    } else {
+      this.$message.error("还书失败: " + response.data.message);
+    }
+  } catch (error) {
+    console.error("还书失败:", error);
+    this.$message.error("还书失败: " + (error.response?.data?.message || error.message));
+  }
+},
+    async refreshCurrentPage() {
+    // 保存当前页面状态
+    const currentPage = this.currentPage;
+    const currentBook = this.currentBook;
+    const searchQuery = this.searchQuery;
+    const currentPageNum = this.currentPageNum;
+    
+    try {
+      this.loading = true;
+      
+      // 根据当前页面类型重新加载数据
+      if (currentPage === "search") {
+        await this.loadSearchPage();
+        // 恢复搜索状态
+        this.searchQuery = searchQuery;
+        this.currentPageNum = currentPageNum;
+      } else if (currentPage === "bookDetail" && currentBook) {
+        const response = await axios.get(`/api/books/${currentBook._bid}?t=${Date.now()}`);
+        if (response.data.success) {
+          this.currentBook = response.data.data;
+        }
+      }
+    } catch (error) {
+      console.error("刷新页面失败:", error);
+      this.$message.error("刷新失败: " + error.message);
+    } finally {
+      this.loading = false;
+    }
+  },
+    // 格式化日期
+  formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  },
+// 处理意见建议提交
+async handleFeedbackSubmit() {
+  // 验证必填字段
+  if (!this.feedbackName || !this.feedbackName.trim()) {
+    this.feedbackError = "请填写姓名";
+    return;
+  }
+
+  if (!this.feedbackMessage || !this.feedbackMessage.trim()) {
+    this.feedbackError = "请填写意见内容";
+    return;
+  }
+
+  try {
+    // 构建提交内容
+    const feedbackContent = `
+      意见建议类型：${this.feedbackType}
+      提交者姓名：${this.feedbackName}
+      联系邮箱：${this.feedbackEmail || '未提供'}
+      意见内容：${this.feedbackMessage}
+    `;
+
+    // 发送请求
+    const response = await axios.post('/api/messages', {
+      _receiver_id: 1, // 管理员ID
+      _title: `意见建议 - ${this.feedbackType}`,
+      _content: feedbackContent,
+      _mtid: 3 // 意见建议类型的消息
+    });
+
+    if (response.data.success) {
+      alert("感谢您的反馈，已提交！");
+      this.clearFeedbackForm();
+      this.feedbackTab = "history";
+      
+      // 重新加载消息列表和历史记录
+      await this.loadMessages();
+      await this.loadFeedbackHistory();
+    } else {
+      this.feedbackError = response.data.message || "提交失败，请重试";
+    }
+  } catch (error) {
+    console.error('提交意见建议失败:', error);
+    this.feedbackError = "提交失败，请重试";
+  }
+},
+//意见建议历史
+async loadFeedbackHistory() {
+  if (!this.isLoggedIn) return;
+  
+  console.log('=== 开始加载意见建议历史 ===');
+  console.log('当前用户ID:', this.user._uid);
+  
+  try {
+    // 获取当前用户发送的意见建议类型的消息（_mtid = 3）
+    const response = await axios.get('/api/messages', {
+      params: {
+        page: 1,
+        limit: 100,
+        _mtid: 3, // 意见建议类型
+        _sender_id: this.user._uid // 发送者是当前用户
+      }
+    });
+
+    console.log('获取消息的响应:', response.data);
+
+    if (response.data.success) {
+      const messages = response.data.data.messages || [];
+      console.log('获取到的消息数量:', messages.length);
+      console.log('消息详情:', messages);
+
+      // 转换消息数据为历史记录格式
+      this.feedbackHistory = messages.map(msg => ({
+        _mid: msg._mid,
+        name: msg._content.match(/提交者姓名：(.*)/)?.[1] || '未知',
+        email: msg._content.match(/联系邮箱：(.*)/)?.[1] || '',
+        type: msg._content.match(/意见建议类型：(.*)/)?.[1] || '其他',
+        message: msg._content.match(/意见内容：(.*)/)?.[1] || '',
+        date: msg._create_time,
+        status: msg._status === 0 ? '未读' : '已读',
+        reply: msg._reply || '',
+        // 保留原始消息内容和ID用于调试
+        originalContent: msg._content,
+        sender_id: msg._sender_id,
+        receiver_id: msg._receiver_id
+      }));
+      
+      console.log('解析后的意见建议历史:', this.feedbackHistory);
+    }
+  } catch (error) {
+    console.error('加载意见建议历史失败:', error);
+  }
+},
+    // 获取消息列表
+  async loadMessages() {
+    if (!this.isLoggedIn) return;
+    
+    try {
+      const response = await axios.get('/api/messages', {
+        params: {
+          page: 1,
+          limit: 10,
+          type: 3 // 意见建议类型
+        }
+      });
+      
+      if (response.data.success) {
+        this.messages = response.data.data.messages;
+      }
+    } catch (error) {
+      console.error('加载消息失败:', error);
+    }
+  },
+  // // 获取未读消息数量
+  // async loadUnreadMessageCount() {
+  //   if (!this.isLoggedIn) return;
+    
+  //   try {
+  //     const response = await axios.get('/api/messages/unread/count');
+  //     if (response.data.success) {
+  //       this.unreadMessageCount = response.data.data.unreadCount;
+  //     }
+  //   } catch (error) {
+  //     console.error('获取未读消息数量失败:', error);
+  //   }
+  // },
+  // 标记消息为已读
+  async markMessageAsRead(messageId) {
+    try {
+      const response = await axios.put(`/api/messages/${messageId}/read`);
+      if (response.data.success) {
+        // 更新本地消息状态
+        const message = this.messages.find(msg => msg._mid === messageId);
+        if (message) {
+          message._status = 1;
+        }
+        //await this.loadUnreadMessageCount();
+      }
+    } catch (error) {
+      console.error('标记消息为已读失败:', error);
+    }
+  },
+   // 获取消息详情
+  async getMessageDetail(messageId) {
+    try {
+      const response = await axios.get(`/api/messages/${messageId}`);
+      if (response.data.success) {
+        this.currentMessage = response.data.data;
+        await this.markMessageAsRead(messageId);
+        return response.data.data;
+      }
+    } catch (error) {
+      console.error('获取消息详情失败:', error);
+    }
+  },
+  // 标记所有消息为已读
+  async markAllMessagesAsRead() {
+    try {
+      const response = await axios.put('/api/messages/read-all');
+      if (response.data.success) {
+        this.messages.forEach(msg => {
+          msg._status = 1;
+        });
+        //this.unreadMessageCount = 0;
+      }
+    } catch (error) {
+      console.error('标记所有消息为已读失败:', error);
+    }
+  },
+
+  // 发送意见建议（使用消息接口）
+  async submitFeedback() {
+    if (!this.feedbackName || !this.feedbackName.trim()) {
+      this.feedbackError = "请填写姓名";
+      return;
+    }
+
+    if (!this.feedbackMessage || !this.feedbackMessage.trim()) {
+      this.feedbackError = "请填写意见内容";
+      return;
+    }
+
+    try {
+      const feedbackContent = `
+        意见建议类型：${this.feedbackType}
+        提交者姓名：${this.feedbackName}
+        联系邮箱：${this.feedbackEmail || '未提供'}
+        意见内容：${this.feedbackMessage}
+      `;
+
+      const response = await axios.post('/api/messages', {
+        _receiver_id: 1, // 管理员ID，实际项目中可能需要获取管理员ID
+        _title: `意见建议 - ${this.feedbackType}`,
+        _content: feedbackContent,
+        _mtid: 3 // 意见建议类型的消息
+      });
+
+      if (response.data.success) {
+        // 添加到本地历史记录
+        const newFeedback = {
+          _mid: response.data.data._mid,
+          name: this.feedbackName,
+          email: this.feedbackEmail,
+          type: this.feedbackType,
+          message: this.feedbackMessage,
+          date: new Date().toISOString().split("T")[0],
+          status: "已提交",
+          reply: "",
+        };
+
+        this.feedbackHistory.unshift(newFeedback);
+        alert("感谢您的反馈，已提交！");
+        this.clearFeedbackForm();
+        this.feedbackTab = "history";
+        
+        // 重新加载消息列表
+        await this.loadMessages();
+        await this.loadUnreadMessageCount();
+      } else {
+        this.feedbackError = response.data.message || "提交失败，请重试";
+      }
+    } catch (error) {
+      console.error('提交意见建议失败:', error);
+      this.feedbackError = "提交失败，请重试";
+    }
+  },
+   // 清空意见建议表单
+  clearFeedbackForm() {
+    this.feedbackName = "";
+    this.feedbackEmail = "";
+    this.feedbackType = "建议";
+    this.feedbackMessage = "";
+    this.feedbackError = "";
+  },
+  // 切换消息面板
+  toggleMessagePanel() {
+    if (!this.isLoggedIn) {
+      this.$message.warning('请先登录');
+      return;
+    }
+    
+    this.showMessagePanel = !this.showMessagePanel;
+    
+    // 标记所有消息为已读
+    if (this.showMessagePanel) {
+      this.markAllMessagesAsRead();
+    }
+  },
+  // 查看消息详情
+  async viewMessageDetail(message) {
+    this.currentMessage = await this.getMessageDetail(message._mid);
+    this.showMessageDetail = true;
+    this.showMessagePanel = false; // 关闭消息列表
+  },
+  // 关闭消息详情
+  closeMessageDetail() {
+    this.showMessageDetail = false;
+    this.currentMessage = null;
+  },
+getReserveStatusClass(status) {
+  const classMap = {
+    pending: 'waiting',
+    ready: 'available', 
+    expired: 'expired',
+    cancelled: 'cancelled',
+    completed: 'received'
+  };
+  return classMap[status] || 'waiting';
+},
+
+getReserveStatusText(status) {
+  const statusMap = {
+    pending: "等待中",
+    ready: "可领取",
+    expired: "已过期", 
+    cancelled: "已取消",
+    completed: "已完成"
+  };
+  return statusMap[status] || status;
+},
+    // 处理借阅逻辑
+  async handleBorrow(bookId) {
+    if (!bookId) return;
+
+    try {
+      // 发送借阅请求
+      const response = await axios.post(`/api/books/${bookId}/borrow`);
+      
+      if (response.data.success) {
+        this.$message.success("借阅成功");
+        
+        if (this.isLoggedIn) {
+        await this.loadPersonalData(); // 这会从后端获取最新的用户信息
+      }
+
+        // 根据当前页面类型刷新数据
+        if (this.currentPage === "bookDetail") {
+          // 如果在图书详情页，重新获取当前图书信息
+          const bookResponse = await axios.get(`/api/books/${bookId}`);
+          if (bookResponse.data.success) {
+            this.currentBook = bookResponse.data.data;
+          }
+        } else {
+          // 如果在其他页面，重新加载图书列表
+          await this.loadSearchPage();
+        }
+        
+        // 如果用户已登录，更新借阅信息
+        if (this.isLoggedIn) {
+          await this.loadBorrowingInfo();
+        }
+      } else {
+        this.$message.error("借阅失败: " + response.data.message);
+      }
+    } catch (error) {
+      console.error("借阅失败:", error);
+      this.$message.error("借阅失败: " + (error.response?.data?.message || error.message));
+    }
+  },
+
+   // 处理预约逻辑
+  async handleOrder(bookId) {
+    try {
+      const response = await axios.post('/api/book-order/order', { bookId });
+      if (response.data.success) {
+        alert("预约成功");
+        // 重新加载图书数据
+        await this.loadSearchPage();
+        // 重新加载借阅信息以更新预约统计
+        if (this.isLoggedIn) {
+          await this.loadBorrowingInfo();
+        }
+      } else {
+        alert("预约失败: " + response.data.message);
+      }
+    } catch (error) {
+      console.error("预约失败:", error);
+      alert("预约失败: " + (error.response?.data?.message || error.message));
+    }
+  },
+  // 取消预约
+  async cancelOrder(orderId) {
+    if (!confirm("确定要取消预约吗？")) {
+      return;
+    }
+    
+    try {
+      const response = await axios.put(`/api/book-order/cancel/${orderId}`);
+      if (response.data.success) {
+        alert("取消预约成功");
+        // 重新加载借阅信息
+        await this.loadBorrowingInfo();
+        // 重新加载图书数据
+        await this.loadSearchPage();
+      } else {
+        alert("取消预约失败: " + response.data.message);
+      }
+    } catch (error) {
+      console.error("取消预约失败:", error);
+      alert("取消预约失败: " + (error.response?.data?.message || error.message));
+    }
+  },
+   // 将预约转换为借阅
+  async convertOrderToBorrow(orderId) {
+    try {
+      const response = await axios.post(`/api/book-order/convert/${orderId}`);
+      if (response.data.success) {
+        alert("借阅成功");
+        // 重新加载借阅信息
+        await this.loadBorrowingInfo();
+        // 重新加载图书数据
+        await this.loadSearchPage();
+      } else {
+        alert("借阅失败: " + response.data.message);
+      }
+    } catch (error) {
+      console.error("借阅失败:", error);
+      alert("借阅失败: " + (error.response?.data?.message || error.message));
+    }
+  },
     // 原有方法保持不变
     toggleMessagePanel() {
       if (!this.isLoggedIn) {
@@ -1778,96 +2550,6 @@ export default {
       if (this.showMessagePanel) {
         this.markAllMessagesAsRead();
       }
-    },
-      // 添加消息到列表
-    addMessage(title, text, type = 'info') {
-      const message = {
-        id: Date.now() + Math.random(), // 简单的唯一ID生成
-        title,
-        text,
-        type,
-        time: new Date().toLocaleString('zh-CN', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        read: false
-      };
-      
-      this.messages.unshift(message);
-    },
-// 标记所有消息为已读
-    markAllMessagesAsRead() {
-      this.messages.forEach(msg => {
-        msg.read = true;
-      });
-    },
-     // 关闭特定消息
-    dismissMessage(messageId) {
-      const index = this.messages.findIndex(msg => msg.id === messageId);
-      if (index !== -1) {
-        this.messages.splice(index, 1);
-      }
-    },
-    // 处理AI助手点击（现在用于切换消息面板）
-    handleAIAssistant() {
-      this.toggleMessagePanel();
-    },
-    // 检查并显示提醒（只在登录时显示一次）
-    checkReminders() {
-      // 如果已经显示过提醒，则不再显示
-      if (this.hasShownLoginReminder) {
-        return;
-      }
-      
-      let message = '';
-      
-      if (this.overdueBooks.length > 0) {
-        message += '📢 逾期提醒：\n\n';
-        this.overdueBooks.forEach((book, index) => {
-          message += `${index + 1}. 《${book._book_name || book.bookName}》已逾期 ${book.daysOverdue} 天\n`;
-        });
-      }
-      
-      if (this.upcomingDueBooks.length > 0) {
-        if (message) message += '\n';
-        message += '⏰ 即将到期提醒：\n\n';
-        this.upcomingDueBooks.forEach((book, index) => {
-          let dueText = '';
-          if (book.daysLeft === 0) {
-            dueText = '今天到期';
-          } else if (book.daysLeft === 1) {
-            dueText = '明天到期';
-          } else {
-            dueText = `${book.daysLeft}天后到期`;
-          }
-          message += `${index + 1}. 《${book._book_name || book.bookName}》${dueText}\n`;
-        });
-      }
-      
-      // 如果有消息，添加到消息列表而不是弹窗
-      if (message) {
-        this.addMessage(
-          this.overdueBooks.length > 0 ? '逾期提醒' : '借阅提醒',
-          message,
-          this.overdueBooks.length > 0 ? 'warning' : 'info'
-        );
-      } else {
-        // 如果没有逾期或即将到期的书，显示欢迎消息
-        this.addMessage('系统消息', '🎉 暂无逾期提醒，您当前没有逾期的图书。', 'success');
-      }
-      
-      // 标记已显示过提醒
-      this.hasShownLoginReminder = true;
-    },
-    
-    // 登录成功后调用此方法
-    onLoginSuccess() {
-      // 重置提醒状态，以便下次登录时可以再次显示
-      this.hasShownLoginReminder = false;
-      // 清空旧消息
-      this.messages = [];
-      // 检查并显示新的提醒
-      this.checkOverdueBooks();
     },
     handleInputFocus() {
       // 当输入框获得焦点时，不清空输入框内容，因为我们要保留搜索词
@@ -1987,10 +2669,6 @@ export default {
           this.user = parsed;
           this.userInfo = parsed;
 
-          // 如果是新登录，检查逾期图书
-          if (!this.lastUserInfo && token) {
-            this.checkOverdueBooks();
-          }
 
           // 强制触发视图更新
           this.$nextTick(() => {
@@ -2231,16 +2909,18 @@ export default {
         console.log("loadPersonalData - 服务器响应:", payload);
 
         if (payload) {
-          this.userInfo = payload;
-          this.user = payload;
-          localStorage.setItem("userInfo", JSON.stringify(payload));
-
-          console.log("loadPersonalData - 个人数据已更新:", payload);
-        }
-      } catch (error) {
-        console.error("加载个人数据失败:", error);
-        this.handleLogout();
+        // 统一使用 lend_num 字段
+        this.userInfo = {
+          ...payload,
+          lend_num: payload.lend_num || payload._lend_num || 0
+        };
+        this.user = this.userInfo;
+        localStorage.setItem("userInfo", JSON.stringify(this.userInfo));
       }
+    } catch (error) {
+      console.error("加载个人数据失败:", error);
+      this.handleLogout();
+    }
     },
 
     // 切换编辑模式
@@ -2350,455 +3030,28 @@ export default {
         );
       }
     },
-    // 从后端加载图书类别列表并映射为 {label,value} 格式
-    async loadBookCategories() {
-      try {
-        const res = await axios.get("/api/categories");
-        const list =
-          (res && res.data && res.data.data && res.data.data.catlist) || [];
-        const mapped = [{ label: "全部", value: "" }].concat(
-          list.map((c) => ({
-            label: c._type_name || c._typeName || String(c),
-            value:
-              c._tid !== undefined && c._tid !== null
-                ? c._tid
-                : c._type_name || "",
-          }))
-        );
-        this.bookCategories = mapped;
-      } catch (e) {
-        console.warn(
-          "加载分类失败，使用默认分类列表",
-          e && e.response ? e.response.data : e
-        );
-        // 回退到默认静态分类，保证页面不空
-        this.bookCategories = [
-          { label: "全部", value: "" },
-          { label: "科技", value: "科技" },
-          { label: "小说", value: "小说" },
-          { label: "金融", value: "金融" },
-          { label: "教育", value: "教育" },
-          { label: "生活", value: "生活" },
-          { label: "历史", value: "历史" },
-          { label: "童书", value: "童书" },
-          { label: "励志", value: "励志" },
-        ];
+    
+  
+
+  async borrowBook(bookId) {
+    if (!bookId) return;
+
+    try {
+      const response = await axios.post(`/api/books/${bookId}/borrow`);
+      
+      if (response && response.data && response.data.success) {
+        this.$message.success("借阅成功");
+        // 借阅成功后刷新当前页面
+        await this.refreshCurrentPage();
+      } else {
+        this.$message.error("借阅失败: " + response.data.message);
       }
-    },
-
-    searchBorrowing() {
-      try {
-        const q = (this.borrowingSearchQuery || "").trim().toLowerCase();
-        // 如果查询为空，恢复完整列表
-        if (!q) {
-          this.borrowingList = Array.isArray(this.allBorrowingRecords)
-            ? [...this.allBorrowingRecords]
-            : [];
-          this.borrowingStats = {
-            total: this.borrowingList.length,
-            borrowing: this.borrowingList.filter(
-              (r) => r.status === "borrowing"
-            ).length,
-            returned: this.borrowingList.filter((r) => r.status === "returned")
-              .length,
-          };
-          return;
-        }
-
-        let filtered = [];
-        if (this.borrowingSearchType === "book") {
-          filtered = this.allBorrowingRecords.filter((r) =>
-            (r.bookName || "").toLowerCase().includes(q)
-          );
-        } else if (this.borrowingSearchType === "author") {
-          filtered = this.allBorrowingRecords.filter((r) =>
-            (r.author || "").toLowerCase().includes(q)
-          );
-        } else if (this.borrowingSearchType === "date") {
-          filtered = this.allBorrowingRecords.filter((r) => {
-            const borrowDate = (r.borrowDate || "").toLowerCase();
-            const dueDate = (r.dueDate || "").toLowerCase();
-            return borrowDate.includes(q) || dueDate.includes(q);
-          });
-        } else {
-          // 全字段模糊匹配
-          filtered = this.allBorrowingRecords.filter((r) => {
-            const hay = `${r.bookName || ""} ${r.author || ""} ${
-              r.borrowDate || ""
-            } ${r.dueDate || ""}`.toLowerCase();
-            return hay.includes(q);
-          });
-        }
-
-        this.borrowingList = filtered;
-        this.borrowingStats = {
-          total: this.borrowingList.length,
-          borrowing: this.borrowingList.filter((r) => r.status === "borrowing")
-            .length,
-          returned: this.borrowingList.filter((r) => r.status === "returned")
-            .length,
-        };
-      } catch (e) {
-        console.warn("searchBorrowing error", e);
-      }
-    },
-
-    filterNewAndHotBooks() {
-      // 新书推荐：按添加时间排序，取最新的30本
-      this.newBooks = [...this.books]
-        .sort((a, b) => new Date(b._add_time) - new Date(a._add_time))
-        .slice(0, 30)
-        .map((book) => ({ ...book, isNew: true, isHot: false })); // 标记为新书
-
-      // 热门推荐：按借阅次数排序，取借阅次数最多的30本
-      this.hotBooks = [...this.books]
-        .sort((a, b) => b._times - a._times)
-        .slice(0, 30)
-        .map((book) => ({ ...book, isNew: false, isHot: true })); // 标记为热门
-
-      // 为其他图书添加标志
-      this.books = this.books.map((book) => {
-        // 检查是否在新书或热门列表中
-        const inNewList = this.newBooks.some((nb) => nb._bid === book._bid);
-        const inHotList = this.hotBooks.some((hb) => hb._bid === book._bid);
-
-        return {
-          ...book,
-          isNew: inNewList,
-          isHot: inHotList,
-        };
-      });
-    },
-
-    async borrowBook(bookId) {
-      if (!bookId) return;
-
-      try {
-        const response = await axios.post(`/api/books/${bookId}/borrow`);
-        if (response && response.data && response.data.success) {
-          alert("借阅成功");
-          await this.loadSearchPage();
-          // 更新当前图书详情页的图书信息
-          if (
-            this.currentPage === "bookDetail" &&
-            this.currentBook?._bid === bookId
-          ) {
-            // 重新获取图书详情以更新剩余数量
-            const detailResponse = await axios.get(`/api/books/${bookId}`);
-            if (detailResponse.data.success) {
-              this.currentBook = detailResponse.data.data;
-            }
-          }
-          // 更新借阅记录
-          if (
-            this.currentPage === "personal" &&
-            this.personalTab === "borrowing"
-          ) {
-            await this.loadBorrowingInfo();
-          }
-        } else {
-          alert("借阅失败: " + response.data.message);
-        }
-      } catch (error) {
-        console.error("借阅失败:", error);
-        const errorMessage =
-          error.response?.data?.message || error.message || "请求失败";
-        alert(
-          "借阅失败: " +
-            (typeof errorMessage === "string" ? errorMessage : "未知错误")
-        );
-      }
-    },
-
-    async reserveBook(book) {
-      if (!book) return;
-      alert("预约功能暂未实现，图书库存为0时无法借阅");
-    },
-
-    async returnBook(hid) {
-      if (!hid) return;
-      try {
-        const response = await axios.put(`/api/books/${hid}/return`);
-        if (response && response.data && response.data.success) {
-          alert("还书成功");
-          await Promise.all([
-            this.loadBorrowingInfo(),
-            this.loadBorrowingHistory(),
-          ]);
-          await this.loadSearchPage();
-        } else {
-          alert(
-            "还书失败: " +
-              ((response && response.data && response.data.message) || "")
-          );
-        }
-      } catch (error) {
-        console.error("还书失败:", error.response?.data || error.message);
-        alert("还书失败: " + (error.response?.data?.message || error.message));
-      }
-    },
-
-    async renewBook(hid) {
-      if (!hid) return;
-      try {
-        const response = await axios.put(`/api/books/${hid}/renew`);
-        if (response && response.data && response.data.success) {
-          alert("续借成功");
-          await Promise.all([
-            this.loadBorrowingInfo(),
-            this.loadBorrowingHistory(),
-          ]);
-        } else {
-          alert(
-            "续借失败: " +
-              ((response && response.data && response.data.message) || "")
-          );
-        }
-      } catch (error) {
-        console.error("续借失败:", error.response?.data || error.message);
-        alert("续借失败: " + (error.response?.data?.message || error.message));
-      }
-    },
-
-    async handleFeedbackSubmit() {
-      this.feedbackError = "";
-      if (!this.feedbackName || !this.feedbackName.trim()) {
-        this.feedbackError = "请填写姓名";
-        return;
-      }
-
-      if (!this.feedbackMessage || !this.feedbackMessage.trim()) {
-        this.feedbackError = "请填写意见内容";
-        return;
-      }
-
-      try {
-        // 实际项目中替换为真实接口
-        const newFeedback = {
-          name: this.feedbackName,
-          email: this.feedbackEmail,
-          type: this.feedbackType,
-          message: this.feedbackMessage,
-          date: new Date().toISOString().split("T")[0],
-          status: "处理中",
-          reply: "",
-        };
-
-        this.feedbackHistory.unshift(newFeedback);
-        alert("感谢您的反馈，已提交！");
-        this.clearFeedbackForm();
-
-        this.feedbackTab = "history";
-      } catch (error) {
-        this.feedbackError = "提交失败，请重试";
-      }
-    },
-
-    clearFeedbackForm() {
-      this.feedbackName = "";
-      this.feedbackEmail = "";
-      this.feedbackType = "建议";
-      this.feedbackMessage = "";
-      this.feedbackError = "";
-    },
-
-    async loadFeedbackHistory() {
-      try {
-        // 实际项目中替换为真实接口
-        // const response = await axios.get('/api/feedbacks/history');
-        // this.feedbackHistory = response.data.data;
-      } catch (error) {
-        console.error(
-          "加载意见建议历史失败:",
-          error.response?.data || error.message
-        );
-      }
-    },
-
-    async loadSearchPage() {
-      try {
-        const response = await axios.get("/api/books");
-        this.books = response.data.data.booklist;
-        this.filterNewAndHotBooks();
-        this.currentPageNum = 1;
-      } catch (error) {
-        alert(
-          "加载图书失败: " + (error.response?.data?.message || error.message)
-        );
-      }
-    },
-
-    async loadBorrowingInfo() {
-      try {
-        // 获取我的借阅记录
-        const response = await axios.get("/api/borrow-records/my");
-        const records =
-          (response &&
-            response.data &&
-            response.data.data &&
-            response.data.data.ownlist) ||
-          [];
-
-        this.borrowingList = records.map((record) => ({
-          id: record._hid,
-          bookId: record._bid,
-          bookName:
-            (record.book && (record.book._book_name || record.book._name)) ||
-            record._book_name ||
-            "",
-          isbn: (record.book && record.book._isbn) || record._isbn || "",
-          coverUrl:
-            (record.book && record.book._cover_url) || record._cover_url || "",
-          author: (record.book && record.book._author) || record._author || "",
-          borrowDate: record._begin_time
-            ? new Date(record._begin_time).toISOString().split("T")[0]
-            : "",
-          dueDate: record._end_date
-            ? new Date(record._end_date).toISOString().split("T")[0]
-            : "",
-          returnDate:
-            record._status === 1
-              ? record._end_date
-                ? new Date(record._end_date).toISOString().split("T")[0]
-                : ""
-              : "",
-          // _status: 0 -> borrowing, 1 -> returned
-          status: record._status === 1 ? "returned" : "borrowing",
-        }));
-
-        // 保存完整副本以供检索使用
-        this.allBorrowingRecords = Array.isArray(this.borrowingList)
-          ? [...this.borrowingList]
-          : [];
-
-        // 统计借阅状态（基于已映射的 borrowingList）
-        this.borrowingStats = {
-          total: this.borrowingList.length,
-          borrowing: this.borrowingList.filter((r) => r.status === "borrowing")
-            .length,
-          returned: this.borrowingList.filter((r) => r.status === "returned")
-            .length,
-        };
-
-        // 检查逾期
-        this.overdueMessages = [];
-        const today = new Date().toISOString().split("T")[0];
-        this.borrowingList.forEach((record) => {
-          if (record.status === "borrowing" && record.dueDate < today) {
-            this.overdueMessages.push(
-              `图书《${record.bookName}》已逾期，请尽快归还。`
-            );
-          }
-        });
-      } catch (error) {
-        alert(
-          "加载借阅信息失败: " +
-            (error.response?.data?.message || error.message)
-        );
-      }
-    },
-
-    // 图片加载错误处理，recordOrBook 可以是包含 id/ _bid / bookId 的对象
-    handleImgError(event, recordOrBook) {
-      try {
-        const key =
-          recordOrBook &&
-          (recordOrBook._bid || recordOrBook.bookId || recordOrBook.id);
-        if (key) {
-          this.$set(this.imgErrorMap, key, true);
-        }
-        if (event && event.target) {
-          event.target.style.display = "none";
-        }
-      } catch (e) {
-        console.warn("handleImgError error", e);
-      }
-    },
-
-    // 处理相对路径或非http的封面地址，返回可用于<img>的完整URL或空字符串
-    getFullCoverUrl(src) {
-      if (!src) return "";
-      try {
-        if (/^https?:\/\//i.test(src)) return src;
-        if (src.startsWith("/")) return window.location.origin + src;
-        return src;
-      } catch (e) {
-        return src;
-      }
-    },
-
-    async loadBorrowingHistory() {
-      try {
-        // 获取我的借阅记录（全部，包括已归还）
-        const response = await axios.get("/api/borrow-records/my");
-        const records =
-          (response &&
-            response.data &&
-            response.data.data &&
-            response.data.data.ownlist) ||
-          [];
-
-        this.borrowingHistory = records.map((record) => ({
-          _hid: record._hid,
-          bookId: record._bid,
-          bookName:
-            (record.book && (record.book._book_name || record.book._name)) ||
-            record._book_name ||
-            "",
-          borrowDate: record._begin_time
-            ? new Date(record._begin_time).toISOString().split("T")[0]
-            : "",
-          returnDate:
-            record._status === 1
-              ? record._end_date
-                ? new Date(record._end_date).toISOString().split("T")[0]
-                : ""
-              : "",
-          status: record._status === 1 ? "已还" : "借阅中",
-        }));
-      } catch (error) {
-        alert(
-          "加载借阅历史失败: " +
-            (error.response?.data?.message || error.message)
-        );
-      }
-    },
-
-    async loadAnnouncements() {
-      try {
-        const response = await axios.get("/api/announcements");
-        const res = response && response.data ? response.data : {};
-        const payload = res.data || {};
-
-        // 后端返回格式示例: { success: true, message: '...', data: { annlist: [...] } }
-        // 兼容多种可能的返回结构，优先取 payload.annlist
-        let list = [];
-        if (Array.isArray(payload)) {
-          list = payload;
-        } else if (Array.isArray(payload.annlist)) {
-          list = payload.annlist;
-        } else if (Array.isArray(res.annlist)) {
-          list = res.annlist;
-        } else if (Array.isArray(res.data)) {
-          list = res.data;
-        }
-
-        // 归一化字段以匹配模板中使用的字段（例如模板中使用 _id、_title、_date、_content）
-        this.announcements = list.map((a) => ({
-          _id: a._aid || a._id || a.id || null,
-          _title: a._title || a.title || "",
-          _date: a._date || a.date || "",
-          _content: a._content || a.content || "",
-          _publisher: a._publisher || a.publisher || "",
-        }));
-      } catch (error) {
-        alert(
-          "加载公告失败: " + (error.response?.data?.message || error.message)
-        );
-      }
-    },
-
-    // 应用公告过滤（按钮触发）——计算属性会自动生效，此方法用于防止默认行为或做额外操作
+    } catch (error) {
+      console.error("借阅失败:", error);
+      this.$message.error("借阅失败: " + (error.response?.data?.message || error.message));
+    }
+  },
+// 应用公告过滤（按钮触发）——计算属性会自动生效，此方法用于防止默认行为或做额外操作
     applyAnnouncementFilter() {
       // 目前不需要做额外处理，计算属性 `filteredAnnouncements` 会根据 query 实时更新
       // 这里保留以便将来需要触发远程搜索或统计时使用
@@ -2808,7 +3061,6 @@ export default {
         if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth" });
       } catch (e) {}
     },
-    //分页
     generateVisiblePages(currentPage, totalPages) {
       const visiblePages = [];
       const maxVisible = 5;
@@ -2848,77 +3100,7 @@ export default {
       if (page === "...") return;
       if (page < 1 || page > this.totalFeedbackPages) return;
       this.currentFeedbackPage = page;
-    },
-
-    // 逾期检测方法
-    async checkOverdueBooks() {
-      if (!this.isLoggedIn) return;
-
-      try {
-        console.log("开始检查逾期图书...");
-        const response = await axios.get("/api/borrow-records/my");
-        console.log("借阅记录响应:", response.data);
-
-        const records =
-          (response &&
-            response.data &&
-            response.data.data &&
-            response.data.data.ownlist) ||
-          [];
-        console.log("借阅记录列表:", records);
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const overdue = [];
-        const upcoming = [];
-
-        records.forEach((record) => {
-          console.log(
-            "处理记录:",
-            record._hid,
-            record._status,
-            record._end_date
-          );
-          if (record._status === 0) {
-            // 0 means borrowing
-            const dueDate = new Date(record._end_date);
-            dueDate.setHours(0, 0, 0, 0);
-
-            const daysDiff = Math.ceil(
-              (dueDate - today) / (1000 * 60 * 60 * 24)
-            );
-            console.log("到期日期:", dueDate, "天数差:", daysDiff);
-
-            if (daysDiff < 0) {
-              // 逾期
-              overdue.push({
-                ...record,
-                daysOverdue: Math.abs(daysDiff),
-              });
-            } else if (daysDiff <= 3) {
-              // 即将到期（包括当天）
-              upcoming.push({
-                ...record,
-                daysLeft: daysDiff,
-              });
-            }
-          }
-        });
-
-        this.overdueBooks = overdue;
-        this.upcomingDueBooks = upcoming;
-        console.log("逾期图书:", overdue.length, "即将到期:", upcoming.length);
-
-        // 检查提醒
-        this.checkReminders();
-      } catch (error) {
-        console.error("检查逾期图书失败:", error);
-        console.error("错误详情:", error.response?.data || error.message);
-      }
-    },
-
-    
+    },  
     // 公告分页切换方法
     changeAnnouncementPage(page) {
       if (page === "...") return;
@@ -2926,7 +3108,53 @@ export default {
       this.currentAnnouncementPage = page;
     },
   },
+   
+    
+
+    
+
+    
+   
+
+    
+
+    
+    
+    
+
+    
+    
+    
   async mounted() {
+    // 加载消息相关数据
+  if (this.isLoggedIn) {
+    await this.loadMessages();
+    await this.loadUnreadMessageCount();
+  }
+  // 如果已登录，加载意见建议历史
+  if (this.isLoggedIn) {
+    await this.loadFeedbackHistory();
+  }
+  // 添加页面切换监听，确保切换到历史记录标签时重新加载
+  this.$watch('feedbackTab', async (newTab) => {
+    if (newTab === 'history' && this.isLoggedIn) {
+      await this.loadFeedbackHistory();
+    }
+  });
+  // 添加全局点击监听器来关闭消息面板
+  document.addEventListener('click', (event) => {
+    if (this.showMessagePanel && 
+        !event.target.closest('.message-trigger') && 
+        !event.target.closest('.message-panel')) {
+      this.showMessagePanel = false;
+    }
+    
+    if (this.showMessageDetail && 
+        !event.target.closest('.message-detail-content') &&
+        !event.target.closest('.message-detail-modal')) {
+      this.closeMessageDetail();
+    }
+  });
     // 添加全局点击监听器来关闭用户菜单
     document.addEventListener("click", this.handleClickOutside);
 
@@ -2963,12 +3191,6 @@ export default {
     // 只有在已登录时才加载需要登录的数据
     if (this.isLoggedIn) {
       await this.loadPersonalData();
-      //await this.loadFavorites();
-      // 启动逾期检查
-      await this.checkOverdueBooks();
-      this.overdueCheckTimer = setInterval(() => {
-        this.checkOverdueBooks();
-      }, 60000); // 每分钟检查一次
     }
 
     // 添加定时检查登录状态 - 改为更短的时间间隔
@@ -2993,11 +3215,6 @@ export default {
       );
     }
 
-    // 清除逾期检查定时器
-    if (this.overdueCheckTimer) {
-      clearInterval(this.overdueCheckTimer);
-    }
-
     // 清除登录状态检查定时器
     if (this.checkLoginStatus) {
       clearInterval(this.checkLoginStatus);
@@ -3007,6 +3224,252 @@ export default {
 </script>
 
 <style>
+/* 消息触发器样式 */
+.message-trigger {
+  position: relative;
+  cursor: pointer;
+  margin-right: 20px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+
+.envelope-icon {
+  transition: transform 0.2s;
+}
+
+.envelope-icon:hover {
+  transform: scale(1.1);
+}
+
+.unread-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #e74c3c;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 消息面板样式 */
+.message-panel {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 350px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 400px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-header {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.message-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.no-messages {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 14px;
+}
+
+.message-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.message-item:hover {
+  background-color: #f8f9fa;
+}
+
+.message-item.unread {
+  background-color: #e8f4fd;
+}
+
+.message-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.message-title strong {
+  font-size: 14px;
+  color: #333;
+}
+
+.message-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.message-preview {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.unread-indicator {
+  position: absolute;
+  top: 12px;
+  right: 15px;
+  background-color: #3498db;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* 消息详情模态框样式 */
+.message-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.message-detail-content {
+  background: white;
+  border-radius: 8px;
+  width: 500px;
+  max-width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-detail-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8f9fa;
+}
+
+.message-detail-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.message-detail-body {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.message-detail-body p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.message-content {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #3498db;
+}
+
+.message-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  font-family: inherit;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+/* 以上为消息面板样式 */
+/* 在CSS中添加预约状态标签样式 */
+.status-tag.waiting {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-tag.available {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-tag.expired {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.status-tag.cancelled {
+  background-color: #e2e3e5;
+  color: #6c757d;
+}
+
+.status-tag.received {
+  background-color: #cce5ff;
+  color: #004085;
+}
+/*以上为预约 */
 .search-input-wrapper {
   position: relative;
   flex: 1;
@@ -3320,167 +3783,7 @@ h2 {
   background-color: #f5f5f5;
 }
 
-/* 逾期提醒助手样式 */
-.ai-assistant {
-  position: relative;
-  margin-right: 15px;
-  display: flex;
-  align-items: center;
-}
 
-.ai-icon {
-  font-size: 24px;
-  cursor: pointer;
-  transition: opacity 0.3s;
-  position: relative;
-}
-.unread-badge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  background-color: #ff4d4f;
-  color: white;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.message-panel {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  width: 350px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  margin-top: 10px;
-  max-height: 400px;
-  display: flex;
-  flex-direction: column;
-}
-
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-}
-
-.message-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #999;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-btn:hover {
-  color: #333;
-}
-
-.message-list {
-  flex: 1;
-  overflow-y: auto;
-  max-height: 350px;
-}
-
-.no-messages {
-  text-align: center;
-  padding: 30px;
-  color: #999;
-}
-
-.message-item {
-  display: flex;
-  padding: 12px 15px;
-  border-bottom: 1px solid #f0f0f0;
-  transition: background-color 0.2s;
-}
-
-.message-item:hover {
-  background-color: #f9f9f9;
-}
-
-.message-item.unread {
-  background-color: #f0f8ff;
-}
-
-.message-content {
-  flex: 1;
-}
-
-.message-title {
-  font-weight: 600;
-  margin-bottom: 5px;
-  color: #333;
-}
-
-.message-text {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.4;
-  white-space: pre-line;
-}
-
-.message-time {
-  font-size: 12px;
-  color: #999;
-  margin-top: 5px;
-}
-
-.dismiss-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: #ccc;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: flex-start;
-}
-
-.dismiss-btn:hover {
-  color: #999;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .message-panel {
-    width: 300px;
-    right: -50px;
-  }
-}
-/*以上为消息*/
-.ai-icon.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ai-icon:hover:not(.disabled) {
-  transform: scale(1.1);
-}
 
 /* 搜索框 */
 /* 搜索容器样式 - 设置居中对齐和内边距 */
