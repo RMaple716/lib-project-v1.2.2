@@ -278,6 +278,8 @@
                   <form @submit.prevent="submitBookForm">
                     <label for="bookTitle">书名：</label>
                     <input type="text" id="bookTitle" v-model="bookForm.bookTitle" placeholder="请输入书名">
+                    <label for="author">作者：</label>
+                    <input type="text" id="author" v-model="bookForm.author" placeholder="请输入作者">
                     <label for="isbn">ISBN号：</label>
                     <input type="text" id="isbn" v-model="bookForm.isbn" placeholder="请输入ISBN号">                
                     <label for="bookType">图书类型：</label>
@@ -2550,11 +2552,19 @@ export default {
     },
     
     async submitBookForm() {
-      const { bookTitle, author, isbn, bookType, publisher, totalQuantity,coverUrl } = this.bookForm;
+      const { bookTitle, author, isbn, bookType, publisher, totalQuantity, coverUrl, availableQuantity } = this.bookForm;
       
-      if (!bookTitle || !author || !isbn || !bookType || !publisher || !totalQuantity) {
+      if (!bookTitle || !author || !isbn || !bookType || !publisher || totalQuantity === null || totalQuantity === undefined || totalQuantity === '') {
         this.$message.error('请填写完整的图书信息！');
         return;
+      }
+
+      // 添加验证：可借副本数量不能大于馆藏数量
+      if (availableQuantity !== null && availableQuantity !== undefined && availableQuantity !== '') {
+        if (Number(availableQuantity) > Number(totalQuantity)) {
+          this.$message.error('可借副本数量不能大于馆藏数量！');
+          return;
+        }
       }
       
       const bookData = {
@@ -2564,8 +2574,13 @@ export default {
         _tid: bookType,
         _press: publisher,
         _num: Number(totalQuantity),
-        _cover_url: coverUrl  
+        _cover_url: coverUrl
       };
+
+      // 如果可借副本数量不为空，则添加到请求数据中
+      if (availableQuantity !== null && availableQuantity !== undefined && availableQuantity !== '') {
+        bookData._available_copies = Number(availableQuantity);
+      }
       
       try {
         if (this.isEditBook) {
@@ -3212,7 +3227,7 @@ export default {
     },
 
     async submitUserForm() {
-      const { account, name, password,email, userType } = this.userForm;
+      const { account, name, password, email, userType, class: userClass, department, workDepartment } = this.userForm;
       
       if (!account || !name || !email || !userType) {
         this.$message.error('请填写完整的用户信息！');
@@ -3231,6 +3246,15 @@ export default {
         _utype: userType
       };
 
+      // 根据用户类型添加特定字段
+      if (userType === 'student' && userClass) {
+        userData._cname = userClass;
+      } else if (userType === 'teacher' && department) {
+        userData._dname = department;
+      } else if (userType === 'tempworker' && workDepartment) {
+        userData._wdname = workDepartment;
+      }
+
       if (password) {
         userData._password = password;
       }
@@ -3245,6 +3269,7 @@ export default {
         await this.fetchUsers();
       } catch (err) {
         console.error(err);
+        this.$message.error(err.message || '添加用户失败');
       }
     },
 
@@ -4873,7 +4898,11 @@ html, body {
 .modal-content form {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  height: 100%;
+}
+
+.modal-content form .form-group:last-child {
+  margin-bottom: 15px;
 }
 
 .modal-content label {
@@ -4980,7 +5009,8 @@ small {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  margin-top: 20px;
+  margin-top: auto;
+  padding-top: 20px;
 }
 
 .cancel-button {
@@ -5053,9 +5083,12 @@ small {
   width: 600px;
   max-width: 90vw;
   max-height: 85vh;
-  overflow-y: auto;
+  min-height: 400px;
+  overflow: auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-content h2 {
@@ -5955,13 +5988,14 @@ button:disabled:hover {
 
 /* 角色管理样式 */
 .permission-list {
-  max-height: 400px;
+  max-height: 300px;
   overflow-y: auto;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 0;
   background: #f8fafc;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+  margin-bottom: 15px;
 }
 
 .permission-list::-webkit-scrollbar {
