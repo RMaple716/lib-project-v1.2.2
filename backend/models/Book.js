@@ -47,6 +47,7 @@ const Book = sequelize.define('Book', {
   _available_copies: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    defaultValue: 0,
     field: '_available_copies'
   },
   _author: {
