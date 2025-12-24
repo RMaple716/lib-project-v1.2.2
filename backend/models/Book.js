@@ -36,13 +36,18 @@ const Book = sequelize.define('Book', {
   },
   _isbn: {
     type: DataTypes.STRING(20),
-    allowNull: false,
+    allowNull: false, 
     field: '_isbn'
   },
-  _num: {
+  _total_copies: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: '_num'
+    field: '_total_copies'
+  },
+  _available_copies: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: '_available_copies'
   },
   _author: {
     type: DataTypes.STRING(100),

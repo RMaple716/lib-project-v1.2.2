@@ -300,10 +300,14 @@ const options = {
               description: "ISBN号",
               example: "9787115275790"
             },
-            _num: {
+            _total_copies: {
               type: "integer",
-              description: "库存数量",
-              example: 5
+              description: "总藏书量",
+              example: 10
+            },
+            _available_copies: {
+              type: "integer",
+              description:"可借复本数量"
             },
             _author: {
               type: "string",
@@ -1581,7 +1585,8 @@ const options = {
                   _bid: 1,
                   _book_name: "JavaScript高级程序设计",
                   _isbn: "9787115275790",
-                  _num: 5,
+                  _total_copies: 5,
+                  _available_copies: 4,
                   _author: "Nicholas C. Zakas",
                   _press: "人民邮电出版社",
                   _cover_url: "https://example.com/cover1.jpg",
@@ -1589,14 +1594,13 @@ const options = {
                   _times: 15,
                   _create_time: "2024-01-15T10:30:00.000Z",
                   _type_name: "计算机科学",
-                  _total_copies: 5,
-                  _available_copies: 4
                 },
                 {
                   _bid: 2,
                   _book_name: "三体",
                   _isbn: "9787536692930",
-                  _num: 3,
+                  _total_copies: 5,
+                  _available_copies:3,
                   _author: "刘慈欣",
                   _press: "重庆出版社",
                   _cover_url: "https://example.com/cover2.jpg",
@@ -1604,8 +1608,6 @@ const options = {
                   _times: 25,
                   _create_time: "2024-01-10T08:15:00.000Z",
                   _type_name: "科幻小说",
-                  _total_copies: 3,
-                  _available_copies: 1
                 }
               ]
             }
@@ -1657,7 +1659,8 @@ const options = {
               _bid: 1,
               _book_name: "JavaScript高级程序设计",
               _isbn: "9787115275790",
-              _num: 5,
+              _total_copies: 5,
+              _available_copies: 4,
               _author: "Nicholas C. Zakas",
               _press: "人民邮电出版社",
               _cover_url: "https://example.com/cover1.jpg",
@@ -1667,8 +1670,6 @@ const options = {
               category: {
                 _type_name: "计算机科学"
               },
-              _total_copies: 5,
-              _available_copies: 4
             }
             
           }
@@ -1682,7 +1683,8 @@ const options = {
               _bid: 3,
               _book_name: "新图书",
               _isbn: "9781234567890",
-              _num: 10,
+              _total_copies: 5,
+              _available_copies:3,
               _author: "新作者",
               _press: "新出版社",
               _cover_url: "https://example.com/new-cover.jpg",
@@ -1701,7 +1703,8 @@ const options = {
               _bid: 1,
               _book_name: "更新后的图书名称",
               _isbn: "9787115275790",
-              _num: 8,
+              _total_copies: 5,
+              _available_copies: 4,
               _author: "Nicholas C. Zakas",
               _press: "人民邮电出版社",
               _cover_url: "https://example.com/updated-cover.jpg",
@@ -1720,7 +1723,8 @@ const options = {
               _bid: 1,
               _book_name: "JavaScript高级程序设计",
               _isbn: "9787115275790",
-              _num: 5,
+              _total_copies: 5,
+              _available_copies: 4,
               _author: "Nicholas C. Zakas",
               _press: "人民邮电出版社",
               _cover_url: "https://example.com/cover1.jpg",
@@ -2311,472 +2315,472 @@ const options = {
           value: {
             success: false,
             errorCode: "MISSING_FILE",
-    message: "请选择上传文件"
-  }
-},
-InvalidFileTypeError: {
-  summary: "无效的文件类型",
-  value: {
-    success: false,
-    errorCode: "INVALID_FILE_TYPE",
-    message: "只支持CSV和Excel文件"
-  }
-},
-FileParseError: {
-  summary: "文件解析失败",
-  value: {
-    success: false,
-    errorCode: "FILE_PARSE_ERROR",
-    message: "文件解析失败",
-    details: "Excel文件格式不正确"
-  }
-},
-TemplateDownloadSuccess: {
-  summary: "模板下载成功",
-  value: "图书名称,ISBN,库存数量,作者,出版社,分类ID,封面URL\nJavaScript高级程序设计,9787115275790,10,Nicholas C. Zakas,人民邮电出版社,1,"
-},
-FileTooLargeError: {
-  summary: "文件大小超过限制",
-  value: {
-    success: false,
-    errorCode: "FILE_TOO_LARGE",
-    message: "文件大小不能超过10MB"
-  }
-},
-BulkUploadPartialSuccess: {
-  summary: "部分成功",
-  value: {
-    success: true,
-    message: "批量上传完成，部分记录处理失败",
-    data: {
-      total: 100,
-      inserted: 85,
-      updated: 5,
-      skipped: 10,
-      errors: [
-        {
-          index: 12,
-          isbn: "9787301234567",
-          title: "重复图书1",
-          error: "ISBN已存在"
+            message: "请选择上传文件"
+            }
         },
-        {
-          index: 45,
-          isbn: "9787301234578",
-          title: "数据错误图书",
-          error: "数据库插入失败: 字段长度超限"
-        },
-        {
-          index: 78,
-          isbn: "9787301234590",
-          title: "测试图书78",
-          error: "分类ID不存在"
-        }
-      ]
-    }
-  }
-},
-BulkUploadDatabaseError: {
-  summary: "数据库错误",
-  value: {
-    success: false,
-    errorCode: "DATABASE_ERROR",
-    message: "数据库操作失败",
-    details: "数据库连接超时，请稍后重试"
-  }
-},
-BulkUploadEmptyFile: {
-  summary: "空文件",
-  value: {
-    success: false,
-    errorCode: "EMPTY_FILE",
-    message: "上传的文件为空"
-  }
-},
-// 消息相关示例
-MessageListSuccess: {
-  summary: "获取消息列表成功",
-  value: {
-    success: true,
-    message: "获取消息列表成功",
-    data: {
-      messages: [
-        {
-          _mid: 1,
-          _sender_id: 100,
-          _receiver_id: 200,
-          _title: "图书即将到期提醒",
-          _content: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。",
-          _type: 2,
-          _status: 0,
-          _create_time: "2024-01-15T10:30:00.000Z",
-          _read_time: null,
-          sender: {
-            _uid: 100,
-            _name: "系统管理员",
-            _account: "admin_t"
+        InvalidFileTypeError: {
+          summary: "无效的文件类型",
+          value: {
+            success: false,
+            errorCode: "INVALID_FILE_TYPE",
+            message: "只支持CSV和Excel文件"
           }
         },
-        {
-          _mid: 2,
-          _sender_id: 100,
-          _receiver_id: 200,
-          _title: "预约图书到馆通知",
-          _content: "您预约的《深入理解计算机系统》已经到馆，请在一周内到图书馆借阅。",
-          _type: 3,
-          _status: 1,
-          _create_time: "2024-01-14T14:20:00.000Z",
-          _read_time: "2024-01-14T15:30:00.000Z",
-          sender: {
-            _uid: 100,
-            _name: "系统管理员",
-            _account: "admin_t"
+        FileParseError: {
+          summary: "文件解析失败",
+          value: {
+            success: false,
+            errorCode: "FILE_PARSE_ERROR",
+            message: "文件解析失败",
+            details: "Excel文件格式不正确"
           }
-        }
-      ],
-      pagination: {
-        total: 5,
-        page: 1,
-        limit: 10,
-        totalPages: 1
-      }
-    }
-  }
-},
-// 管理员相关模式
-AdminListResponse: {
-  type: "object",
-  properties: {
-    adminlist: {
-      type: "array",
-      items: {
-        $ref: "#/components/schemas/Admin"
-      },
-      description: "管理员列表"
-    }
-  }
-},
-Admin: {
-  type: "object",
-  properties: {
-    _uid: {
-      type: "integer",
-      description: "管理员ID",
-      example: 100
-    },
-    _utype: {
-      type: "string",
-      enum: ["admin_t", "admin_n"],
-      description: "管理员类型",
-      example: "admin_n"
-    },
-    _account: {
-      type: "string",
-      description: "账号",
-      example: "admin_n"
-    },
-    _name: {
-      type: "string",
-      description: "姓名",
-      example: "普通管理员"
-    },
-    _email: {
-      type: "string",
-      description: "邮箱",
-      example: "admin_n@library.com"
-    },
-    _max_num: {
-      type: "integer",
-      description: "最大借书数量",
-      example: 50
-    },
-    lend_num: {
-      type: "integer",
-      description: "当前借书数量",
-      example: 5
-    },
-    _access: {
-      type: "integer",
-      description: "访问权限",
-      example: 1
-    },
-    _create_time: {
-      type: "string",
-      description: "创建时间",
-      example: "2024-01-15T10:30:00.000Z"
-    },
-    roles: {
-      type: "array",
-      items: {
-        $ref: "#/components/schemas/Role"
-      },
-      description: "管理员拥有的角色"
-    }
-  }
-},
-AdminListSuccess: {
-  summary: "获取管理员列表成功",
-  value: {
-    success: true,
-    message: "获取管理员列表成功",
-    data: {
-      adminlist: [
-        {
-          _uid: 100,
-          _utype: "admin_t",
-          _account: "admin_t",
-          _name: "终端管理员",
-          _email: "admin_t@library.com",
-          _max_num: 100,
-          lend_num: 10,
-          _access: 1,
-          _create_time: "2024-01-15T10:30:00.000Z",
-          roles: [
-            {
-              _rid: 1,
-              _rname: "系统管理员",
-              _rcode: "system_admin",
-              _rdesc: "拥有所有权限的系统管理员"
-            }
-          ]
         },
-        {
-          _uid: 101,
-          _utype: "admin_n",
-          _account: "admin_n",
-          _name: "普通管理员",
-          _email: "admin_n@library.com",
-          _max_num: 50,
-          lend_num: 5,
-          _access: 1,
-          _create_time: "2024-01-10T08:15:00.000Z",
-          roles: [
-            {
-              _rid: 2,
-              _rname: "图书管理员",
-              _rcode: "book_admin",
-              _rdesc: "负责图书管理的管理员"
+        TemplateDownloadSuccess: {
+          summary: "模板下载成功",
+          value: "图书名称,ISBN,库存数量,作者,出版社,分类ID,封面URL\nJavaScript高级程序设计,9787115275790,10,Nicholas C. Zakas,人民邮电出版社,1,"
+        },
+        FileTooLargeError: {
+          summary: "文件大小超过限制",
+          value: {
+            success: false,
+            errorCode: "FILE_TOO_LARGE",
+            message: "文件大小不能超过10MB"
+          }
+        },
+        BulkUploadPartialSuccess: {
+          summary: "部分成功",
+          value: {
+            success: true,
+            message: "批量上传完成，部分记录处理失败",
+            data: {
+              total: 100,
+              inserted: 85,
+              updated: 5,
+              skipped: 10,
+              errors: [
+                {
+                  index: 12,
+                  isbn: "9787301234567",
+                  title: "重复图书1",
+                  error: "ISBN已存在"
+                },
+                {
+                  index: 45,
+                  isbn: "9787301234578",
+                  title: "数据错误图书",
+                  error: "数据库插入失败: 字段长度超限"
+                },
+                {
+                  index: 78,
+                  isbn: "9787301234590",
+                  title: "测试图书78",
+                  error: "分类ID不存在"
+                }
+              ]
             }
-          ]
-        }
-      ]
-    }
-  }
-},
-AdminDetailSuccess: {
-  summary: "获取管理员详情成功",
-  value: {
-    success: true,
-    message: "成功获取管理员详情",
-    data: {
-      _uid: 101,
-      _utype: "admin_n",
-      _account: "admin_n",
-      _name: "普通管理员",
-      _email: "admin_n@library.com",
-      _max_num: 50,
-      lend_num: 5,
-      _access: 1,
-      _create_time: "2024-01-10T08:15:00.000Z",
-      roles: [
-        {
-          _rid: 2,
-          _rname: "图书管理员",
-          _rcode: "book_admin",
-          _rdesc: "负责图书管理的管理员",
-          permissions: [
-            {
-              _pid: 1,
-              _pname: "查看图书列表",
-              _pcode: "book.view",
-              _pdesc: "查看图书列表和详情",
-              _pmodule: "book"
+          }
+        },
+        BulkUploadDatabaseError: {
+          summary: "数据库错误",
+          value: {
+            success: false,
+            errorCode: "DATABASE_ERROR",
+            message: "数据库操作失败",
+            details: "数据库连接超时，请稍后重试"
+          }
+        },
+        BulkUploadEmptyFile: {
+          summary: "空文件",
+          value: {
+            success: false,
+            errorCode: "EMPTY_FILE",
+            message: "上传的文件为空"
+          }
+        },
+        // 消息相关示例
+        MessageListSuccess: {
+          summary: "获取消息列表成功",
+          value: {
+            success: true,
+            message: "获取消息列表成功",
+            data: {
+              messages: [
+                {
+                  _mid: 1,
+                  _sender_id: 100,
+                  _receiver_id: 200,
+                  _title: "图书即将到期提醒",
+                  _content: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。",
+                  _type: 2,
+                  _status: 0,
+                  _create_time: "2024-01-15T10:30:00.000Z",
+                  _read_time: null,
+                  sender: {
+                    _uid: 100,
+                    _name: "系统管理员",
+                    _account: "admin_t"
+                  }
+                },
+                {
+                  _mid: 2,
+                  _sender_id: 100,
+                  _receiver_id: 200,
+                  _title: "预约图书到馆通知",
+                  _content: "您预约的《深入理解计算机系统》已经到馆，请在一周内到图书馆借阅。",
+                  _type: 3,
+                  _status: 1,
+                  _create_time: "2024-01-14T14:20:00.000Z",
+                  _read_time: "2024-01-14T15:30:00.000Z",
+                  sender: {
+                    _uid: 100,
+                    _name: "系统管理员",
+                    _account: "admin_t"
+                  }
+                }
+              ],
+              pagination: {
+                total: 5,
+                page: 1,
+                limit: 10,
+                totalPages: 1
+              }
+            }
+          }
+        },
+        // 管理员相关模式
+        AdminListResponse: {
+          type: "object",
+          properties: {
+            adminlist: {
+              type: "array",
+              items: {
+                $ref: "#/components/schemas/Admin"
+              },
+              description: "管理员列表"
+            }
+          }
+        },
+        Admin: {
+          type: "object",
+          properties: {
+            _uid: {
+              type: "integer",
+              description: "管理员ID",
+              example: 100
             },
-            {
-              _pid: 2,
-              _pname: "添加图书",
-              _pcode: "book.add",
-              _pdesc: "添加新图书",
-              _pmodule: "book"
+            _utype: {
+              type: "string",
+              enum: ["admin_t", "admin_n"],
+              description: "管理员类型",
+              example: "admin_n"
+            },
+            _account: {
+              type: "string",
+              description: "账号",
+              example: "admin_n"
+            },
+            _name: {
+              type: "string",
+              description: "姓名",
+              example: "普通管理员"
+            },
+            _email: {
+              type: "string",
+              description: "邮箱",
+              example: "admin_n@library.com"
+            },
+            _max_num: {
+              type: "integer",
+              description: "最大借书数量",
+              example: 50
+            },
+            lend_num: {
+              type: "integer",
+              description: "当前借书数量",
+              example: 5
+            },
+            _access: {
+              type: "integer",
+              description: "访问权限",
+              example: 1
+            },
+            _create_time: {
+              type: "string",
+              description: "创建时间",
+              example: "2024-01-15T10:30:00.000Z"
+            },
+            roles: {
+              type: "array",
+              items: {
+                $ref: "#/components/schemas/Role"
+              },
+              description: "管理员拥有的角色"
             }
-          ]
+          }
+        },
+        AdminListSuccess: {
+          summary: "获取管理员列表成功",
+          value: {
+            success: true,
+            message: "获取管理员列表成功",
+            data: {
+              adminlist: [
+                {
+                  _uid: 100,
+                  _utype: "admin_t",
+                  _account: "admin_t",
+                  _name: "终端管理员",
+                  _email: "admin_t@library.com",
+                  _max_num: 100,
+                  lend_num: 10,
+                  _access: 1,
+                  _create_time: "2024-01-15T10:30:00.000Z",
+                  roles: [
+                    {
+                      _rid: 1,
+                      _rname: "系统管理员",
+                      _rcode: "system_admin",
+                      _rdesc: "拥有所有权限的系统管理员"
+                    }
+                  ]
+                },
+                {
+                  _uid: 101,
+                  _utype: "admin_n",
+                  _account: "admin_n",
+                  _name: "普通管理员",
+                  _email: "admin_n@library.com",
+                  _max_num: 50,
+                  lend_num: 5,
+                  _access: 1,
+                  _create_time: "2024-01-10T08:15:00.000Z",
+                  roles: [
+                    {
+                      _rid: 2,
+                      _rname: "图书管理员",
+                      _rcode: "book_admin",
+                      _rdesc: "负责图书管理的管理员"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        AdminDetailSuccess: {
+          summary: "获取管理员详情成功",
+          value: {
+            success: true,
+            message: "成功获取管理员详情",
+            data: {
+              _uid: 101,
+              _utype: "admin_n",
+              _account: "admin_n",
+              _name: "普通管理员",
+              _email: "admin_n@library.com",
+              _max_num: 50,
+              lend_num: 5,
+              _access: 1,
+              _create_time: "2024-01-10T08:15:00.000Z",
+              roles: [
+                {
+                  _rid: 2,
+                  _rname: "图书管理员",
+                  _rcode: "book_admin",
+                  _rdesc: "负责图书管理的管理员",
+                  permissions: [
+                    {
+                      _pid: 1,
+                      _pname: "查看图书列表",
+                      _pcode: "book.view",
+                      _pdesc: "查看图书列表和详情",
+                      _pmodule: "book"
+                    },
+                    {
+                      _pid: 2,
+                      _pname: "添加图书",
+                      _pcode: "book.add",
+                      _pdesc: "添加新图书",
+                      _pmodule: "book"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        UpdateAdminSuccess: {
+          summary: "更新管理员信息成功",
+          value: {
+            success: true,
+            message: "管理员信息更新成功",
+            data: {
+              _uid: 101,
+              _utype: "admin_n",
+              _account: "admin_n",
+              _name: "普通管理员（已更新）",
+              _email: "admin_n_updated@library.com",
+              _max_num: 50,
+              lend_num: 5,
+              _access: 1,
+              _create_time: "2024-01-10T08:15:00.000Z"
+            }
+          }
+        },
+        DeleteAdminSuccess: {
+          summary: "删除管理员成功",
+          value: {
+            success: true,
+            message: "管理员删除成功",
+            data: {
+              _uid: 101,
+              _utype: "admin_n",
+              _account: "admin_n",
+              _name: "普通管理员",
+              _email: "admin_n@library.com",
+              _max_num: 50,
+              lend_num: 0,
+              _access: 1,
+              _create_time: "2024-01-10T08:15:00.000Z"
+            }
+          }
+        },
+        AdminNotFoundError: {
+          summary: "管理员不存在",
+          value: {
+            success: false,
+            errorCode: "ADMIN_NOT_FOUND",
+            message: "管理员不存在"
+          }
+        },
+        CreateAdminRequest: {
+          type: "object",
+          required: ["_account", "_name", "_password", "_email", "_utype"],
+          properties: {
+            _account: {
+              type: "string",
+              description: "管理员账号",
+              example: "admin_n_001"
+            },
+            _name: {
+              type: "string",
+              description: "管理员姓名",
+              example: "新普通管理员"
+            },
+            _password: {
+              type: "string",
+              description: "管理员密码",
+              example: "Admin123!"
+            },
+            _email: {
+              type: "string",
+              description: "管理员邮箱",
+              example: "admin_n_001@example.com"
+            },
+            _utype: {
+              type: "string",
+              enum: ["admin_t", "admin_n"],
+              description: "管理员类型",
+              example: "admin_n"
+            }
+          }
+        },
+        CreateAdminSuccess: {
+          summary: "创建管理员成功",
+          value: {
+            success: true,
+            message: "管理员创建成功",
+            data: {
+              r_add: {
+                _uid: 102,
+                _utype: "admin_n",
+                _account: "admin_n_001",
+                _name: "新普通管理员",
+                _email: "admin_n_001@example.com",
+                _max_num: 50,
+                lend_num: 0,
+                _access: 1,
+                _create_time: "2024-01-20T14:25:00.000Z"
+              }
+            }
+          }
+        },
+        MessageDetailSuccess: {
+          summary: "获取消息详情成功",
+          value: {
+            success: true,
+            message: "成功获取消息详情",
+            data: {
+              _mid: 1,
+              _sender_id: 100,
+              _receiver_id: 200,
+              _title: "图书即将到期提醒",
+              _content: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。",
+              _type: 2,
+              _status: 0,
+              _create_time: "2024-01-15T10:30:00.000Z",
+              _read_time: null,
+              sender: {
+                _uid: 100,
+                _name: "系统管理员",
+                _account: "admin_t"
+              }
+            }
+          }
+        },
+        CreateMessageSuccess: {
+          summary: "发送消息成功",
+          value: {
+            success: true,
+            message: "消息发送成功",
+            data: {
+              _mid: 3,
+              _sender_id: 100,
+              _receiver_id: 200,
+              _title: "系统维护通知",
+              _content: "系统将于本周六进行维护，届时将暂停服务2小时。",
+              _type: 1,
+              _status: 0,
+              _create_time: "2024-01-16T09:00:00.000Z",
+              _read_time: null,
+              sender: {
+                _uid: 100,
+                _name: "系统管理员",
+                _account: "admin_t"
+              }
+            }
+          }
+        },
+        MessageNotFoundError: {
+          summary: "消息不存在",
+          value: {
+            success: false,
+            errorCode: "MESSAGE_NOT_FOUND",
+            message: "消息不存在"
+          }
+        },
+        ReceiverNotFoundError: {
+          summary: "接收者不存在",
+          value: {
+            success: false,
+            errorCode: "RECEIVER_NOT_FOUND",
+            message: "接收者不存在"
+          }
+        },
+        BulkUploadDuplicateISBN: {
+          summary: "文件内重复ISBN",
+          value: {
+            success: false,
+            errorCode: "DUPLICATE_ISBN_IN_FILE",
+            message: "文件中存在重复的ISBN",
+            duplicates: [
+              {
+                isbn: "9787301234567",
+                lines: [3, 15, 22]
+              }
+            ]
+          }
         }
-      ]
-    }
-  }
-},
-UpdateAdminSuccess: {
-  summary: "更新管理员信息成功",
-  value: {
-    success: true,
-    message: "管理员信息更新成功",
-    data: {
-      _uid: 101,
-      _utype: "admin_n",
-      _account: "admin_n",
-      _name: "普通管理员（已更新）",
-      _email: "admin_n_updated@library.com",
-      _max_num: 50,
-      lend_num: 5,
-      _access: 1,
-      _create_time: "2024-01-10T08:15:00.000Z"
-    }
-  }
-},
-DeleteAdminSuccess: {
-  summary: "删除管理员成功",
-  value: {
-    success: true,
-    message: "管理员删除成功",
-    data: {
-      _uid: 101,
-      _utype: "admin_n",
-      _account: "admin_n",
-      _name: "普通管理员",
-      _email: "admin_n@library.com",
-      _max_num: 50,
-      lend_num: 0,
-      _access: 1,
-      _create_time: "2024-01-10T08:15:00.000Z"
-    }
-  }
-},
-AdminNotFoundError: {
-  summary: "管理员不存在",
-  value: {
-    success: false,
-    errorCode: "ADMIN_NOT_FOUND",
-    message: "管理员不存在"
-  }
-},
-CreateAdminRequest: {
-  type: "object",
-  required: ["_account", "_name", "_password", "_email", "_utype"],
-  properties: {
-    _account: {
-      type: "string",
-      description: "管理员账号",
-      example: "admin_n_001"
-    },
-    _name: {
-      type: "string",
-      description: "管理员姓名",
-      example: "新普通管理员"
-    },
-    _password: {
-      type: "string",
-      description: "管理员密码",
-      example: "Admin123!"
-    },
-    _email: {
-      type: "string",
-      description: "管理员邮箱",
-      example: "admin_n_001@example.com"
-    },
-    _utype: {
-      type: "string",
-      enum: ["admin_t", "admin_n"],
-      description: "管理员类型",
-      example: "admin_n"
-    }
-  }
-},
-CreateAdminSuccess: {
-  summary: "创建管理员成功",
-  value: {
-    success: true,
-    message: "管理员创建成功",
-    data: {
-      r_add: {
-        _uid: 102,
-        _utype: "admin_n",
-        _account: "admin_n_001",
-        _name: "新普通管理员",
-        _email: "admin_n_001@example.com",
-        _max_num: 50,
-        lend_num: 0,
-        _access: 1,
-        _create_time: "2024-01-20T14:25:00.000Z"
-      }
-    }
-  }
-},
-MessageDetailSuccess: {
-  summary: "获取消息详情成功",
-  value: {
-    success: true,
-    message: "成功获取消息详情",
-    data: {
-      _mid: 1,
-      _sender_id: 100,
-      _receiver_id: 200,
-      _title: "图书即将到期提醒",
-      _content: "您借阅的《JavaScript高级程序设计》将于3天后到期，请及时归还或续借。",
-      _type: 2,
-      _status: 0,
-      _create_time: "2024-01-15T10:30:00.000Z",
-      _read_time: null,
-      sender: {
-        _uid: 100,
-        _name: "系统管理员",
-        _account: "admin_t"
-      }
-    }
-  }
-},
-CreateMessageSuccess: {
-  summary: "发送消息成功",
-  value: {
-    success: true,
-    message: "消息发送成功",
-    data: {
-      _mid: 3,
-      _sender_id: 100,
-      _receiver_id: 200,
-      _title: "系统维护通知",
-      _content: "系统将于本周六进行维护，届时将暂停服务2小时。",
-      _type: 1,
-      _status: 0,
-      _create_time: "2024-01-16T09:00:00.000Z",
-      _read_time: null,
-      sender: {
-        _uid: 100,
-        _name: "系统管理员",
-        _account: "admin_t"
-      }
-    }
-  }
-},
-MessageNotFoundError: {
-  summary: "消息不存在",
-  value: {
-    success: false,
-    errorCode: "MESSAGE_NOT_FOUND",
-    message: "消息不存在"
-  }
-},
-ReceiverNotFoundError: {
-  summary: "接收者不存在",
-  value: {
-    success: false,
-    errorCode: "RECEIVER_NOT_FOUND",
-    message: "接收者不存在"
-  }
-},
-BulkUploadDuplicateISBN: {
-  summary: "文件内重复ISBN",
-  value: {
-    success: false,
-    errorCode: "DUPLICATE_ISBN_IN_FILE",
-    message: "文件中存在重复的ISBN",
-    duplicates: [
-      {
-        isbn: "9787301234567",
-        lines: [3, 15, 22]
-      }
-    ]
-  }
-}
       }
     },
     security: [

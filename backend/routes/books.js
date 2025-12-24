@@ -365,7 +365,8 @@ async function bulkInsertBooks(validBooks, dbConnection) {
           // 更新现有图书
           await existingBook.update({
             _book_name: book._book_name,
-            _num: book._num,
+            _total_copies: book._total_copies,
+            _available_copies: book._available_copies,
             _author: book._author,
             _press: book._press,
             _cover_url: book._cover_url,
@@ -380,10 +381,12 @@ async function bulkInsertBooks(validBooks, dbConnection) {
           updated++;
         } else {
           // 创建新图书
+          _available_copies= book._total_copies
           const newBook = await dbConnection.Book.create({
             _book_name: book._book_name,
             _isbn: book._isbn,
-            _num: book._num,
+            _total_copies: book._total_copies,
+            _available_copies: _available_copies,
             _author: book._author,
             _press: book._press,
             _cover_url: book._cover_url,
@@ -586,7 +589,7 @@ router.post('/:id/borrow', authenticate, requirePermission('book.borrow'), async
         message: '图书不存在',
       });
     }
-    if (book.stock <= 0) {
+    if (book._available_copies <= 0) {
       return res.status(400).json({
         success: false,
         message: '图书已借完',
@@ -603,7 +606,7 @@ router.post('/:id/borrow', authenticate, requirePermission('book.borrow'), async
     }
 
     // 检查图书库存
-    if (book._num <= 0) {
+    if (book._total_copies <= 0) {
       return res.status(400).json({
         success: false,
         errorCode: 'BOOK_OUT_OF_STOCK',
@@ -661,7 +664,7 @@ router.post('/:id/borrow', authenticate, requirePermission('book.borrow'), async
 
     // 更新图书库存和借阅次数
     await book.update({
-      //_num: book._num - 1,
+      _available_copies: book._available_copies - 1,
       _times: book._times + 1
     });
 
@@ -781,18 +784,16 @@ router.put('/:hid/return', authenticate, requirePermission('book.return'), async
     });
 
     // 更新图书库存
-    /*await book.update({
-      _num: book._num + 1
-    });*/
+    await borrowRecord.book.update({
+      _available_copies: borrowRecord.book._available_copies + 1
+    });
 
     // 更新用户当前借阅数量
     const user = await User.findByPk(userId);
-    
-    
     await user.update({
       lend_num: Math.max(0, user.lend_num - 1)
     });
-    await BookOrderService.updateOrderQueue(book._bid);
+    await BookOrderService.updateOrderQueue(borrowRecord.book._bid);
 
     res.json({
       success: true,
@@ -1006,16 +1007,6 @@ router.get('/:id', async (req, res) => {
         message: '图书不存在'
       });
     }
-
-    let Borrowed_Count = await BorrowRecord.count({
-      where: { 
-        _bid: id,
-        _status: 0 // 借出状态
-      }
-    });
-    let Avaliable_Count = book._num - Borrowed_Count
-    book.dataValues._total_copies= book._num;
-    book.dataValues._avaliable_copies= Avaliable_Count;
     
     res.json({
       success: true,
@@ -1063,7 +1054,8 @@ router.get('/:id', async (req, res) => {
  *               value:
  *                 _book_name: "更新后的图书名称"
  *                 _isbn: "9787115275790"
- *                 _num: 8
+ *                 _total_copies: 5,
+ *                 _available_copies: 4,
  *                 _author: "Nicholas C. Zakas"
  *                 _press: "人民邮电出版社"
  *                 _tid: 1
@@ -1116,7 +1108,7 @@ router.put('/:id', authenticate, requirePermission('book.edit'), async (req, res
     // 权限检查已在中间件中完成
 
     const { id } = req.params;
-    const { _book_name, _isbn, _num, _author, _press, _tid, _cover_url } = req.body;
+    const { _book_name, _isbn, _total_copies, _available_copies, _author, _press, _tid, _cover_url } = req.body;
     
     const book = await Book.findByPk(id);
     
@@ -1129,7 +1121,7 @@ router.put('/:id', authenticate, requirePermission('book.edit'), async (req, res
     }
 
     // 输入验证
-    if (!_book_name || !_isbn || !_num || !_author || !_press || !_tid) {
+    if (!_book_name || !_isbn || !_total_copies || !_available_copies || !_author || !_press || !_tid) {
       return res.status(400).json({
         success: false,
         errorCode: 'MISSING_FIELDS',
@@ -1140,7 +1132,8 @@ router.put('/:id', authenticate, requirePermission('book.edit'), async (req, res
     await book.update({
       _book_name,
       _isbn,
-      _num,
+      _total_copies,
+      _available_copies,
       _author,
       _press,
       _tid,
@@ -1399,21 +1392,10 @@ router.get('/', async (req, res) => {
     const formattedBooks = books.map(book => {
     const bookData = book.toJSON();
       
-      // 计算可借阅复本数
-      const bookBorrowRecords = borrowRecordMap.get(bookData._bid) || [];
-      const borrowedCount = bookBorrowRecords.filter(record => record._return_time === null).length;
-      
-      // 使用图书模型中的_num字段作为馆藏数量
-      const totalCopies = bookData._num || 5; // 使用图书的_num字段，如果没有则默认为5
-      const availableCopies = totalCopies - borrowedCount;
-      
       return {
         ...bookData,
         _type_name: bookData.category ? bookData.category._type_name : null,
-        _total_copies: totalCopies, // 总复本数
-        _available_copies: availableCopies > 0 ? availableCopies : 0, // 可借阅复本数
         category: undefined // 删除category对象
-        
       };
     });
     
@@ -1457,7 +1439,8 @@ router.get('/', async (req, res) => {
  *               value:
  *                 _book_name: "JavaScript高级程序设计"
  *                 _isbn: "9787115275790"
- *                 _num: 10
+ *                 _total_copies: 5,
+ *                 _available_copies:3,
  *                 _author: "Nicholas C. Zakas"
  *                 _press: "人民邮电出版社"
  *                 _tid: 1
@@ -1467,7 +1450,8 @@ router.get('/', async (req, res) => {
  *               value:
  *                 _book_name: "三体"
  *                 _isbn: "9787536692930"
- *                 _num: 5
+ *                 _total_copies: 5,
+ *                 _available_copies:3,
  *                 _author: "刘慈欣"
  *                 _press: "重庆出版社"
  *                 _tid: 2
@@ -1512,10 +1496,10 @@ router.post('/', authenticate, requirePermission('book.add'), async (req, res) =
   try {
     // 权限检查已在中间件中完成
 
-    const { _book_name, _isbn, _num, _author, _press, _tid, _cover_url } = req.body;
+    const { _book_name, _isbn, _total_copies, _available_copies, _author, _press, _tid, _cover_url } = req.body;
     
     // 输入验证
-    if (!_book_name || !_isbn || !_num || !_author || !_press || !_tid) {
+    if (!_book_name || !_isbn || !_total_copies || !_available_copies || !_author || !_press || !_tid) {
       return res.status(400).json({
         success: false,
         errorCode: 'MISSING_FIELDS',
@@ -1526,7 +1510,8 @@ router.post('/', authenticate, requirePermission('book.add'), async (req, res) =
     const book = await Book.create({
       _book_name,
       _isbn,
-      _num,
+      _total_copies,
+      _available_copies,
       _author,
       _press,
       _tid,
