@@ -898,11 +898,21 @@ router.post('/', authenticate, requirePermission('message.create'), async (req, 
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const message = await Message.findOne({
-      where: {
-        _mid: id,
-        _receiver_id: req.user._uid
-      }
+    
+    // 查找消息
+    const message = await Message.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'sender',
+          attributes: ['_uid', '_name', '_account', '_utype']
+        },
+        {
+          model: User,
+          as: 'receiver',
+          attributes: ['_uid', '_name', '_account', '_utype']
+        }
+      ]
     });
 
     if (!message) {
@@ -910,6 +920,19 @@ router.delete('/:id', authenticate, async (req, res) => {
         success: false,
         errorCode: 'MESSAGE_NOT_FOUND',
         message: '消息不存在'
+      });
+    }
+
+    // 检查权限：消息接收者、发送者或管理员可以删除消息
+    const isReceiver = message._receiver_id === req.user._uid;
+    const isSender = message._sender_id === req.user._uid;
+    const isAdmin = req.user._utype && (req.user._utype.includes('admin') || req.user._utype === 'super');
+    
+    if (!isReceiver && !isSender && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        errorCode: 'PERMISSION_DENIED',
+        message: '没有权限删除此消息'
       });
     }
 
