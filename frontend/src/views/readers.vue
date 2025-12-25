@@ -1131,9 +1131,7 @@
                 <div class="form-row">
                   <label>类别</label>
                   <select v-model="feedbackType">
-                    <option value="投诉">投诉</option>
-                    <option value="荐购">荐购</option>
-                    <option value="其他">其他</option>
+                     <option v-for="type in messageTypes" :key="type._mtid" :value="type._mtname">{{ type._mtname }}</option>
                   </select>
                 </div>
                 <div class="form-row">
@@ -1322,6 +1320,8 @@ export default {
       feedbackType: "建议",
       feedbackMessage: "",
       feedbackError: "",
+   
+      messageTypes:[], // 消息类型列表
       // 登录提醒相关
       hasShownLoginReminder: false, // 是否已显示登录提醒
       clickedSearch: false, // 添加这个标志位来跟踪是否点击了检索按钮或选择了分类
@@ -1919,6 +1919,26 @@ export default {
       }
     },
 
+    // 加载消息类型
+    async loadMessageTypes() {
+        try {
+          console.log("开始获取消息类型")
+        const response = await axios.get('/api/messages/types');
+        console.log("成功获取消息类型数据：",response.data)
+        if (response.data.success) {
+          this.messageTypes = response.data.data;
+          // 如果当前选中的类型不在列表中，则设置为默认值
+          if (!this.messageTypes.find(type => type._mtname === this.feedbackType)) {
+            this.feedbackType = this.messageTypes.length > 0 ? this.messageTypes[0]._mtname : '';
+         }
+        }
+      } catch (error) {
+        console.error('加载消息类型失败:', error);
+      }
+    },
+
+
+
     async loadAnnouncements() {
       try {
         const response = await axios.get("/api/announcements");
@@ -2347,11 +2367,15 @@ async loadFeedbackHistory() {
         意见内容：${this.feedbackMessage}
       `;
 
+      // 查找用户选择的反馈类型对应的_mtid
+      const selectedType = this.messageTypes.find(type => type._mtname === this.feedbackType);
+      const mtid = selectedType ? selectedType._mtid : 3; // 默认使用3作为备选值
+
       const response = await axios.post('/api/messages', {
         _receiver_id: 1, // 管理员ID，实际项目中可能需要获取管理员ID
         _title: `意见建议 - ${this.feedbackType}`,
         _content: feedbackContent,
-        _mtid: 3 // 意见建议类型的消息
+        _mtid: mtid // 使用用户选择的反馈类型对应的_mtid
       });
 
       if (response.data.success) {
@@ -2809,7 +2833,12 @@ getReserveStatusText(status) {
         case "feedback":
           // 不再检查登录状态，允许访问但显示提示
           if (this.isLoggedIn) {
-            // 可以在这里加载反馈相关数据
+            // 加载消息类型，确保意见建议表单中的类别选项可用
+            if (this.messageTypes.length === 0) {
+              await this.loadMessageTypes();
+            }
+            // 加载反馈历史记录
+            await this.loadFeedbackHistory();
           }
           break;
         case "allBooks":
@@ -3128,11 +3157,11 @@ getReserveStatusText(status) {
   async mounted() {
     // 加载消息相关数据
   if (this.isLoggedIn) {
+    console.log("用户已登录，开始加载消息列表和未读计数");
     await this.loadMessages();
     await this.loadUnreadMessageCount();
-  }
-  // 如果已登录，加载意见建议历史
-  if (this.isLoggedIn) {
+    console.log("开始加载消息类型")
+    await this.loadMessageTypes(); // 加载消息类型
     await this.loadFeedbackHistory();
   }
   // 添加页面切换监听，确保切换到历史记录标签时重新加载
