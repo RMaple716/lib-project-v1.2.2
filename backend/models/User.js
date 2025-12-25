@@ -203,6 +203,12 @@ User.associate = function(models) {
     otherKey: '_rid',
     as: 'roles'
   });
+
+  User.hasMany(models.BookOrder, {
+  foreignKey: '_uid',
+  as: 'bookOrders'
+});
+
 };
 
 module.exports = User;

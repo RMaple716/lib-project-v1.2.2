@@ -398,7 +398,7 @@ router.post('/students', authenticate, upload.single('file'), async (req, res) =
  */
 router.post('/students/optimized', authenticate, upload.single('file'), async (req, res) => {
   const filePath = req.file ? req.file.path : null;
-
+  console.log("开始优化版导入学生数据");
   if (!filePath) {
     return res.status(400).json({
       success: false,
@@ -510,7 +510,7 @@ router.post('/students/optimized', authenticate, upload.single('file'), async (r
  */
 router.post('/teachers', authenticate, upload.single('file'), async (req, res) => {
   const filePath = req.file ? req.file.path : null;
-
+  console.log("开始导入教师数据");
   if (!filePath) {
     return res.status(400).json({
       success: false,
@@ -564,7 +564,7 @@ router.post('/teachers', authenticate, upload.single('file'), async (req, res) =
           _name: teacher.name,
           _password: teacher.password,
           _email: teacher.email,
-          department_id: department.id,
+          _did: department._did,
           _max_num: 20, // 教师默认最大借书数量
           lend_num: 0,
           _access: 1
@@ -667,7 +667,7 @@ router.post('/teachers', authenticate, upload.single('file'), async (req, res) =
  */
 router.post('/tempworkers', authenticate, upload.single('file'), async (req, res) => {
   const filePath = req.file ? req.file.path : null;
-
+  console.log("开始导入临时工数据");
   if (!filePath) {
     return res.status(400).json({
       success: false,
@@ -721,7 +721,7 @@ router.post('/tempworkers', authenticate, upload.single('file'), async (req, res
           _name: tempWorker.name,
           _password: tempWorker.password,
           _email: tempWorker.email,
-          work_department_id: workDepartment.id,
+          _wdid: workDepartment._wdid,
           _max_num: 5, // 临时工默认最大借书数量
           lend_num: 0,
           _access: 1

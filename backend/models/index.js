@@ -26,13 +26,13 @@ const BookOrder = require('./BookOrder');
 const defineAssociations = () => {
   try {
     // 确保所有模型的associate方法都被调用
-    if (typeof Book.associate === 'function') Book.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof Book.associate === 'function') Book.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole, BookOrder });
     if (typeof Category.associate === 'function') Category.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
     if (typeof Department.associate === 'function') Department.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
     if (typeof BorrowRecord.associate === 'function') BorrowRecord.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
     if (typeof Major.associate === 'function') Major.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
     if (typeof Class.associate === 'function') Class.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
-    if (typeof User.associate === 'function') User.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
+    if (typeof User.associate === 'function') User.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole, BookOrder });
     if (typeof Mtype.associate === 'function') Mtype.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Department, Major, Class, WorkDepartment, Permission, Role, RolePermission, UserRole });
     if (typeof Role.associate === 'function') Role.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Permission, RolePermission, UserRole });
     if (typeof Permission.associate === 'function') Permission.associate({ sequelize, User, Book, Category, BorrowRecord, Announcement, Message, Mtype, Department, Major, Class, WorkDepartment, Role, RolePermission, UserRole });
@@ -194,7 +194,7 @@ const syncDatabase = async () => {
       });
       
       // 为BorrowRecord表的_bid字段创建外键约束
-      await sequelize.getQueryInterface().addConstraint('t_borrow_record', {
+      await sequelize.getQueryInterface().addConstraint('t_history', {
         fields: ['_bid'],
         type: 'foreign key',
         name: 'borrow_record_book_bid_fkey',
@@ -207,7 +207,7 @@ const syncDatabase = async () => {
       });
       
       // 为BorrowRecord表的_uid字段创建外键约束
-      await sequelize.getQueryInterface().addConstraint('t_borrow_record', {
+      await sequelize.getQueryInterface().addConstraint('t_history', {
         fields: ['_uid'],
         type: 'foreign key',
         name: 'borrow_record_user_uid_fkey',
@@ -368,5 +368,6 @@ module.exports = {
   Role,
   RolePermission,
   UserRole,
+  BookOrder,
   syncDatabase
 };

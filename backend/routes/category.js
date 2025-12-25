@@ -77,36 +77,52 @@ console.log('authenticateToken:', authenticate);
  * @description 获取所有类别的借阅数量统计，按借阅数量降序排列
  * @requiresPermission category.view
  */
-// 在 routes/category.js 中添加路由
-router.get('/stats', authenticate, requirePermission('category.view'), async (req, res) => {
+/**
+ * 获取按图书类别统计的借阅数量 - 使用Sequelize关联查询
+ */
+router.get('/stats', authenticate, requirePermission('borrowRecord.stats'), async (req, res) => {
   try {
-    // 查询每个类别的借阅数量
+    // 导入Category模型
+    const { Category } = require('../models');
+    const { sequelize } = require('../models');
+    const { Book } = require('../models');
+    // 使用Sequelize关联查询
     const categoryStats = await Category.findAll({
       attributes: [
+        '_tid',
         '_type_name',
         [
-          // 使用关联查询统计借阅数量
-          sequelize.fn('COUNT', sequelize.col('BorrowRecords._hid')),
+          sequelize.fn('COUNT', sequelize.col('books.bookBorrowRecords._hid')),
           'count'
         ]
       ],
       include: [{
-        model: BorrowRecord,
-        attributes: [], // 不需要返回借阅记录的具体字段
-        required: true // INNER JOIN，只统计有借阅记录的类别
+        model: Book,
+        as: 'books',
+        attributes: [],
+        include: [{
+          model: BorrowRecord,
+          as: 'bookBorrowRecords',
+          attributes: [],
+          required: true // INNER JOIN，只统计有借阅记录的类别
+        }],
+        required: true // INNER JOIN，只统计有图书的类别
       }],
-      group: ['Category._tid'], // 按类别ID分组
-      order: [[sequelize.literal('count'), 'DESC']] // 按借阅数量降序排列
+      group: ['Category._tid', 'Category._type_name'], // 按类别ID和名称分组
+      order: [[sequelize.literal('count'), 'DESC']], // 按借阅数量降序排列
+      raw: true // 返回扁平化结果
     });
 
     // 格式化返回数据
     const formattedStats = categoryStats.map(category => ({
+      _tid: category._tid,
       _type_name: category._type_name,
-      count: parseInt(category.dataValues.count)
+      count: parseInt(category.count)
     }));
 
     res.json({
       success: true,
+      message: '获取类别统计成功',
       data: formattedStats
     });
   } catch (error) {

@@ -621,12 +621,12 @@ const findOrCreateClass = async (className, majorId) => {
  */
 const findOrCreateWorkDepartment = async (workDepartmentName) => {
   let workDepartment = await WorkDepartment.findOne({
-    where: { name: workDepartmentName }
+    where: { _wdname: workDepartmentName }
   });
 
   if (!workDepartment) {
     workDepartment = await WorkDepartment.create({
-      name: workDepartmentName
+      _wdname: workDepartmentName
     });
     console.log(`自动创建工作部门: ${workDepartmentName}`);
   }
