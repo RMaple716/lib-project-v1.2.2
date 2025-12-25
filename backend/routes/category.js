@@ -297,7 +297,18 @@ router.put('/:id', authenticate, requirePermission('category.edit'), async (req,
         message: '分类不存在'
       });
     }
-
+    const catcount=await Category.count({
+      where: {
+        _type_name: _type_name
+      }
+    });
+    if(catcount>0){
+      res.status(400).json({
+        success: false,
+        errorCode: 'CATEGORY_ALREADY_EXISTS',
+        message: '分类已存在'
+      });
+    }
     await category.update({
       _type_name: _type_name
     });
@@ -386,7 +397,14 @@ router.delete('/:id', authenticate, requirePermission('category.delete'), async 
         message: '分类不存在'
       });
     }
-
+    const booksCount = await category.countBooks();
+    if (booksCount > 0) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'CATEGORY_HAS_BOOKS',
+        message: '该分类下有关联的图书，无法删除'
+      });
+    }
     await category.destroy();
 
     res.json({
@@ -559,16 +577,29 @@ router.get('/', async (req, res) => {
 router.post('/', authenticate, requirePermission('category.create'), async (req, res) => {
   try {
     const { _type_name } = req.body;
-
+    
+    const catcount=await Category.count({
+      where: {
+        _type_name: _type_name
+      }
+    });
+    if (catcount>0) {
+      res.status(409).json({
+        success: false,
+        errorCode: 'DUPLICATE_CATEGORY',
+        message: '分类名称已存在'
+      });
+    }
     const newCategory = await Category.create({
       _type_name: _type_name
     });
-
+   
     res.json({
       success: true,
       message: '添加分类成功',
       data: newCategory
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({

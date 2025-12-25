@@ -2325,6 +2325,7 @@ async loadFeedbackHistory() {
     if (!this.isLoggedIn) return;
     
     try {
+      console.log("开始加载读者端消息")
       const response = await axios.get('/api/messages', {
         params: {
           page: 1,
