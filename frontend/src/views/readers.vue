@@ -24,9 +24,7 @@
           <li>
             <a href="#" @click.prevent="changePage('feedback')">意见建议</a>
           </li>
-          <li>
-            <a href="#" @click.prevent="changePage('visualization')">图书可视化</a>
-          </li>
+          
         </ul>
 
         <!-- 登录按钮 / 用户头像 -->
@@ -34,6 +32,10 @@
           <!-- 消息面板触发器 -->
           <div class="message-trigger" @click="toggleMessagePanel">
             <i class="envelope-icon">✉️</i>
+            <!-- 新增：逾期提醒数量徽章 -->
+            <span class="overdue-badge" v-if="overdueCount > 0">
+              {{ overdueCount }}
+            </span>
             <span v-if="unreadMessageCount > 0" class="unread-count">
               {{ unreadMessageCount }}
             </span>
@@ -716,12 +718,7 @@
                 >
                   借阅图谱
                 </li>
-                <li
-                  :class="{ active: personalTab === 'violation_records' }"
-                  @click="personalTab = 'violation_records'"
-                >
-                  违规记录
-                </li>
+                
               </ul>
             </div>
             <div class="personal-content">        
@@ -739,23 +736,31 @@
                       <template v-if="!editMode">
                         <div class="info-item">
                           <label>姓名：</label>
-                          <span>{{ userInfo?._name || userInfo?.name || "—" }}</span>
+                          <span>{{ userInfo?._name || userInfo?.name || "—-" }}</span>
                         </div>
                         <div class="info-item">
                           <label>学号：</label>
-                          <span>{{ userInfo?._account || userInfo?.account || "—" }}</span>
+                          <span>{{ userInfo?._account || userInfo?.account || "—-" }}</span>
                         </div>
-                        <div class="info-item">
+                        <!-- <div class="info-item">
                           <label>专业：</label>
-                          <span>{{ userInfo?._major || userInfo?.major || "未填写" }}</span>
+                          <span>{{ userInfo?._mid || userInfo?.mid || "--" }}</span>
                         </div>
                         <div class="info-item">
                           <label>学院：</label>
-                          <span>{{ userInfo?._department || userInfo?.department || "未填写" }}</span>
+                          <span>{{ userInfo?._did || userInfo?.did || "--" }}</span>
                         </div>
                         <div class="info-item">
+                          <label>班级：</label>
+                          <span>{{ userInfo?._cid || userInfo?.cid || "--" }}</span>
+                        </div>
+                        <div class="info-item">
+                          <label>工作部门：</label>
+                          <span>{{ userInfo?._wdid || userInfo?.wdid || "--" }}</span>
+                        </div> -->
+                        <div class="info-item">
                           <label>邮箱：</label>
-                          <span>{{ userInfo?._email || userInfo?.email || "未填写" }}</span>
+                          <span>{{ userInfo?._email || userInfo?.email || "--" }}</span>
                         </div>
                         <div class="info-item">
                           <label>最大可借：</label>
@@ -797,14 +802,14 @@
                 <!-- 已登录才显示的内容 -->
                 <div v-else>
                   <!-- 在这里添加调试按钮 -->
-                  <button @click="forceRefreshBorrowingInfo" class="debug-btn" style="position: fixed; top: 100px; right: 20px; z-index: 1000; background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 4px; font-size: 14px;">
+                  <!-- <button @click="forceRefreshBorrowingInfo" class="debug-btn" style="position: fixed; top: 100px; right: 20px; z-index: 1000; background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 4px; font-size: 14px;">
                     强制刷新借阅信息
-                  </button>
+                  </button> -->
                   <div class="personal-search">
                     <select v-model="borrowingSearchType" class="search-select">
                       <option value="book">按图书名称查询</option>
                       <option value="author">按作者姓名查询</option>
-                      <option value="date">按借阅时间查询</option>
+                      <!-- <option value="date">按借阅时间查询</option> -->
                     </select>
                     <template v-if="borrowingSearchType !== 'date'">
                       <input
@@ -1313,7 +1318,7 @@ export default {
   data() {
     return {
       // 消息系统相关
-      showMessagePanel: false,
+      currentUserId: null,
       messages: [], // 消息列表
       currentMessage: null, // 当前查看的消息详情
       showMessageDetail: false, // 是否显示消息详情
@@ -1787,6 +1792,36 @@ export default {
     },
   },
   methods: {
+    
+    async fetchUserOverdueCount() {
+  if (!this.isLoggedIn) {
+    console.log('用户未登录，跳过逾期检查');
+    return;
+  }
+  
+  try {
+    console.log('开始获取逾期记录，用户ID:', this.currentUserId);
+    const response = await axios.get('/api/overdue-reminder/records', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    console.log('获取逾期记录响应:', response.data);
+    
+    if (response.data.success && response.data.data) {
+      const userOverdueRecords = response.data.data.records.filter(
+        record => record.user._uid === this.currentUserId
+      );
+      
+      console.log('用户逾期记录:', userOverdueRecords);
+      this.overdueCount = userOverdueRecords.length;
+      console.log('更新逾期数量:', this.overdueCount);
+    }
+  } catch (error) {
+    console.error('获取逾期提醒数量失败：', error.response?.data || error.message);
+  }
+},
     // 添加强制刷新借阅信息的方法
     async forceRefreshBorrowingInfo() {
     try {
@@ -2808,8 +2843,10 @@ getReserveStatusText(status) {
           const parsed = JSON.parse(userInfo);
           this.user = parsed;
           this.userInfo = parsed;
-
-
+          this.currentUserId = parsed._uid; // 添加这行
+          if (this.isLoggedIn) {
+        this.fetchUserOverdueCount(); // 添加这行
+      }
           // 强制触发视图更新
           this.$nextTick(() => {
             this.$forceUpdate();
@@ -3271,6 +3308,7 @@ getReserveStatusText(status) {
     
     
   async mounted() {
+    this.fetchUserOverdueCount(); // 调用接口获取逾期数量
     // 检查数据一致性
   this.checkDataConsistency();
     // 加载消息相关数据
@@ -3281,6 +3319,7 @@ getReserveStatusText(status) {
     console.log("开始加载消息类型")
     await this.loadMessageTypes(); // 加载消息类型
     await this.loadFeedbackHistory();
+    this.fetchUserOverdueCount();
   }
   // 添加页面切换监听，确保切换到历史记录标签时重新加载
   this.$watch('feedbackTab', async (newTab) => {
