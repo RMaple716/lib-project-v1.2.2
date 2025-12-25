@@ -29,6 +29,11 @@ const BorrowRecord = sequelize.define('BorrowRecord', {
     allowNull: false,
     field: '_end_date'
   },
+  _actual_date:{
+    type:DataTypes.DATEONLY,
+    allowNull: true,
+    field: '_actual_date'
+  },
   _status: {
     type: DataTypes.INTEGER,
     allowNull: false,

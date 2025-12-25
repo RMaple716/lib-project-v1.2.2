@@ -619,7 +619,7 @@ router.post('/:id/borrow', authenticate, requirePermission('book.borrow'), async
     const currentBorrowCount = await BorrowRecord.count({
       where: { 
         _uid: userId,
-        _status: 1 // 借出状态
+        _status: 0 // 借出状态
       }
     });
 
@@ -780,7 +780,7 @@ router.put('/:hid/return', authenticate, requirePermission('book.return'), async
     // 更新借阅记录状态为已归还
     await borrowRecord.update({
       _status: 1 ,// 已归还状态
-      _end_date: new Date() // 实际归还日期
+      _actual_date: new Date() // 实际归还日期
     });
 
     // 更新图书库存
