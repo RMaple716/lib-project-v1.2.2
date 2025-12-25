@@ -1236,8 +1236,7 @@ router.delete('/:id', authenticate, requirePermission('book.delete'), async (req
     // 检查是否有借阅记录
     const borrowRecords = await BorrowRecord.count({
       where: { 
-        _bid: id,
-        _status: 1 // 借出状态
+        _bid: id
       }
     });
 
