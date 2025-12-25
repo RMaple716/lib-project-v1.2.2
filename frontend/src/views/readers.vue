@@ -2206,6 +2206,7 @@ export default {
         const response = await axios.get(`/api/books/${currentBook._bid}?t=${Date.now()}`);
         if (response.data.success) {
           this.currentBook = response.data.data;
+          console.log("查看现在这本图书的样子：",this.currentBook);
         }
       }
     } catch (error) {
