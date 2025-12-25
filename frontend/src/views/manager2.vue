@@ -4860,7 +4860,7 @@ export default {
             type: 4  // 获取类型为"其他"的消息
           }
         });
-        
+        // 格式化数据以匹配前端显示需求
         if (response.data.success) {
           // 格式化数据以匹配前端显示需求
           this.feedbackHistory = response.data.data.messages.map(msg => ({
