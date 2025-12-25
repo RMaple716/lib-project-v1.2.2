@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Message, User } = require('../models');
+const { Message, User, Mtype, Book } = require('../models');
 const { authenticate, requirePermission } = require('../middleware/auth');
 const { Op } = require('sequelize');
 //需要实现的功能（其他函数）：图书预约消息提醒、借阅到期提醒消息等。
@@ -11,6 +11,77 @@ const { Op } = require('sequelize');
  *   name: Messages
  *   description: 读者端消息管理
  */
+
+/**
+ * @swagger
+ * /api/messages/types:
+ *   get:
+ *     summary: 获取消息类型列表
+ *     description: 获取系统中所有可用的消息类型
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取消息类型成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _mtid:
+ *                             type: integer
+ *                             description: 消息类型ID
+ *                           _mname:
+ *                             type: string
+ *                             description: 消息类型名称
+ *                           _mdesc:
+ *                             type: string
+ *                             description: 消息类型描述
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             examples:
+ *               unauthorized:
+ *                 $ref: '#/components/examples/UnauthorizedError'
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             examples:
+ *               server_error:
+ *                 $ref: '#/components/examples/ServerError'
+ */
+// 获取消息类型列表
+router.get('/types', authenticate, async (req, res) => {
+  try {
+    console.log("获取消息类型接口被调用")
+    // 返回系统中所有可用的消息类型
+    const messageTypes = await Mtype.findAll();
+    res.json({
+      success: true,
+      message: '获取消息类型成功',
+      data: messageTypes
+    });
+  } catch (error) {
+    console.error('获取消息类型错误:', error);
+    res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+
 /**
  * @swagger
  * /api/messages/all:
@@ -860,5 +931,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     });
   }
 });
+
+
 
 module.exports = router;

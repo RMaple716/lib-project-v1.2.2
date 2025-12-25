@@ -1173,7 +1173,7 @@
               <thead>
                 <tr>
                   <th>反馈ID</th>
-                  <th>用户ID</th>
+                  <th>读者姓名</th>
                   <th>读者邮箱</th>
                   <th>反馈类型</th>
                   <th>反馈标题</th>
@@ -1189,7 +1189,7 @@
                 </tr>
                 <tr v-for="feedback in currentPageFeedbacks" :key="feedback._fid">
                   <td>{{ feedback._fid }}</td>
-                  <td>{{ feedback._uid }}</td>
+                  <td>{{ feedback._name }}</td>
                   <td>{{ feedback._email }}</td>
                   <td>{{ feedback._type || '未分类' }}</td>
                   <td>{{ feedback._title }}</td>
@@ -1688,7 +1688,8 @@ export default {
         this.fetchAdmins(),      // 获取管理员数据
         this.fetchRoles(),       // 获取角色数据
         this.fetchPermissions(), // 获取权限数据
-        this.fetchAnnouncements()
+        this.fetchAnnouncements(),
+        this.loadFeedbacks()     // 加载消息列表
       ]);
       
       this.$nextTick(() => {
@@ -1792,6 +1793,11 @@ export default {
         this.$nextTick(() => {
           this.initCharts();
         });
+      }
+
+      // 当切换到消息管理页面时，加载消息列表
+      if (page === 'feedback_admin') {
+        this.loadFeedbacks();
       }
     },
     // 重置搜索条件
@@ -4426,21 +4432,36 @@ export default {
       async loadFeedbacks() {
         try {
           // 管理员获取所有类型为"意见建议"的消息 (类型2)
-          const response = await this.$http.get('/api/messages/all', {
-            params: {
-              type: 2,  // 类型2是"意见建议"
+          console.log("开始加载消息")
+          const token = localStorage.getItem('token');
+          const response = await fetch('/api/messages/all', {
+            headers: {
+              'Authorization': `Bearer ${token}`
             }
           });
-          this.feedbacks = response.data.data.messages.map(msg => ({
-            ...msg,
-            _fid: msg._mid,  // 将消息ID映射为反馈ID
-            _sender_id: msg._sender_id,
-            _email: msg._email || (msg.sender && msg.sender._email) || ''
-          }));
+          console.log("加载消息完成")
+          const result = await response.json();
+          console.log("后端返回的消息数据:", result); // 添加调试日志
+          if (response.ok) {
+            this.feedbacks = result.data.messages.map(msg => {
+            console.log("单个消息对象:", msg); // 添加调试日志
+            return {
+              ...msg,
+              _fid: msg._mid,  // 将消息ID映射为反馈ID
+              _uid: msg._sender_id,  // 将发送者ID映射为用户ID
+              _sender_id: msg._sender_id,
+              _email: msg._email || (msg.sender && msg.sender._email) || '',
+              _name: msg.sender && msg.sender._name ? msg.sender._name : '未知用户'  // 添加用户姓名
+            };
+          });
           this.filteredFeedbacks = this.feedbacks;
           this.feedbackCurrentPage = 1; // 重置到第一页
+          } else {
+            this.$message.error(result.message || '获取消息列表失败');
+          }
         } catch (error) {
           console.error('加载意见建议数据失败:', error);
+          this.$message.error('加载消息列表失败，请稍后再试');
         }
       },
 
