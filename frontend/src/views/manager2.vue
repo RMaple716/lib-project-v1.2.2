@@ -1201,15 +1201,6 @@
                   </td>
                   <td>
                     <button 
-                      v-if="feedback._status !== 1" 
-                      @click="replyFeedback(feedback)" 
-                      class="action-button reply-button"
-                      :disabled="feedback._status === 1"
-                    >
-                      回复
-                    </button>
-                    <span v-else class="status-text">已回复</span>
-                    <button 
                       @click="viewFeedbackDetail(feedback)" 
                       class="action-button view-button"
                     >
@@ -3212,20 +3203,38 @@ export default {
         return;
       }
       
-      const res = await fetch(`/api/books/${hid}/renew`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      const result = await res.json();
-      if (res.status !== 200) {
-        throw new Error(result.message || '延期失败');
+      // 检查借阅状态
+      if (lendRecord._status !== 0) {
+        this.$message.error('只有状态为"借阅中"的记录才能续借');
+        return;
       }
-      
-      this.$message.success(result.message || '图书续借成功');
+
+      // 检查是否是当前用户的记录
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.$message.error('请先登录');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/books/${hid}/renew`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        const result = await res.json();
+        if (res.status !== 200) {
+          throw new Error(result.message || '续借失败');
+        }
+        
+        this.$message.success(result.message || '图书续借成功');
+      } catch (err) {
+        console.error(err);
+        this.$message.error(err.message || '续借失败');
+      }
     },
 
     // 用户管理相关方法
