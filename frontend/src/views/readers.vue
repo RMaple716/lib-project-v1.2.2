@@ -527,13 +527,12 @@
                       <!-- 图书详情页面的预约按钮 -->
                       <button
                         v-if="isLoggedIn"
-                        @click="handleOrder(currentBook._bid)"
-                        :disabled="isBookOrdered || currentBook._available_copies > 0"
+                        @click="currentBook._available_copies > 0 ? handleBorrow(currentBook._bid) : handleOrder(currentBook._bid)"
+                        :disabled="isBookOrdered || currentBook._available_copies < 0"
                         class="borrow-btn"
                       >
                         {{ currentBook._available_copies > 0 ? '借阅图书' : (isBookOrdered ? '已预约' : '预约图书') }}
                       </button>
-
                       <button
                         v-else
                         @click="goToAuth('login')"
@@ -2526,18 +2525,30 @@ getReserveStatusText(status) {
         if (this.isLoggedIn) {
         await this.loadPersonalData(); // 这会从后端获取最新的用户信息
       }
-
-        // 根据当前页面类型刷新数据
-        if (this.currentPage === "bookDetail") {
-          // 如果在图书详情页，重新获取当前图书信息
-          const bookResponse = await axios.get(`/api/books/${bookId}`);
-          if (bookResponse.data.success) {
-            this.currentBook = bookResponse.data.data;
-          }
-        } else {
-          // 如果在其他页面，重新加载图书列表
-          await this.loadSearchPage();
+    // 重新获取完整的图书信息
+      const bookResponse = await axios.get(`/api/books/${bookId}`);
+      if (bookResponse.data.success) {
+        // 确保获取完整的图书信息，包括类别
+        const updatedBook = bookResponse.data.data;
+        
+        // 如果后端返回的数据没有_type_name，尝试从原始数据中获取
+        if (!updatedBook._type_name && this.currentBook && this.currentBook._type_name) {
+          updatedBook._type_name = this.currentBook._type_name;
         }
+        
+        // 更新当前图书信息
+        this.currentBook = updatedBook;
+        
+        // 同时更新books数组中的对应图书
+        const bookIndex = this.books.findIndex(book => book._bid === bookId);
+        if (bookIndex !== -1) {
+          this.$set(this.books, bookIndex, updatedBook);
+        }
+      }
+      // 如果在其他页面，重新加载图书列表
+      if (this.currentPage !== "bookDetail") {
+        await this.loadSearchPage();
+      }
         
         // 如果用户已登录，更新借阅信息
         if (this.isLoggedIn) {
