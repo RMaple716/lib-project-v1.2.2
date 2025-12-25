@@ -107,6 +107,14 @@ Book.associate = function(models) {
     foreignKey: '_bid',
     as: 'bookBorrowRecords'
   });
+  
+  /**
+   * 一本书可以有多个预约记录
+   */
+  Book.hasMany(models.BookOrder, {
+    foreignKey: '_bid',
+    as: 'bookOrders'
+  });
 };
 
 module.exports = Book;

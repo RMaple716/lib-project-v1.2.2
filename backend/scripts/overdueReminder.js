@@ -1,6 +1,11 @@
-const { BorrowRecord, User, Book, Message, Mtype, BookOrder } = require('../models');
+// 确保所有模型关联已正确建立
+const models = require('../models');
+const { BorrowRecord, User, Book, Message, Mtype, BookOrder } = models;
+const { syncDatabase } = models;
 const { Op } = require('sequelize');
 const winston = require('winston');
+require('dotenv').config();
+
 // 创建日志记录器
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
@@ -179,6 +184,9 @@ async function sendExpiredOrderReminder(order, mtype) {
 async function checkAndUpdateExpiredOrders() {
   try {
     logger.info('开始执行预约过期检查任务');
+    
+    // 确保模型关联已建立
+    await syncDatabase();
 
     // 假设ready状态的预约在7天后过期
     const expireDate = new Date();
@@ -211,7 +219,7 @@ async function checkAndUpdateExpiredOrders() {
       return 0;
     }
 
-    expiredOrderMessageType = getOrCreateExpiredOrderMessageType();
+    expiredOrderMessageType = await getOrCreateExpiredOrderMessageType();
 
     // 更新这些预约的状态为expired并发送通知
     let processedCount = 0;
