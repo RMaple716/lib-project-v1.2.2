@@ -1130,14 +1130,6 @@
                   />
                 </div>
                 <div class="form-row">
-                  <label>邮箱</label>
-                  <input
-                    type="email"
-                    v-model.trim="feedbackEmail"
-                    placeholder="选填：example@mail.com"
-                  />
-                </div>
-                <div class="form-row">
                   <label>类别</label>
                   <select v-model="feedbackType">
                      <option v-for="type in messageTypes" :key="type._mtid" :value="type._mtname">{{ type._mtname }}</option>
@@ -1180,7 +1172,6 @@
                   </div>
                   <div class="history-content">
                     <p><strong>姓名：</strong>{{ item.name }}</p>
-                    <p><strong>邮箱：</strong>{{ item.email || "未提供" }}</p>
                     <p><strong>内容：</strong>{{ item.message }}</p>
                   </div>
                 </div>
@@ -2281,43 +2272,105 @@ async loadFeedbackHistory() {
   console.log('当前用户ID:', this.user._uid);
   
   try {
-    // 获取当前用户发送的意见建议类型的消息（_mtid = 3）
-    const response = await axios.get('/api/messages', {
-      params: {
-        page: 1,
-        limit: 100,
-        _mtid: 3, // 意见建议类型
-        _sender_id: this.user._uid // 发送者是当前用户
-      }
+    // 并行请求两种类型的消息
+    const [sentResponse, receivedResponse] = await Promise.all([
+      // 获取自己发送的"意见建议" (mtid=3)
+      axios.get('/api/messages', {
+        params: {
+          _sender_id: this.user._uid, // 发送者是当前用户
+          _mtid: 3, // 意见建议类型
+          page: 1,
+          limit: 100
+        }
+      }),
+      // 获取发送给自己的回复消息 (mtid=4)
+      axios.get('/api/messages', {
+        params: {
+          _receiver_id: this.user._uid, // 接收者是当前用户
+          _mtid: 4, // 回复类型
+          page: 1,
+          limit: 100
+        }
+      })
+    ]);
+
+    let originalFeedbacks = [];
+    let replies = [];
+    let hasError = false;
+
+    if (sentResponse.data.success) {
+      originalFeedbacks = sentResponse.data.data.messages || [];
+    } else {
+      console.error('获取已发送消息失败:', sentResponse.data.message);
+      hasError = true;
+    }
+
+    if (receivedResponse.data.success) {
+      replies = receivedResponse.data.data.messages || [];
+    } else {
+      console.error('获取已接收消息失败:', receivedResponse.data.message);
+      hasError = true;
+    }
+
+    // 如果两个请求都失败了，则直接返回
+    if (hasError && originalFeedbacks.length === 0 && replies.length === 0) {
+      this.feedbackError = '加载历史记录失败';
+      return;
+    }
+
+    // 将回复消息与原始反馈关联起来
+    const feedbacksWithReplies = [];
+    
+    // 添加原始反馈消息
+    originalFeedbacks.forEach(feedback => {
+      const feedbackItem = {
+        _mid: feedback._mid,
+        name: feedback.sender?._name || '未知',
+        type: '意见',
+        message: feedback._content,
+        date: feedback._create_time,
+        status: feedback._status === 1 ? "已读" : "未读",
+        reply: "",
+        originalContent: feedback._content,
+        sender_id: feedback._sender_id,
+        receiver_id: feedback._receiver_id,
+        replies: [] // 存储该反馈的回复
+      };
+      
+      // 查找针对此反馈的回复消息
+      const relatedReplies = replies.filter(reply => {
+        // 检查回复标题是否包含原始反馈ID，或回复内容中引用原始反馈
+        return reply._title.includes(`回复: ${feedback._mid}`) || reply._content.includes(`回复: ${feedback._mid}`);
+      });
+      
+      // 将相关回复添加到此反馈项
+      relatedReplies.forEach(reply => {
+        feedbackItem.replies.push({
+          _mid: reply._mid,
+          name: reply.sender?._name || '管理员',
+          message: reply._content,
+          date: reply._create_time,
+          status: reply._status === 1 ? "已读" : "未读"
+        });
+      });
+      
+      feedbacksWithReplies.push(feedbackItem);
     });
 
-    console.log('获取消息的响应:', response.data);
+    // 对所有反馈按时间排序
+    feedbacksWithReplies.sort((a, b) => {
+      // 首先比较主消息的时间
+      const dateB = new Date(b.date);
+      const dateA = new Date(a.date);
+      return dateB - dateA;
+    });
 
-    if (response.data.success) {
-      const messages = response.data.data.messages || [];
-      console.log('获取到的消息数量:', messages.length);
-      console.log('消息详情:', messages);
-
-      // 转换消息数据为历史记录格式
-      this.feedbackHistory = messages.map(msg => ({
-        _mid: msg._mid,
-        name: msg._content.match(/提交者姓名：(.*)/)?.[1] || '未知',
-        email: msg._content.match(/联系邮箱：(.*)/)?.[1] || '',
-        type: msg._content.match(/意见建议类型：(.*)/)?.[1] || '其他',
-        message: msg._content.match(/意见内容：(.*)/)?.[1] || '',
-        date: msg._create_time,
-        status: msg._status === 0 ? '未读' : '已读',
-        reply: msg._reply || '',
-        // 保留原始消息内容和ID用于调试
-        originalContent: msg._content,
-        sender_id: msg._sender_id,
-        receiver_id: msg._receiver_id
-      }));
-      
-      console.log('解析后的意见建议历史:', this.feedbackHistory);
-    }
+    this.feedbackHistory = feedbacksWithReplies;
+    
+    console.log('转换后的意见建议历史:', this.feedbackHistory);
   } catch (error) {
     console.error('加载意见建议历史失败:', error);
+    this.feedbackError = '加载历史记录失败: ' + error.message;
   }
 },
     // 获取消息列表
