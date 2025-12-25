@@ -1159,7 +1159,6 @@
                 <option value="_fid">反馈ID</option>
                 <option value="_uid">用户ID</option>
                 <option value="_email">读者邮箱</option>
-                <option value="_title">反馈标题</option>
                 <option value="_status">处理状态</option>
               </select>
               <input type="text" id="feedbackSearchInput" class="search-input" placeholder="请输入查询内容" v-model="feedbackSearchKeyword">
@@ -1174,7 +1173,6 @@
                   <th>反馈ID</th>
                   <th>读者姓名</th>
                   <th>反馈类型</th>
-                  <th>反馈标题</th>
                   <th>反馈内容</th>
                   <th>提交时间</th>
                   <th>处理状态</th>
@@ -1183,13 +1181,12 @@
               </thead>
               <tbody>
                 <tr v-if="currentPageFeedbacks.length === 0">
-                  <td colspan="9">{{ filteredFeedbacks.length === 0 ? '暂无意见建议' : '没有找到相关反馈' }}</td>
+                  <td colspan="8">{{ filteredFeedbacks.length === 0 ? '暂无意见建议' : '没有找到相关反馈' }}</td>
                 </tr>
                 <tr v-for="feedback in currentPageFeedbacks" :key="feedback._fid">
                   <td>{{ feedback._fid }}</td>
                   <td>{{ feedback._name }}</td>
                   <td>{{ feedback._type || '未分类' }}</td>
-                  <td>{{ feedback._title }}</td>
                   <td class="feedback-content-cell">
                     <div class="content-preview">{{ getContentPreview(getFeedbackContentOnly(feedback._content)) }}</div>
                   </td>
@@ -1240,10 +1237,6 @@
               <div class="detail-item">
                 <label>读者姓名：</label>
                 <span>{{ currentFeedback._name }}</span>
-              </div>
-              <div class="detail-item">
-                <label>反馈标题：</label>
-                <span>{{ currentFeedback._title }}</span>
               </div>
               <div class="detail-item">
                 <label>反馈内容：</label>
@@ -4590,6 +4583,15 @@ export default {
                 return msg._mtid === 3;
               })
               .map(msg => {
+                // 从标题中提取类型（标题格式为 "类型: 标题"）
+                const titleParts = msg._title ? msg._title.split(': ') : [];
+                let type = titleParts.length > 0 ? titleParts[0] : '未分类';
+                
+                // 防止类型重复，例如"意见建议 - 意见建议"，只保留第一部分
+                if (type.includes(' - ')) {
+                  type = type.split(' - ')[0];
+                }
+                
                 return {
                   ...msg,
                   _fid: msg._mid,  // 将消息ID映射为反馈ID
@@ -4597,6 +4599,7 @@ export default {
                   _sender_id: msg._sender_id || (msg.sender ? msg.sender._uid : undefined),
                   _email: msg._email || (msg.sender && msg.sender._email) || '',
                   _name: (msg.sender && msg.sender._name) ? msg.sender._name : (msg.sender && msg.sender._account) || '未知用户',  // 添加用户姓名
+                  _type: type, // 添加类型字段
                   // 查找该反馈的回复
                   replies: allMessages.filter(reply => 
                     reply._mtid === 4 && 
@@ -4818,11 +4821,12 @@ export default {
         // 使用现有的消息API提交反馈，使用类型2（意见建议）
         const response = await this.$http.post('/api/messages', {
           _receiver_id: 1,  // 发送给管理员（ID为1）
-          _title: this.feedbackType + ': ' + this.feedbackName,
-          _content: this.feedbackMessage,
+          _title: this.feedbackName,  // 只使用反馈名称，不包含类型
+          _content: this.feedbackType + ': ' + this.feedbackMessage,  // 在内容中包含类型信息
           _mtid: 2,  // 类型2表示"意见建议"
           _email: this.feedbackEmail  // 保存用户邮箱
         });
+
 
         if (response.data.success) {
           alert("感谢您的反馈，已提交！");
@@ -4860,18 +4864,29 @@ export default {
         if (response.data.success) {
           // 格式化数据以匹配前端显示需求
           this.feedbackHistory = response.data.data.messages.map(msg => ({
-            name: msg._title,
-            email: msg._email || (msg.sender && msg.sender._email) || '',
-            type: msg._title.split(':')[0] || this.feedbackType,
-            message: msg._content,
-            date: new Date(msg._create_time).toISOString().split("T")[0],
-            status: msg._status === 1 ? "已读" : "未读",
-            reply: "",
-            _fid: msg._mid,
-            _uid: msg._sender_id,
-            _status: msg._status,
-            _create_time: msg._create_time
-          }));
+              name: msg._title,
+              email: msg._email || (msg.sender && msg.sender._email) || '',
+              // 从标题中提取类型（标题格式为 "类型: 标题"），防止重复
+              type: (() => {
+                const titleParts = msg._title ? msg._title.split(': ') : [];
+                let type = titleParts.length > 0 ? titleParts[0] : '未分类';
+                
+                // 防止类型重复，例如"意见建议 - 意见建议"，只保留第一部分
+                if (type.includes(' - ')) {
+                  type = type.split(' - ')[0];
+                }
+                
+                return type;
+              })(),
+              message: msg._content,
+              date: new Date(msg._create_time).toISOString().split("T")[0],
+              status: msg._status === 1 ? "已读" : "未读",
+              reply: "",
+              _fid: msg._mid,
+              _uid: msg._sender_id,
+              _status: msg._status,
+              _create_time: msg._create_time
+            }));
         }
       } catch (error) {
         console.error(
