@@ -259,7 +259,6 @@
                 <select id="searchType" class="search-select" v-model="searchType">
                   <option value="_bid">序号</option> 
                   <option value="_book_name">书名</option>
-                  <option value="_isbn">ISBN号</option>
                   <option value="_type_name">图书类型</option>
                 </select>
                 <input type="text" id="searchInput" class="search-input" placeholder="请输入查询内容" v-model="searchKeyword">
@@ -354,7 +353,7 @@
                     <td>{{ book._book_name }}</td>
                     <td>{{ book._isbn }}</td>
                     <td>{{ book._press }}</td>
-                    <td>{{ book._num }}</td>
+                    <td>{{ book._total_copies }}</td>
                     <td>{{ book._available_copies !== undefined ? book._available_copies : 'N/A' }}</td>
                     <td>
                       <button class="edit-button" @click="editBook(book)">编辑</button>
@@ -1174,7 +1173,6 @@
                 <tr>
                   <th>反馈ID</th>
                   <th>读者姓名</th>
-                  <th>读者邮箱</th>
                   <th>反馈类型</th>
                   <th>反馈标题</th>
                   <th>反馈内容</th>
@@ -1190,11 +1188,10 @@
                 <tr v-for="feedback in currentPageFeedbacks" :key="feedback._fid">
                   <td>{{ feedback._fid }}</td>
                   <td>{{ feedback._name }}</td>
-                  <td>{{ feedback._email }}</td>
                   <td>{{ feedback._type || '未分类' }}</td>
                   <td>{{ feedback._title }}</td>
                   <td class="feedback-content-cell">
-                    <div class="content-preview">{{ getContentPreview(feedback._content) }}</div>
+                    <div class="content-preview">{{ getContentPreview(getFeedbackContentOnly(feedback._content)) }}</div>
                   </td>
                   <td>{{ formatDate(feedback._create_time) }}</td>
                   <td>
@@ -1203,10 +1200,21 @@
                     </span>
                   </td>
                   <td>
-                    <button class="view-details" @click="viewFeedbackDetail(feedback)">查看详情</button>
-                    <button class="edit-button" @click="replyFeedback(feedback)">回复</button>
-                    <button v-if="feedback._status === 0" class="publish-button" @click="markAsProcessed(feedback._fid)">标记已处理</button>
-                    <button class="delete-button" @click="deleteFeedback(feedback._fid)">删除</button>
+                    <button 
+                      v-if="feedback._status !== 1" 
+                      @click="replyFeedback(feedback)" 
+                      class="action-button reply-button"
+                      :disabled="feedback._status === 1"
+                    >
+                      回复
+                    </button>
+                    <span v-else class="status-text">已回复</span>
+                    <button 
+                      @click="viewFeedbackDetail(feedback)" 
+                      class="action-button view-button"
+                    >
+                      查看
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -1229,69 +1237,128 @@
             </div>
           </div>
 
-          <!-- 查看反馈详情弹窗 -->
-          <div id="feedbackDetailModal" class="modal" v-if="showFeedbackDetailModal">
-            <div class="modal-content">
-              <span class="close-button" @click="closeFeedbackDetailModal">&times;</span>
-              <h2>反馈详情</h2>
-              <div class="feedback-detail">
-                <div class="detail-item">
-                  <label>反馈ID：</label>
-                  <span>{{ currentFeedback._fid }}</span>
-                </div>
-                <div class="detail-item">
-                  <label>用户ID：</label>
-                  <span>{{ currentFeedback._uid }}</span>
-                </div>
-                <div class="detail-item">
-                  <label>读者邮箱：</label>
-                  <span>{{ currentFeedback._email }}</span>
-                </div>
-                <div class="detail-item">
-                  <label>反馈标题：</label>
-                  <span>{{ currentFeedback._title }}</span>
-                </div>
-                <div class="detail-item">
-                  <label>反馈内容：</label>
-                  <div class="feedback-content">{{ currentFeedback._content }}</div>
-                </div>
-                <div class="detail-item">
-                  <label>提交时间：</label>
-                  <span>{{ formatDate(currentFeedback._create_time) }}</span>
-                </div>
-                <div class="detail-item">
-                  <label>处理状态：</label>
-                  <span :class="currentFeedback._status === 1 ? 'status-published' : 'status-draft'">
-                    {{ currentFeedback._status === 1 ? '已处理' : '待处理' }}
-                  </span>
-                </div>
+          <!-- 反馈详情模态框 -->
+          <div v-if="showFeedbackDetailModal" class="feedback-detail-modal">
+            <div class="feedback-detail-modal-content">
+              <span class="feedback-detail-close" @click="closeFeedbackDetailModal">&times;</span>
+              <h3>反馈详情</h3>
+              <div class="detail-item">
+                <label>反馈ID：</label>
+                <span>{{ currentFeedback._fid }}</span>
               </div>
+              <div class="detail-item">
+                <label>读者姓名：</label>
+                <span>{{ currentFeedback._name }}</span>
+              </div>
+              <div class="detail-item">
+                <label>反馈标题：</label>
+                <span>{{ currentFeedback._title }}</span>
+              </div>
+              <div class="detail-item">
+                <label>反馈内容：</label>
+                <div class="feedback-content">{{ getFeedbackContentOnly(currentFeedback._content) }}</div>
+              </div>
+              <div class="detail-item">
+                <label>提交时间：</label>
+                <span>{{ formatDate(currentFeedback._create_time) }}</span>
+              </div>
+              <div class="detail-item">
+                <label>处理状态：</label>
+                <span :class="currentFeedback._status === 1 ? 'status-published' : 'status-draft'">
+                  {{ currentFeedback._status === 1 ? '已处理' : '待处理' }}
+                </span>
+              </div>
+
+              <!-- 显示回复 -->
+              <div v-if="currentFeedback.replies && currentFeedback.replies.length > 0">
+                <h3 style="margin-top: 20px;">管理员回复</h3>
+                <table class="feedback_table">
+                  <thead>
+                    <tr>
+                      <th>回复ID</th>
+                      <th>回复内容</th>
+                      <th>回复时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="reply in currentFeedback.replies" :key="reply._mid">
+                      <td>{{ reply._mid }}</td>
+                      <td class="feedback-content-cell">
+                        <div class="content-preview">{{ reply._content }}</div>
+                      </td>
+                      <td>{{ formatDate(reply._create_time) }}</td>
+                      <td>
+                        <button 
+                          @click="editReply(reply)" 
+                          class="action-button edit-button"
+                        >
+                          修改
+                        </button>
+                        <button 
+                          @click="deleteReply(reply._mid)" 
+                          class="action-button delete-button"
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 回复表单 -->
+              <form v-if="currentFeedback._status !== 1" class="reply-form" @submit.prevent="submitReply">
+                <h3>回复反馈</h3>
+                <div class="form-group">
+                  <label for="replySubject">回复主题：</label>
+                  <input 
+                    type="text" 
+                    id="replySubject" 
+                    v-model="replyForm.subject" 
+                    placeholder="回复主题"
+                  >
+                </div>
+                <div class="form-group">
+                  <label for="replyContent">回复内容：</label>
+                  <textarea 
+                    id="replyContent" 
+                    v-model="replyForm.content" 
+                    placeholder="请输入回复内容"
+                  ></textarea>
+                </div>
+                <div class="modal-buttons">
+                  <button type="button" class="cancel-button" @click="closeReplyFeedbackModal">取消</button>
+                  <button type="submit" class="submit-button">发送回复</button>
+                </div>
+              </form>
             </div>
           </div>
 
           <!-- 回复反馈弹窗 -->
-          <div id="replyFeedbackModal" class="modal" v-if="showReplyFeedbackModal">
+          <div v-if="showReplyFeedbackModal" class="modal">
             <div class="modal-content">
-              <span class="close-button" @click="closeReplyFeedbackModal">&times;</span>
-              <h2>回复读者反馈</h2>
+              <span class="close" @click="closeReplyFeedbackModal">&times;</span>
+              <h2>回复反馈</h2>
               <form @submit.prevent="submitReply">
-                <div class="reply-info">
-                  <div class="info-item">
-                    <label>读者邮箱：</label>
-                    <span>{{ currentFeedback._email }}</span>
-                  </div>
-                  <div class="info-item">
-                    <label>原反馈标题：</label>
-                    <span>{{ currentFeedback._title }}</span>
-                  </div>
+                <div class="form-group">
+                  <label for="replySubject">回复主题：</label>
+                  <input 
+                    type="text" 
+                    id="replySubject" 
+                    v-model="replyForm.subject" 
+                    required
+                  >
                 </div>
-                
-                <label for="replySubject">回复主题：</label>
-                <input type="text" id="replySubject" v-model="replyForm.subject" placeholder="请输入回复主题" required>
-                
-                <label for="replyContent">回复内容：</label>
-                <textarea id="replyContent" v-model="replyForm.content" placeholder="请输入回复内容" rows="8" required></textarea>
-                
+                <div class="form-group">
+                  <label for="replyContent">回复内容：</label>
+                  <textarea 
+                    id="replyContent" 
+                    v-model="replyForm.content" 
+                    required
+                    placeholder="请输入回复内容"
+                  ></textarea>
+                </div>
                 <div class="modal-buttons">
                   <button type="button" class="cancel-button" @click="closeReplyFeedbackModal">取消</button>
                   <button type="submit" class="submit-button">发送回复</button>
@@ -1478,7 +1545,7 @@ export default {
         status: 1  // 1: 已发布, 0: 草稿
       },
       // 意见建议相关数据
-      feedbackSearchType: '_email',
+      feedbackSearchType: '_fid',
       feedbackSearchKeyword: '',
       feedbacks: [],
       filteredFeedbacks: [],
@@ -1487,6 +1554,7 @@ export default {
       showFeedbackDetailModal: false,
       showReplyFeedbackModal: false,
       currentFeedback: {},
+      currentReply: null, // 当前正在编辑的回复
       replyForm: {
         subject: '',
         content: ''
@@ -2210,8 +2278,50 @@ export default {
                 responsive: true,
                 plugins: {
                   legend: {
-                    position: 'bottom',
+                    position: 'right',
+                    labels: {
+                      // 限制标签长度，过长的标签截断并加省略号
+                      generateLabels: function(chart) {
+                        const labels = chart.data.labels;
+                        const data = chart.data.datasets[0].data;
+                        
+                        return labels.map((label, i) => {
+                          // 限制标签长度，过长的标签截断并加省略号
+                          let truncatedLabel = label;
+                          if (label.length > 15) {
+                            truncatedLabel = label.substring(0, 12) + '...';
+                          }
+                          
+                          return {
+                            text: truncatedLabel + ' (' + data[i] + ')',
+                            fillStyle: chart.data.datasets[0].backgroundColor[i],
+                            strokeStyle: chart.data.datasets[0].borderColor || '#000',
+                            lineWidth: 1,
+                            hidden: isNaN(data[i]) || data[i] === 0,
+                            index: i
+                          };
+                        });
+                      },
+                      // 设置字体大小和间距
+                      font: {
+                        size: 11
+                      },
+                      padding: 15
+                    }
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed || 0;
+                        return label + ': ' + value;
+                      }
+                    }
                   }
+                },
+                interaction: {
+                  intersect: false,
+                  mode: 'index'
                 }
               }
             });
@@ -2510,7 +2620,6 @@ export default {
       const typeMap = {
         '_bid': '_bid', 
         '_book_name': '_book_name',
-        '_isbn': '_isbn',
         '_type_name': '_type_name'
       };
       
@@ -2557,7 +2666,7 @@ export default {
         isbn: book._isbn,
         bookType: book._tid,
         publisher: book._press,
-        totalQuantity: book._num
+        totalQuantity: book._total_copies
       };
       this.showAddBookModalFlag = true;
     },
@@ -2584,7 +2693,7 @@ export default {
         _isbn: isbn,
         _tid: bookType,
         _press: publisher,
-        _num: Number(totalQuantity),
+        _total_copies: Number(totalQuantity),
         _cover_url: coverUrl
       };
 
@@ -4394,19 +4503,30 @@ export default {
       // 标记为已处理 
       async markAsProcessed(feedbackId) {
         try {
-          const response = await this.$http.put(`/api/messages/${feedbackId}/read`); // 使用消息API的read接口
-          if (response.data.success) {
-            // 更新本地数据 - computed会自动更新分页
+          const token = localStorage.getItem('token');
+          const response = await fetch(`/api/messages/${feedbackId}/read`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          const result = await response.json();
+          if (response.ok) {
+            // 更新本地数据状态
             const index = this.feedbacks.findIndex(f => f._fid === feedbackId);
             if (index !== -1) {
               this.feedbacks[index]._status = 1;
               this.filteredFeedbacks = [...this.feedbacks]; // 更新过滤数据
             }
-            alert('已标记为已处理');
+            this.$message.success('已标记为已处理');
+          } else {
+            this.$message.error(result.message || '操作失败');
           }
         } catch (error) {
           console.error('标记处理状态失败:', error);
-          alert('操作失败，请重试');
+          this.$message.error('操作失败，请重试');
         }
       },
 
@@ -4414,16 +4534,27 @@ export default {
       async deleteFeedback(feedbackId) {
         if (confirm('确定要删除这条反馈吗？')) {
           try {
-            const response = await this.$http.delete(`/api/messages/${feedbackId}`); // 使用消息API的delete接口
-            if (response.data.success) {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/messages/${feedbackId}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
               // 从本地数据中移除 - computed会自动更新分页
               this.feedbacks = this.feedbacks.filter(f => f._fid !== feedbackId);
               this.filteredFeedbacks = this.filteredFeedbacks.filter(f => f._fid !== feedbackId);
-              alert('删除成功');
+              this.$message.success('删除成功');
+            } else {
+              this.$message.error(result.message || '删除失败');
             }
           } catch (error) {
             console.error('删除反馈失败:', error);
-            alert('删除失败，请重试');
+            this.$message.error('删除失败，请重试');
           }
         }
       },
@@ -4431,31 +4562,67 @@ export default {
       // 初始化意见建议数据
       async loadFeedbacks() {
         try {
-          // 管理员获取所有类型为"意见建议"的消息 (类型2)
-          console.log("开始加载消息")
+          // 管理员获取所有类型为"意见建议"的消息 (类型3)和相关的回复消息
           const token = localStorage.getItem('token');
           const response = await fetch('/api/messages/all', {
             headers: {
               'Authorization': `Bearer ${token}`
             }
           });
-          console.log("加载消息完成")
           const result = await response.json();
-          console.log("后端返回的消息数据:", result); // 添加调试日志
           if (response.ok) {
-            this.feedbacks = result.data.messages.map(msg => {
-            console.log("单个消息对象:", msg); // 添加调试日志
-            return {
-              ...msg,
-              _fid: msg._mid,  // 将消息ID映射为反馈ID
-              _uid: msg._sender_id,  // 将发送者ID映射为用户ID
-              _sender_id: msg._sender_id,
-              _email: msg._email || (msg.sender && msg.sender._email) || '',
-              _name: msg.sender && msg.sender._name ? msg.sender._name : '未知用户'  // 添加用户姓名
-            };
-          });
-          this.filteredFeedbacks = this.feedbacks;
-          this.feedbackCurrentPage = 1; // 重置到第一页
+            // 分离原始反馈和回复消息
+            const allMessages = result.data.messages;
+            
+            // 获取所有回复消息的原始反馈ID
+            const replyToIds = new Set();
+            allMessages.forEach(msg => {
+              if (msg._mtid === 4) { // 回复类型消息
+                // 提取回复消息标题中的原始反馈ID（格式为 "回复: [原始反馈ID] - [原始标题]" 或类似格式）
+                const match = msg._title.match(/回复:\s*(\d+)/);
+                if (match && match[1]) {
+                  replyToIds.add(parseInt(match[1]));
+                }
+              }
+            });
+            
+            // 过滤出原始反馈消息（类型为3）和不是回复其他反馈的消息
+            this.feedbacks = allMessages
+              .filter(msg => {
+                // 原始反馈消息 (类型3) 或者不是回复类型的消息
+                return msg._mtid === 3 || !replyToIds.has(msg._mid);
+              })
+              .map(msg => {
+                return {
+                  ...msg,
+                  _fid: msg._mid,  // 将消息ID映射为反馈ID
+                  _uid: msg.sender ? msg.sender._uid : msg._sender_id,  // 优先使用sender._uid
+                  _sender_id: msg._sender_id || (msg.sender ? msg.sender._uid : undefined),
+                  _email: msg._email || (msg.sender && msg.sender._email) || '',
+                  _name: (msg.sender && msg.sender._name) ? msg.sender._name : (msg.sender && msg.sender._account) || '未知用户',  // 添加用户姓名
+                  // 查找该反馈的回复
+                  replies: allMessages.filter(reply => 
+                    reply._mtid === 4 && 
+                    reply._title.includes(`回复: ${msg._mid}`) // 回复标题包含原始反馈ID
+                  )
+                };
+              });
+              
+            // 检查是否有对应的回复消息来更新状态
+            this.feedbacks.forEach(feedback => {
+              const replyMessages = allMessages.filter(reply => 
+                reply._mtid === 4 && 
+                reply._title.includes(`回复: ${feedback._mid}`)
+              );
+              
+              // 如果有回复消息，则原始反馈的状态设置为已处理
+              if (replyMessages.length > 0) {
+                feedback._status = 1; // 已处理
+              }
+            });
+            
+            this.filteredFeedbacks = this.feedbacks;
+            this.feedbackCurrentPage = 1; // 重置到第一页
           } else {
             this.$message.error(result.message || '获取消息列表失败');
           }
@@ -4468,27 +4635,92 @@ export default {
       // 提交回复
       async submitReply() {
         if (!this.replyForm.subject || !this.replyForm.content) {
-          alert('请填写回复主题和内容');
+          this.$message.error('请填写回复主题和内容');
           return;
         }
 
         try {
-          // 使用现有的消息API发送回复
-          const response = await this.$http.post('/api/messages', {
-            _receiver_id: this.currentFeedback._sender_id, // 回复给原始反馈的发送者
-            _title: this.replyForm.subject,
-            _content: this.replyForm.content,
-            _mtid: 3,  // 使用类型3（意见回馈）作为回复类型
+          const token = localStorage.getItem('token');
+
+          // 检查接收者ID是否存在
+          if (!this.currentFeedback._uid) {
+            this.$message.error('无法获取接收者信息');
+            return;
+          }
+          
+          // 使用现有的消息API发送回复，类型为4（回复）
+          const response = await fetch('/api/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              _receiver_id: this.currentFeedback._uid, // 回复给原始反馈的发送者（即读者）
+              _title: `回复: ${this.currentFeedback._fid} - ${this.currentFeedback._title}`,
+              _content: this.replyForm.content,
+              _mtid: 4,  // 使用类型4（回复类型）
+            })
           });
 
-          if (response.data.success) {
+          const result = await response.json();
+          console.log('回复API响应:', result); // 调试信息
+          
+          if (response.ok) {
             this.$message.success('回复提交成功');
-            this.closeReplyFeedbackModal();
             
-            // 重新加载反馈列表以更新显示
-            await this.loadFeedbacks();
+            // 更新本地反馈的状态为已处理
+            const feedbackIndex = this.feedbacks.findIndex(f => f._fid === this.currentFeedback._fid);
+            if (feedbackIndex !== -1) {
+              this.feedbacks[feedbackIndex]._status = 1;
+              
+              // 从API响应创建新的回复对象，确保所有字段都有默认值
+              let newReply;
+              if (result.data && result.data.message) {
+                // API返回格式为 { success: true, message: "...", data: { message: { ... } } }
+                newReply = {
+                  _mid: result.data.message._mid || Date.now(),
+                  _title: result.data.message._title || this.replyForm.subject,
+                  _content: result.data.message._content || this.replyForm.content,
+                  _create_time: result.data.message._create_time || new Date().toISOString(),
+                  _name: result.data.message.sender && result.data.message.sender._name ? 
+                         result.data.message.sender._name : '管理员'
+                };
+              } else if (result.data && result.data._mid) {
+                // API直接返回消息对象
+                newReply = {
+                  _mid: result.data._mid || Date.now(),
+                  _title: result.data._title || this.replyForm.subject,
+                  _content: result.data._content || this.replyForm.content,
+                  _create_time: result.data._create_time || new Date().toISOString(),
+                  _name: result.data.sender && result.data.sender._name ? 
+                         result.data.sender._name : '管理员'
+                };
+              } else {
+                // 未知响应格式，使用表单数据和当前时间
+                newReply = {
+                  _mid: Date.now(), // 使用时间戳作为临时ID
+                  _title: this.replyForm.subject,
+                  _content: this.replyForm.content,
+                  _create_time: new Date().toISOString(),
+                  _name: '管理员'
+                };
+              }
+              
+              if (!this.feedbacks[feedbackIndex].replies) {
+                this.feedbacks[feedbackIndex].replies = [];
+              }
+              this.feedbacks[feedbackIndex].replies.push(newReply);
+            }
+            
+            const filteredIndex = this.filteredFeedbacks.findIndex(f => f._fid === this.currentFeedback._fid);
+            if (filteredIndex !== -1) {
+              this.filteredFeedbacks[filteredIndex]._status = 1;
+            }
+            
+            this.closeReplyFeedbackModal();
           } else {
-            this.$message.error(response.data.message || '回复失败');
+            this.$message.error(result.message || '回复失败');
           }
         } catch (error) {
           console.error('提交回复失败:', error);
@@ -4496,13 +4728,81 @@ export default {
         }
       },
 
+      // 删除回复
+      async deleteReply(replyId) {
+        if (confirm('确定要删除这条回复吗？删除后，对应的原始反馈将恢复为待处理状态。')) {
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/messages/${replyId}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+              // 从本地数据中移除回复
+              // 遍历所有反馈，找到包含此回复的反馈
+              for (let i = 0; i < this.feedbacks.length; i++) {
+                const feedback = this.feedbacks[i];
+                if (feedback.replies) {
+                  // 查找并移除指定的回复
+                  const replyIndex = feedback.replies.findIndex(r => r._mid === replyId);
+                  if (replyIndex !== -1) {
+                    // 从反馈的回复列表中移除该回复
+                    feedback.replies.splice(replyIndex, 1);
+                    
+                    // 检查是否还有其他回复，如果没有则将状态改为待处理
+                    if (feedback.replies.length === 0) {
+                      feedback._status = 0; // 待处理
+                      
+                      // 更新过滤后的数据
+                      const filteredIndex = this.filteredFeedbacks.findIndex(f => 
+                        f._fid === feedback._fid
+                      );
+                      if (filteredIndex !== -1) {
+                        this.filteredFeedbacks[filteredIndex]._status = 0;
+                      }
+                    }
+                    break; // 找到并处理后退出循环
+                  }
+                }
+              }
+              
+              this.$message.success('回复删除成功');
+            } else if (response.status === 404) {
+              this.$message.error('消息不存在或已被删除');
+            } else if (response.status === 403) {
+              this.$message.error('没有权限删除此消息');
+            } else {
+              this.$message.error(result.message || '删除失败');
+            }
+          } catch (error) {
+            console.error('删除回复失败:', error);
+            this.$message.error('删除失败，请重试');
+          }
+        }
+      },
+
+      // 修改回复
+      editReply(reply) {
+        this.replyForm.subject = reply._title;
+        this.replyForm.content = reply._content;
+        this.currentReply = reply;
+        this.showReplyFeedbackModal = true;
+      },
+
       // 关闭回复反馈弹窗
       closeReplyFeedbackModal() {
         this.showReplyFeedbackModal = false;
+        this.showFeedbackDetailModal = false; // 同时关闭详情模态框
         this.replyForm = {
           subject: '',
           content: ''
         };
+        this.currentReply = null;
       },
 
       async handleFeedbackSubmit() {
@@ -4588,6 +4888,38 @@ export default {
       changeFeedbackPage(page) {
         if (page < 1 || page > this.totalFeedbackPages) return;
         this.feedbackCurrentPage = page;
+      },
+
+      viewFeedbackDetail(feedback) {
+        this.currentFeedback = { ...feedback };
+        this.showFeedbackDetailModal = true;
+      },
+      
+      // 关闭反馈详情弹窗
+      closeFeedbackDetailModal() {
+        this.showFeedbackDetailModal = false;
+        this.currentFeedback = {};
+      },
+      
+      // 回复反馈
+      replyFeedback(feedback) {
+        this.currentFeedback = { ...feedback };
+        this.replyForm.subject = `回复: ${feedback._title}`;
+        this.showReplyFeedbackModal = true;
+      },
+
+      // 提取反馈内容中仅意见内容部分
+      getFeedbackContentOnly(content) {
+        if (!content) return '';
+        
+        // 匹配 "意见内容：" 后面的内容
+        const match = content.match(/意见内容：(.*)/);
+        if (match && match[1]) {
+          return match[1];
+        }
+        
+        // 如果没有匹配到格式化内容，返回原始内容
+        return content;
       },
     // 调用退出API再跳转
     async performLogout() {
@@ -6446,6 +6778,173 @@ button:disabled:hover {
   gap: 10px;
   margin-top: 100px; /* 将按钮推到底部 */
   padding-top: 15px; /* 添加一些顶部间距 */
+}
+
+#delayModal .modal-buttons {
+  display: flex;
+  justify-content: flex-end; /* 按钮靠右对齐 */
+  gap: 10px;
+  margin-top: 100px; /* 将按钮推到底部 */
+  padding-top: 15px; /* 添加一些顶部间距 */
+}
+
+/* 意见建议表格样式 */
+.feedback_table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.feedback_table th,
+.feedback_table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.feedback_table th {
+  background-color: #2691a6;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.feedback_table tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.feedback_table tr:hover {
+  background-color: #e9f7fe;
+}
+
+.feedback-content-cell {
+  max-width: 200px;
+  word-wrap: break-word;
+}
+
+.content-preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-button {
+  padding: 6px 12px;
+  margin: 0 3px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.3s;
+}
+
+.status-text {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* 详情模态框样式 */
+.feedback-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.feedback-detail-modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.feedback-detail-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 24px;
+  cursor: pointer;
+  color: #aaa;
+}
+
+.feedback-detail-close:hover {
+  color: black;
+}
+
+.detail-item {
+  margin-bottom: 15px;
+}
+
+.detail-item label {
+  font-weight: bold;
+  display: inline-block;
+  width: 100px;
+}
+
+.detail-item span {
+  display: inline-block;
+  max-width: calc(100% - 110px);
+  word-wrap: break-word;
+}
+
+.feedback-content {
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  border-left: 3px solid #2691a6;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* 回复表单样式 */
+.reply-form {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.reply-form h3 {
+  margin-bottom: 15px;
+  color: #2691a6;
+}
+
+.reply-form .form-group {
+  margin-bottom: 15px;
+}
+
+.reply-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.reply-form input,
+.reply-form textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.reply-form textarea {
+  height: 100px;
+  resize: vertical;
 }
 
 </style>
