@@ -4583,23 +4583,11 @@ export default {
             // 分离原始反馈和回复消息
             const allMessages = result.data.messages;
             
-            // 获取所有回复消息的原始反馈ID
-            const replyToIds = new Set();
-            allMessages.forEach(msg => {
-              if (msg._mtid === 4) { // 回复类型消息
-                // 提取回复消息标题中的原始反馈ID（格式为 "回复: [原始反馈ID] - [原始标题]" 或类似格式）
-                const match = msg._title.match(/回复:\s*(\d+)/);
-                if (match && match[1]) {
-                  replyToIds.add(parseInt(match[1]));
-                }
-              }
-            });
-            
-            // 过滤出原始反馈消息（类型为3）和不是回复其他反馈的消息
+            // 过滤出原始反馈消息（类型为3）
             this.feedbacks = allMessages
               .filter(msg => {
-                // 原始反馈消息 (类型3) 或者不是回复类型的消息
-                return msg._mtid === 3 || !replyToIds.has(msg._mid);
+                // 只显示原始反馈消息 (类型3)
+                return msg._mtid === 3;
               })
               .map(msg => {
                 return {
